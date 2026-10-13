@@ -1,0 +1,14 @@
+# 매월 1일 월간 리포트 (지난달 기준). 정보성(info)
+msg_type: info
+
+monthly_report:
+  default:
+    title: "{month} 예수금 리포트"
+    body: |-
+      {name}님의 {month} 계좌 리포트예요.
+
+      ■ 잠자는 동안 못 받은 이자 ({month}): 약 {missed_month}
+      ■ 깨우면 1년에 더 받을 이자: 약 {will_miss}
+      ■ 깨운 뒤 받은 이자 ({month}): {found_month}
+
+      앱 > 잠자는 예수금 깨우기에서 날짜별 내역을 볼 수 있어요.

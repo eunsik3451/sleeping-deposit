@@ -1,0 +1,71 @@
+# 실제 원장 컬럼명 ↔ 표준 컬럼명
+# 형식:  표준컬럼: 원본컬럼
+# 지금은 가상 데이터라 항등 매핑. 실서비스에서는 오른쪽 값만 원장 컬럼명으로 바꾼다.
+# 여기 없는 컬럼은 원본과 표준 이름이 같다고 본다.
+
+customers:
+  customer_id: customer_id
+  name: name
+  birth_year: birth_year
+  risk_profile: risk_profile
+  risk_profile_date: risk_profile_date
+  income_band: income_band
+  pb_id: pb_id
+  auto_rp_enabled: auto_rp_enabled
+  auto_rp_keep_krw: auto_rp_keep_krw
+  consent_push_ad: consent_push_ad
+  consent_kakao_ad: consent_kakao_ad
+  consent_night_ad: consent_night_ad
+
+cash_balances_daily:
+  date: date
+  customer_id: customer_id
+  currency: currency
+  cash: cash
+  unsettled_buy: unsettled_buy
+  margin_required: margin_required
+  auto_rp_balance: auto_rp_balance
+
+cash_flows:
+  date: date
+  customer_id: customer_id
+  currency: currency
+  flow_type: flow_type
+  amount: amount
+
+products:
+  product_id: product_id
+  name: name
+  product_type: product_type
+  currency: currency
+  risk_grade: risk_grade
+  annual_rate: annual_rate
+  term_days: term_days
+  min_amount: min_amount
+
+fx_rates:
+  date: date
+  currency: currency
+  rate: rate
+
+overseas_tax_ytd:
+  customer_id: customer_id
+  year: year
+  realized_gain_krw: realized_gain_krw
+  unrealized_loss_krw: unrealized_loss_krw
+  unrealized_gain_krw: unrealized_gain_krw
+
+holdings:
+  customer_id: customer_id
+  symbol: symbol
+  name: name
+  qty: qty
+  current_price: current_price
+
+tender_offers:
+  offer_id: offer_id
+  symbol: symbol
+  name: name
+  offer_price: offer_price
+  start_date: start_date
+  end_date: end_date

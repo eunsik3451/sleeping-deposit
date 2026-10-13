@@ -1,0 +1,581 @@
+# 놓친 돈 리포트 (Missed Money Report) — 프로토타입 스펙 v2
+
+> 이 파일은 Claude Code가 세션마다 자동으로 읽는 프로젝트 지침입니다.
+> 작업 전 맨 아래 **"진행 기록"** 을 먼저 읽고, 마일스톤 하나를 끝낼 때마다 그 섹션을 갱신하세요.
+> 마일스톤마다 멈추고 사용자에게 결과를 보여준 뒤 다음으로 넘어갑니다.
+
+**v2 변경 요약:** 이번 단계의 집중 대상은 두 가지입니다.
+1. **예수금 활용 고도화 (R1)** — 노는 돈을 정확히 가려내고, 고객 유형에 맞는 운용 방법을 온라인에서 바로 제안·실행
+2. **놓친 돈 알림·리포트 고도화** — 언제, 어떤 채널로, 얼마나 자주, 어떤 문구로 알릴지 정하는 알림 엔진과 월간 리포트
+
+해외주식 양도세(R2), 공개매수(R3), 연금저축(R4)은 부록 A로 내리고 이번 단계에서는 만들지 않습니다.
+
+---
+
+## 1. 프로젝트 개요
+
+유진투자증권 사내 AX 공모전(주제: 고객의 투자경험 혁신) 출품용 프로토타입.
+
+**한 줄 정의:** 고객이 따로 입력하지 않아도 계좌·거래 데이터만으로 "놓치고 있거나 곧 놓칠 돈"을 찾아 금액으로 보여주고, 알맞은 때·채널·문구로 알려 바로 실행까지 이어지게 하는 도구.
+
+**설계 원칙**
+1. 돈 계산은 결정론적 룰 엔진만 한다. 문장 생성은 숫자를 바꿀 수 없다.
+2. 회사 수익이 줄어드는 항목(환전 수수료 비교, 저보수 상품 전환 등)은 다루지 않는다.
+3. **단순·저위험 실행(RP·자동 운용)은 온라인에서 끝낸다.** 단, 투자성향 진단 유효성과 상품 위험등급을 확인하고 설명서 확인 단계를 거친다. 판단이 필요한 상담과 큰 금액은 PB 콜리스트로 보낸다.
+4. 모든 기준값은 `config.yaml`에서 바꿀 수 있어야 한다. 하드코딩 금지.
+5. 데이터는 전부 가상 데이터. 실제 고객 정보는 쓰지 않는다.
+6. 알림은 실제로 발송하지 않는다. "발송함(outbox)"에 쌓고 화면에서 미리보기만 한다.
+
+---
+
+## 2. 범위
+
+### 이번에 만든다
+| 구분 | 내용 |
+|---|---|
+| R1 예수금 활용 | 행동 기반 버퍼, 유입 유형 분류(장기방치·이벤트유입·매매대기·외화), 과거 90일 놓친 이자 역산, 운용 방법 매칭, 적합성 게이트, 자동 RP 운용 동의 흐름 |
+| 알림 엔진 | 트리거, 정보성/광고성 구분, 채널별 수신동의, 야간 전송 제한, 빈도 제한, 중복 방지·보류, PB 큐 |
+| 월간 리포트 | 고객별 "놓친 돈 / 놓칠 돈 / 찾은 돈" 3개 숫자와 추이 |
+| 화면 | 고객 리포트, 알림 미리보기, PB 콜리스트, 회사 대시보드, 설정 |
+
+### 만들지 않는다 — 요청받기 전엔 절대 손대지 말 것
+- 로그인/인증, 실제 주문·RP 매수 연동(버튼은 데모 모달만), 실제 푸시·알림톡 발송
+- DB 서버, Docker, 배포, CI
+- 외부 LLM API 호출 (API 키 없음 — 8장)
+- R2·R3·R4 및 ISA·유상증자 등 (부록 A, 다음 단계)
+
+---
+
+## 3. 기술 스택과 실행
+
+- Python 3.11+, pandas, numpy, PyYAML, Streamlit, pytest
+- 저장: 로컬 CSV (`data/demo/*.csv`), outbox·action_log도 CSV
+- 실행 `streamlit run app/main.py` / 테스트 `pytest -q` / 데이터 생성 `python scripts/generate_demo_data.py --seed 42`
+- `git init` 후 마일스톤마다 커밋
+
+## 4. 디렉터리 구조
+
+```
+missed-money/
+├── CLAUDE.md
+├── config.yaml
+├── column_map.yaml              # 실제 원장 컬럼명 ↔ 표준 컬럼명 (지금은 항등)
+├── data/demo/                   # 가상 데이터
+├── data/outbox.csv              # 생성된 알림 (미발송)
+├── data/action_log.csv
+├── engine/
+│   ├── adapter.py               # CSV 로드 + column_map 적용
+│   ├── models.py                # Finding, Recommendation, Message dataclass
+│   ├── cash/
+│   │   ├── idle.py              # 버퍼·idle 계산, 연속일, 과거 놓친 이자
+│   │   ├── classify.py          # 유입 유형 분류
+│   │   ├── recommend.py         # 운용 방법 매칭 + 금액 산정
+│   │   └── suitability.py       # 투자성향 유효성·위험등급 게이트
+│   ├── rules/idle_cash.py       # 위 모듈을 묶어 R1 Finding 생성
+│   ├── runner.py
+│   └── priority.py
+├── notify/
+│   ├── triggers.py              # 어떤 사건이 알림을 만드는가
+│   ├── policy.py                # 동의·야간·빈도·중복·보류
+│   ├── outbox.py                # 발송함 기록
+│   └── report.py                # 월간 리포트 집계
+├── messages/
+│   ├── generator.py             # MessageGenerator 인터페이스 + TemplateGenerator
+│   ├── validator.py             # 문장 속 숫자 검증
+│   └── templates/*.yaml
+├── app/
+│   ├── main.py
+│   ├── page_customer.py         # 고객 리포트
+│   ├── page_outbox.py           # 알림 미리보기
+│   ├── page_pb.py
+│   ├── page_company.py
+│   └── page_settings.py
+├── scripts/generate_demo_data.py
+└── tests/
+    ├── fixtures/
+    ├── test_cash.py
+    └── test_notify.py
+```
+
+---
+
+## 5. 데이터 모델 (표준 컬럼)
+
+금액은 원(KRW) 정수, 외화는 해당 통화 소수. 날짜 `YYYY-MM-DD`, 시각 `YYYY-MM-DD HH:MM`.
+
+**customers**
+`customer_id, name(가명), birth_year, risk_profile, risk_profile_date, income_band, pb_id, auto_rp_enabled(bool), auto_rp_keep_krw(자동 운용 시 남겨둘 금액), consent_push_ad(bool), consent_kakao_ad(bool), consent_night_ad(bool)`
+- risk_profile: `안정형 / 안정추구형 / 위험중립형 / 적극투자형 / 공격투자형`
+
+**cash_balances_daily** — 계좌·통화별 일말 잔고
+`date, customer_id, currency(KRW/USD), cash, unsettled_buy, margin_required, auto_rp_balance`
+
+**cash_flows** — 일별 현금 흐름 (v1의 cash_events를 대체)
+`date, customer_id, currency, flow_type, amount`
+- flow_type: `buy_settle`(유출), `withdrawal`(유출), `sell_settle`, `deposit`, `dividend`, `els_redemption`, `bond_maturity`, `interest`(유입)
+- amount는 항상 양수, 방향은 flow_type으로 판단
+
+**products** — 예수금 운용 상품 (값은 전부 가상, 실제 라인업은 확인 필요)
+`product_id, name, product_type(auto_rp/on_demand_rp/term_rp/cma/usd_rp), currency, risk_grade(1~6, 6이 가장 낮은 위험), annual_rate, term_days(0이면 수시), min_amount`
+
+**fx_rates** `date, currency, rate`
+
+**outbox** `message_id, customer_id, finding_id, trigger, channel(push/kakao/pb_queue/monthly_report), msg_type(info/ad), scheduled_at, title, body, status(queued/held/previewed/sent_sim/opened_sim/executed_sim), hold_reason`
+
+**action_log** `timestamp, customer_id, finding_id, action(viewed/executed/pb_called/dismissed/auto_rp_on)`
+
+`engine/adapter.py`는 반드시 `column_map.yaml`을 거쳐 로드한다.
+
+---
+
+## 6. R1 예수금 활용 — 상세 명세
+
+모든 계산은 `as_of_date` 기준. 조회 구간 `lookback = [as_of − (lookback_days − 1), as_of]` (기본 90일, 양끝 포함). 통화별로 따로 계산한다.
+
+### 6.1 버퍼 (행동 기반)
+`buffer = max(min_buffer_krw, 조회 구간 중 하루 유출액(buy_settle + withdrawal)의 최댓값)`
+- 외화는 해당일 환율로 원화 환산 후 같은 식 적용
+- 설명 문구: "최근 3개월 중 하루에 가장 많이 쓰신 금액만큼은 남겨두고 계산했어요"
+
+### 6.2 idle과 연속일
+- 일별 `idle_d = max(0, cash − unsettled_buy − margin_required − buffer)` (원화 환산)
+- `streak` = as_of에서 거꾸로 세어 `idle_d >= min_idle_amount_krw`인 연속 일수
+- **R1 해당 조건:** `streak >= min_idle_days` 이고 `auto_rp_enabled == False`
+
+### 6.3 금액 3종
+- `missed_lookback` (지난 90일 놓친 이자): `Σ_{d∈lookback, idle_d ≥ min_sweep_krw} idle_d × spread / 365`, 원 단위 내림. "자동 운용을 켜두었다면 받았을 이자"
+- `annual_projection` (앞으로 1년): `idle_{as_of} × spread`, 원 단위 내림
+- `spread` = 원화 `krw_rp_rate − krw_deposit_rate`, 외화 `usd_rp_rate − usd_deposit_rate`
+- Finding의 `amount_krw` = `missed_lookback`, 화면 보조 숫자 = `annual_projection`
+
+### 6.4 유입 유형 분류 (`classify.py`, 위에서부터 먼저 맞는 것)
+1. **외화방치형**: currency가 USD
+2. **이벤트유입형**: 최근 `event_window_days`(14일) 안에 dividend/els_redemption/bond_maturity 유입이 있고, 그 이후 잔고 감소가 유입액의 50% 미만
+3. **매매대기형**: 최근 30일 buy_settle 발생 일수 ≥ `active_trader_buy_days`(4)
+4. **장기방치형**: 위에 해당 없음
+
+유형별 제목·제안 차이:
+| 유형 | 제목 예 | 1순위 제안 | 비고 |
+|---|---|---|---|
+| 이벤트유입형 | "ELS 상환금 3,000만원이 12일째 쉬고 있어요" | 수시 RP 또는 약정식 RP | 재투자 상담 원하면 PB 연결 버튼 |
+| 장기방치형 | "예수금 8,000만원이 90일째 그대로예요" | 약정식 RP(금액 큼) 또는 자동 RP | |
+| 매매대기형 | "매수 대기 자금도 쉬는 동안 이자를 받을 수 있어요" | **자동 RP만** (매수 시 자동 해지되므로 매매 방해 없음) | 약정식 제안 금지 |
+| 외화방치형 | "달러 예수금 $8,000이 30일째 그대로예요" | 외화 RP | 환전 권유 금지 |
+
+### 6.5 운용 방법 매칭과 금액 (`recommend.py`)
+- 제안 금액 `suggest_amount = floor(idle_{as_of} / 100,000) × 100,000` (외화는 $100 단위)
+- 후보: 해당 통화·유형에 허용된 products 중 `min_amount ≤ suggest_amount`
+- 약정식 RP는 장기방치형이고 `suggest_amount ≥ term_rp_min_krw`일 때만 후보
+- 정렬: annual_rate 내림차순, 같으면 수시 상품 우선
+- 항상 **"자동 RP 운용 켜기"** 를 보조 제안으로 함께 제시(외화 제외)
+
+### 6.6 적합성 게이트 (`suitability.py`)
+- `profile_valid = (as_of − risk_profile_date) ≤ risk_profile_valid_days`
+- `allowed = product.risk_grade ∈ config.risk_matrix[risk_profile]`
+- 결과에 따라 Finding.action이 달라진다:
+  - valid & allowed → `rp_buy` (상품 카드 + 설명서 확인 체크 + 실행 버튼)
+  - 진단 만료 → `reassess` ("투자성향 다시 진단하기"). 사실 정보(놓친 이자)는 그대로 보여준다
+  - 허용 상품 없음 → `pb_consult`
+- 판단 결과와 이유를 evidence에 남긴다 (예: "투자성향 진단일 2025-11-02, 유효기간 경과")
+
+### 6.7 자동 RP 운용 동의 흐름 (화면 + 상태)
+- 버튼 → 모달: 남겨둘 금액 입력(기본값 = buffer), 상품설명서 확인 체크, 동의 → `customers.auto_rp_enabled = True`, `auto_rp_keep_krw` 저장, action_log `auto_rp_on`
+- 켜진 고객은 R1 Finding 대신 **"찾은 돈" 카드**: 켠 날부터 as_of까지 시뮬레이션 이자(`Σ max(0, cash − keep) × krw_rp_rate / 365`)를 보여준다
+- 데모 중 켜면 즉시 화면에 반영되어야 함 (session_state + CSV 저장)
+
+### 6.8 Finding 스키마
+```json
+{
+  "finding_id": "R1-KRW-P003-20261210",
+  "customer_id": "P003",
+  "rule": "R1",
+  "subtype": "long_idle",
+  "currency": "KRW",
+  "title": "예수금 8,000만원이 90일째 그대로예요",
+  "amount_krw": 0,
+  "amount_label": "지난 90일 놓친 이자",
+  "annual_projection_krw": 0,
+  "deadline": null,
+  "evidence": ["…"],
+  "recommendation": {"product_id": "…", "suggest_amount": 0, "alt": "auto_rp"},
+  "action": {"type": "rp_buy|reassess|pb_consult", "label": "…"},
+  "pb_flag": true
+}
+```
+- `pb_flag` = idle ≥ `pb_threshold_krw` 이거나, action이 `pb_consult`, 또는 이벤트유입형 유입액 ≥ `pb_event_threshold_krw`
+
+---
+
+## 7. 놓친 돈 알림 엔진 — 상세 명세
+
+### 7.1 트리거 (`triggers.py`)
+| 트리거 | 조건 | 메시지 성격 |
+|---|---|---|
+| T_EVENT | 이벤트 유입 다음 날, 그날까지 재투자 없음 | info |
+| T_IDLE_FIRST | R1 streak가 처음 min_idle_days에 도달한 날 | 사실만이면 info, 상품 언급하면 ad |
+| T_IDLE_UPDATE | 마지막 알림 후 30일 경과, 여전히 해당 | ad |
+| T_REASSESS | 진단 만료로 실행이 막힌 고객 | info |
+| T_MONTHLY | 매월 1일, 월간 리포트 | info (상품 링크 포함 시 ad) |
+| T_FOUND | 자동 RP 켠 고객, 매월 1일 "찾은 돈" | info |
+
+### 7.2 정보성과 광고성
+- **info**: 고객 본인 계좌의 사실만 담음 (잔고, 놓친 이자, 기한). 상품명·금리·가입 권유 없음
+- **ad**: 특정 상품 안내·가입 유도 포함. 규칙:
+  - 채널별 광고 수신동의가 없으면 그 채널로 만들지 않고 `pb_queue`로 보낸다
+  - 제목 맨 앞에 `(광고)` 표기
+  - 21:00~다음 날 08:00 사이 예정이면 야간 수신동의가 없는 한 다음 날 `default_send_time`으로 미룬다
+- 이 기준값들은 config에 두고, 화면 설정에서 "준법 검토 필요" 표시
+
+### 7.3 빈도·중복·보류 (`policy.py`)
+- 고객당 push+kakao 합계 주 `max_per_week`건, 월 `max_per_month`건. 넘치면 status `held`, hold_reason `frequency_cap`, 다음 주로 이월
+- 우선순위가 높은 것부터 보낸다 (`priority.py`: 기한 임박 → 이벤트유입 → 금액 큰 순)
+- 같은 finding 재알림: 마지막 알림 후 `renotify_days` 경과 **또는** 금액이 `renotify_growth`(50%) 이상 증가했을 때만
+- 고객이 dismiss하면 `snooze_days`(30일) 동안 같은 finding 알림 보류
+- pb_queue와 monthly_report는 빈도 제한에서 제외
+
+### 7.4 발송함 (`outbox.py`)
+- 하루 배치 함수 `build_outbox(as_of)` → 트리거 수집 → 정책 적용 → 메시지 생성 → outbox.csv 기록
+- 실제 발송 없음. 데모용으로 `simulate_engagement(seed)`가 열람 약 60%, 실행 약 20%를 sent_sim/opened_sim/executed_sim으로 채운다
+
+### 7.5 월간 리포트 (`report.py`)
+고객별, 기준월 단위로 세 숫자:
+- **놓친 돈**: 그 달에 발생한 놓친 이자 합 (일별 idle × spread / 365, R1과 같은 식)
+- **놓칠 돈**: 지금 해당 중인 finding의 annual_projection 합 (앞으로 1년)
+- **찾은 돈**: 실행·자동 운용으로 받은 이자 합 (시뮬레이션)
+그리고 최근 6개월 예수금·idle 추이 데이터
+
+---
+
+## 8. 메시지 생성 (API 키 없음)
+
+- `MessageGenerator.generate(finding, customer, channel, msg_type) -> (title, body)`
+- 기본 구현 `TemplateGenerator`: `messages/templates/{trigger}.yaml`에서 말투·채널별 템플릿을 골라 값을 채운다
+  - 말투: `plain`(60대 이상: 쉬운 말, 짧은 문장, 존댓말), `standard`(40~50대), `brief`(20~30대: 숫자 먼저)
+  - 채널: push(제목 20자·본문 60자 이내), kakao(본문 300자 이내), pb_queue(통화 스크립트: 인사 → 근거 → 제안 → 확인 질문)
+  - info 템플릿에는 상품명·금리·가입 권유 문구를 넣지 않는다 (validator가 금칙어로 검사)
+  - **템플릿 문장은 Claude Code가 직접 작성해 yaml로 저장한다.** 실행 시 외부 호출 없음
+- `ClaudeGenerator`는 뼈대만. 키가 없으면 TemplateGenerator로 폴백
+- `validator.py`: (1) 문장 속 숫자가 finding의 금액·evidence와 일치하는지, (2) info 메시지에 금칙어(가입, 추천, 금리 %, 상품명)가 없는지, (3) 길이 제한. 위반 시 기본 템플릿으로 교체
+- 금액 표기: "약 14만원"처럼 만원 단위 반올림 허용, evidence는 원 단위 그대로
+
+---
+
+## 9. 화면 (Streamlit, 사이드바 페이지 전환)
+
+공통: 상단 기준일 표시. 차분한 남색 계열 + 강조색 하나. 이모지 남발 금지.
+
+**① 고객 리포트** (`page_customer.py`)
+- 고객 선택 (데모 페르소나가 맨 위)
+- 상단 3개 숫자: 이번 달 놓친 돈 / 앞으로 놓칠 돈(1년) / 찾은 돈
+- 6개월 추이 차트 (예수금, idle)
+- R1 카드: 유형별 제목, 놓친 이자, 연 환산, "근거 보기"(버퍼 설명 포함), action 유형별 버튼
+  - `rp_buy`: 상품 카드 → 설명서 확인 체크 → "데모: 매수 화면으로 이동" 모달
+  - `reassess`: "투자성향 다시 진단하기" 모달
+  - 모든 KRW 카드에 "자동 RP 운용 켜기" 보조 버튼 (6.7 흐름)
+- 자동 운용 중이면 "찾은 돈" 카드
+- 하단 고정 면책 문구 (12장)
+
+**② 알림 미리보기** (`page_outbox.py`)
+- 기준일 선택 → `build_outbox` 실행 버튼
+- 표: 고객, 트리거, 채널, info/ad, 예정 시각, 상태, 보류 사유
+- 행 선택 → 휴대폰 모양 카드로 푸시·알림톡 미리보기, `(광고)` 표기 확인
+- 필터: 보류된 것만 / 광고만 / PB 큐만
+
+**③ PB 콜리스트** (`page_pb.py`)
+- pb_queue + pb_flag 고객, 우선순위 순
+- 행 선택 → evidence, 통화 스크립트, 버튼 "통화 완료"·"실행됨"·"보류" → action_log
+- 수신동의 없는 고객은 "PB 연락만 가능" 배지
+
+**④ 회사 대시보드** (`page_company.py`)
+- **예수금 활용률** = (자동 RP·RP 잔고) / (예수금 + 자동 RP·RP 잔고)
+- 유형별 해당 고객 수와 놓친 이자 합계, 연 환산 합계
+- 알림 퍼널: 생성 → 발송(시뮬) → 열람 → 실행, 채널별
+- 보류 사유 분포 (빈도 제한, 동의 없음, 야간)
+
+**⑤ 설정** (`page_settings.py`)
+- as_of, 금리·이용료율, 최소 idle 금액·일수, 빈도 제한 슬라이더 → 즉시 재계산
+- `# 확인 필요` 값은 노란 경고
+
+---
+
+## 10. config.yaml (초기값)
+
+```yaml
+as_of_date: 2026-12-10
+
+cash:
+  lookback_days: 90
+  min_buffer_krw: 1000000
+  min_idle_amount_krw: 5000000
+  min_idle_days: 7
+  min_sweep_krw: 1000000
+  event_window_days: 14
+  active_trader_buy_days: 4
+  term_rp_min_krw: 30000000
+  krw_rp_rate: 0.025          # 확인 필요: 유진 RP 금리
+  krw_deposit_rate: 0.005     # 확인 필요: 유진 예탁금 이용료율
+  usd_rp_rate: 0.035          # 확인 필요
+  usd_deposit_rate: 0.005     # 확인 필요
+  pb_threshold_krw: 50000000
+  pb_event_threshold_krw: 30000000
+
+suitability:
+  risk_profile_valid_days: 365   # 확인 필요: 회사 투자성향 진단 유효기간
+  risk_matrix:                   # 확인 필요: 회사 성향-등급 매칭 기준
+    안정형: [6]
+    안정추구형: [5, 6]
+    위험중립형: [4, 5, 6]
+    적극투자형: [2, 3, 4, 5, 6]
+    공격투자형: [1, 2, 3, 4, 5, 6]
+
+notify:
+  default_send_time: "10:00"
+  night_start: "21:00"
+  night_end: "08:00"
+  max_per_week: 1
+  max_per_month: 4
+  renotify_days: 30
+  renotify_growth: 0.5
+  snooze_days: 30
+  ad_prefix: "(광고)"            # 준법 검토 필요
+
+priority:
+  urgent_days: 7
+  max_cards_customer: 3
+
+demo:
+  seed: 42
+  n_customers: 300
+  history_days: 180
+```
+
+---
+
+## 11. 데모 데이터와 테스트
+
+### 가상 데이터
+- 고객 300명, 고정 시드, as_of 기준 과거 180일 일별 잔고와 현금 흐름
+- 대략 분포: 장기방치형 15%, 이벤트유입형 5%, 매매대기형 10%, 외화방치형 5%, 해당 없음 나머지, 자동 RP 사용 중 10%
+- 진단 만료 고객 약 20%, 광고 수신동의 없음 약 30%
+- products: 자동 RP, 수시 RP, 약정식 RP 30일·90일, CMA, 외화 RP (금리는 config와 맞춘 가상값, 위험등급 6)
+
+### 데모 페르소나 (고정값)
+| ID | 인물 | 상황 | 화면에서 보여야 할 것 |
+|---|---|---|---|
+| P001 | 34세 공격투자형 | 원화 1,500만원, 최근 30일 매수 6일 / USD $8,000이 30일째 그대로 | 매매대기형 → 자동 RP만 제안 / 외화방치형 → 외화 RP |
+| P002 | 52세 위험중립형, 광고 동의 O | 12일 전 ELS 상환금 3,000만원 입금 후 그대로 | 이벤트유입형, T_EVENT 알림, PB 큐에도 등장 |
+| P003 | 67세 안정형, 진단 13개월 전, 광고 동의 X | 원화 8,000만원 90일째 그대로 | 진단 만료 → reassess, 광고 알림 대신 PB 큐 |
+| P004 | 45세 안정추구형, 자동 RP 사용 중 | 60일 전 자동 운용 켬 | "찾은 돈" 카드 |
+
+데모 중 P003에서 진단 재실시(모달) → 자동 RP 켜기 → 카드가 "찾은 돈"으로 바뀌는 흐름이 되어야 한다.
+
+### 골든 테스트 — 예수금 (`tests/test_cash.py`)
+고정 config: `krw_rp 0.025, krw_deposit 0.005, usd_rp 0.035, usd_deposit 0.005, min_buffer 1,000,000, min_idle 5,000,000, min_days 7, min_sweep 1,000,000, lookback 90`, as_of는 임의 날짜 A, 구간은 A−89 ~ A.
+
+| # | 입력 | 기대 결과 |
+|---|---|---|
+| C1 | 90일 내내 원화 30,000,000원, 흐름 없음 | 버퍼 1,000,000 / R1 해당, 장기방치형 / 놓친 이자 **143,013원** / 연 환산 **580,000원** |
+| C2 | A−89~A−40(50일) 40,000,000원, A−39에 buy_settle 10,000,000원, A−39~A(40일) 30,000,000원 | 버퍼 **10,000,000** / idle 30,000,000×50일, 20,000,000×40일 / 놓친 이자 **126,027원** / 연 환산 **400,000원** / 장기방치형(최근 30일 매수 없음) |
+| C3 | 90일 내내 20,000,000원, 최근 30일 중 5일에 같은 날 buy_settle 2,000,000원과 sell_settle 2,000,000원 | 버퍼 2,000,000 / **매매대기형** / 놓친 이자 **88,767원** / 제안은 자동 RP만 |
+| C4 | A−89~A−13 1,500,000원, A−12에 els_redemption 30,000,000원, A−12~A 31,500,000원 | 버퍼 1,000,000 / idle 30,500,000×13일만 집계(이전 idle 500,000은 min_sweep 미만) / streak 13 / **이벤트유입형** / 놓친 이자 **21,726원** |
+| C5 | 원화 30,000,000원이지만 unsettled_buy 29,000,000원 | R1 해당 없음 |
+| C6 | idle 6,000,000원 상태가 최근 5일만 | R1 해당 없음 (연속일 미달) |
+| C7 | 90일 내내 USD 8,000, 환율 1,400 고정 | idle 10,200,000(원화 환산, 버퍼 1,000,000) / **외화방치형** / 놓친 이자 **75,452원** |
+| C8 | C1과 같고 고객 안정형, 진단일 A−400 | R1 해당 / action **reassess** |
+| C9 | C1과 같고 고객 안정형, 진단일 A−100, 상품 위험등급 6 | action **rp_buy** |
+| C10 | C1과 같고 auto_rp_enabled True | R1 해당 없음, "찾은 돈" 계산 대상 |
+| C11 | C1 기준 제안 | 제안 금액 **29,000,000원** / 29,000,000 < term_rp_min 30,000,000이므로 **약정식 RP 후보 제외** / 자동 RP 보조 제안 포함 |
+
+검산 메모: C1 = 29,000,000×0.02×90/365 = 143,013.69 → 143,013 / C2 = (30,000,000×50 + 20,000,000×40)×0.02/365 = 126,027.39 → 126,027 / C3 = 18,000,000×0.02×90/365 = 88,767.12 → 88,767 / C4 = 30,500,000×0.02×13/365 = 21,726.02 → 21,726 / C7 = 10,200,000×0.03×90/365 = 75,452.05 → 75,452
+
+### 골든 테스트 — 알림 (`tests/test_notify.py`)
+| # | 상황 | 기대 결과 |
+|---|---|---|
+| N1 | 같은 고객에게 같은 주에 ad 알림 후보 2건 | 1건만 queued, 1건 held(frequency_cap) — 우선순위 높은 것이 queued |
+| N2 | ad 후보, 해당 채널 광고 동의 없음 | push/kakao 생성 안 됨, pb_queue 생성 |
+| N3 | ad 예정 22:30, 야간 동의 없음 | 다음 날 10:00으로 이동, 제목이 "(광고)"로 시작 |
+| N4 | info 메시지 템플릿 | 상품명·"가입"·"추천"·금리 % 없음 (validator 통과) |
+| N5 | 10일 전 알림, 금액 20% 증가 | 재알림 없음 |
+| N6 | 10일 전 알림, 금액 60% 증가 | 재알림 생성 |
+| N7 | 5일 전 dismiss | 보류(snooze) |
+| N8 | validator: 금액이 다른 문장 | 기본 템플릿으로 교체 |
+| N9 | 월간 리포트: C1 고객의 한 달(30일) | 놓친 돈 = 29,000,000×0.02×30/365 = **47,671원** |
+
+**테스트 전부 통과 전에는 화면 작업으로 넘어가지 않는다.**
+
+---
+
+## 12. 면책 문구 (고객 화면 하단 고정)
+
+> 본 화면은 유진투자증권 계좌 정보를 기준으로 계산한 참고용 정보이며, 투자 자문이 아닙니다. 놓친 이자와 예상 이자는 가정한 금리로 계산한 추정치이며 실제 수익과 다를 수 있습니다. 상품 가입 전 상품설명서를 반드시 확인하시고, 필요 시 담당 PB와 상담하세요.
+
+---
+
+## 13. 90초 데모 시나리오
+
+1. 고객 리포트 → P003: 상단 3개 숫자, "8,000만원이 90일째" 카드, 근거(버퍼 설명) 펼치기
+2. 진단 만료라 "다시 진단하기" → 모달 완료 → 자동 RP 켜기 → 카드가 "찾은 돈"으로 바뀜
+3. P001: 같은 R1인데 매매대기형이라 자동 RP만 제안되는 것, 달러는 외화 RP
+4. 알림 미리보기: P002 상환금 알림(info), 광고 동의 없는 P003은 PB 큐로 간 것, 야간 예정 광고가 다음 날로 밀린 것
+5. PB 콜리스트 → P002 통화 스크립트
+6. 회사 대시보드: 예수금 활용률, 알림 퍼널, 보류 사유
+7. (질문 대응) 설정에서 최소 금액이나 주간 알림 수를 바꾸면 결과가 즉시 바뀜
+
+---
+
+## 14. 작업 순서
+
+- **M1** 골격, config 로더, adapter, 데이터 모델, 가상 데이터(페르소나 고정값)
+- **M2** 예수금 엔진(6장) + C1~C11 통과
+- **M3** 메시지 템플릿·생성기·validator + 알림 엔진(7장) + 월간 리포트 + N1~N9 통과
+- **M4** Streamlit 5개 화면
+- **M5** 데모 시나리오 리허설, 다듬기, README
+- 마일스톤마다 커밋, 진행 기록 갱신, 사용자에게 보고 후 대기
+
+---
+
+## 15. 사람이 확인해서 채울 값
+
+추측해서 바꾸지 말 것. 사용자가 알려주면 config에 반영하고 `# 확인 필요`를 지운다.
+- 유진 예탁금 이용료율(원화·외화), RP·CMA·외화RP 상품 라인업과 금리, 자동 RP 운용 서비스 유무
+- 투자성향 진단 유효기간, 성향별 허용 위험등급
+- 광고성 메시지 기준과 문구 (준법감시인 확인)
+- (실서비스) 원장 테이블·컬럼명 → `column_map.yaml`
+
+---
+
+## 부록 A. 다음 단계 항목 (이번엔 만들지 않음)
+
+v1 명세를 유지한다. 착수 지시가 있을 때만 구현.
+- **R2 해외주식 양도세**: 실현이익 > 250만원이고 평가손실 종목 있으면 `min(손실합, 실현이익 − 250만) × 22%` (손실 실현), 실현이익 < 250만원이고 평가이익 있으면 `min(250만 − 실현이익, 이익합) × 22%` (공제 채우기). 마감 = 연내 결제 마지막 매도일(확인 필요). 유진 계좌 기준 명시, 타사 손익 입력칸. 테스트 예: 실현 1,000만·손실 400만 → 880,000 / 실현 300만·손실 400만 → 110,000 / 실현 100만·이익 500만 → 330,000
+- **R3 공개매수**: 기간 내 보유, 현재가 < 공개매수가 → `(공개매수가 − 현재가) × 수량`. 안분 가능성, 장외 양도 과세 가능성 안내. 예: 1,000주 × 4,000원 → 4,000,000
+- **R4 연금저축**: 10~12월, `(600만 − 올해 납입) × 13.2%`(소득 낮으면 16.5%). IRP는 유진 미취급이라 제안하지 않음. 예: 200만 납입 → 528,000 / 660,000
+- ISA, 유상증자 권리, 상환금 사전 알림(D-7)
+
+---
+
+## 16. 진행 기록
+
+> Claude Code: 마일스톤을 끝낼 때마다 날짜, 완료 내용, 남은 이슈, 다음 할 일을 추가하세요. 새 세션은 여기서부터 이어갑니다.
+
+### 2026-10-12 — M1 완료
+**완료**
+- 환경: 프로젝트 안 `.venv` (Python 3.13). 시스템 기본 python은 3.8이라 쓰지 않는다 → `.venv/Scripts/python` 또는 venv 활성화 후 실행
+- `config.yaml`(10장 그대로), `column_map.yaml`(항등), `engine/config.py`(로더 + overrides 병합), `engine/adapter.py`(column_map 경유 로드·저장, 스키마 검증), `engine/models.py`(Finding·Recommendation·Action·Message, 상수)
+- `scripts/generate_demo_data.py`: 300명 / 180일, 페르소나 P001~P004 고정값(시드 무관), 일반 고객 유형 비율 11장대로
+- `tests/test_data.py` 14개 통과 (config, column_map 변환, 결정성, 분포, 잔고=흐름 정합성, 페르소나 4명)
+
+**M1에서 정한 해석 (스펙에 없던 부분)**
+- 자동 RP 사용 고객의 잔고: `cash` = 남겨둔 예수금(≤ keep), `auto_rp_balance` = 자동 운용된 금액. 따라서 6.7 "찾은 돈"의 `cash − keep`은 **`cash + auto_rp_balance − keep`** 으로 계산해야 한다 (M2에서 반영)
+- 자동 RP를 켠 날짜는 customers에 컬럼을 추가하지 않고 `action_log`의 `auto_rp_on` 기록에서 읽는다. 생성기가 기존 자동 RP 고객의 켠 날짜를 action_log에 미리 넣는다
+- `unsettled_buy`: 매수 결제일(T+2) 전 이틀 동안 미결제로 잡음. `margin_required`는 전부 0
+- 상품 금리: 자동·수시 RP = `krw_rp_rate`, 약정식 30일 +0.2%p, 90일 +0.4%p, CMA −0.1%p (데모용 가정, 확인 필요)
+- 생성 데이터(`data/demo/*.csv`, `outbox.csv`, `action_log.csv`)는 git에 올리지 않는다. 시드로 다시 만든다
+
+**남은 이슈**
+- 진단 만료 비율이 24% (목표 약 20%). 시드 42 기준, 문제 되면 조정
+- 15장 확인 필요 값은 아직 전부 가상값
+
+**다음 할 일:** M2 — `engine/cash/*`, `engine/rules/idle_cash.py`, `tests/test_cash.py` (C1~C11)
+
+### 2026-10-12 — M2 완료
+**완료**
+- `engine/cash/idle.py`(AccountSeries 배열 기반, 버퍼·idle·streak·놓친 이자·찾은 돈), `classify.py`, `recommend.py`, `suitability.py`, `engine/rules/idle_cash.py`, `engine/runner.py`, `engine/priority.py`, `engine/fmt.py`(금액 표기)
+- `tests/test_cash.py`: C1~C11 + 추가 2개 + 페르소나 5개 통과 (전체 32개)
+- 데모 기준일 결과: R1 108건(장기방치 45, 매매대기 31, 이벤트 16, 외화 16), 진단 만료 reassess 28건, 찾은 돈 31명. 300명 실행 약 0.4초
+
+**M2에서 정한 해석**
+- 사용자 지시("우선 한 번 만들어봐")로 M2~M4는 마일스톤마다 멈추지 않고 이어서 진행
+- config 추가: `active_trader_window_days: 30`, `event_reinvest_ratio: 0.5` (스펙 6.4의 숫자를 config로 뺌)
+- streak는 조회 구간(90일)이 아니라 이력 전체에서 센다. 놓친 이자는 조회 구간만
+- 이벤트유입형 "그 이후 잔고 감소" = 유입일 잔고 − 기준일 잔고
+- 약정식 RP는 6.5대로 장기방치형에만. 6.4 표의 "이벤트유입형: 약정식 RP"와 충돌 → 6.5를 따름 (사용자 확인 필요)
+- 자동 RP가 켜진 날 이전의 기준일로 계산하면 자동 RP 꺼진 것으로 본다 (알림 백필용)
+
+### 2026-10-12 — M3 완료
+**완료**
+- `messages/templates/*.yaml` 7개 (common + 트리거 6개), 말투 3종 × push/kakao/pb_queue, 유형별(subtype) 문구
+- `messages/generator.py`(TemplateGenerator, ClaudeGenerator 뼈대·항상 폴백), `messages/validator.py`(숫자 일치·정보성 금칙어·길이)
+- `notify/triggers.py`, `policy.py`, `outbox.py`(build_outbox·backfill·simulate_engagement), `report.py`
+- `tests/test_notify.py`: N1~N9 + 템플릿 전수 검사(100건 이상) + 데모 발송함 확인. 전체 49개 통과
+- 30일 백필 약 3초 (고객·상품을 dict로 바꿔 32초→3초)
+
+**M3에서 정한 해석**
+- outbox에 `amount_krw` 컬럼 추가 (재알림 금액 비교용)
+- 재알림 비교 금액 = finding의 `annual_projection_krw`(쉬는 돈 크기에 비례). 놓친 이자(missed_lookback)는 매일 쌓여서 50% 증가 조건이 너무 자주 걸림
+- 광고 동의가 없어 pb_queue로 돌린 건(hold_reason `no_consent`)도 push·kakao를 보낸 것으로 쳐서 재알림 규칙 적용 (안 그러면 매일 PB 큐에 다시 쌓임)
+- 정보성 금칙어 검사는 고객에게 나가는 채널(push·kakao·monthly_report)만. pb_queue 통화 스크립트는 고객에게 발송되지 않으므로 상품명 허용
+- validator 숫자 규칙: 문장 속 숫자는 전부 계산값에서 와야 하고, 템플릿에 직접 쓸 수 있는 숫자는 "1"(1년)뿐
+- 트리거별 채널: T_EVENT → kakao(알림톡), T_IDLE_FIRST·T_REASSESS·T_FOUND → push, T_IDLE_UPDATE(광고) → 광고 동의한 kakao 우선, 없으면 push, 둘 다 없으면 pb_queue
+- 처음 알림 대상이 됐는데 streak가 이미 min_idle_days를 넘었으면(이력 없음) T_IDLE_UPDATE로 본다
+- 빈도 제한으로 보류된 건은 다음 주 월요일에 `frequency_cap:carried`로 표시하고 다시 후보가 된다
+- 데모 백필은 첫날 배치만 22:30 실행으로 가정 (야간 전송 제한이 화면에 보이도록, `demo_run_time_for`)
+
+### 2026-10-12 — M4 완료 (M5 일부)
+**완료**
+- `app/main.py`(st.navigation), `state.py`(데이터·상태 변경), `ui.py`(스타일·휴대폰 미리보기·차트), 화면 5개
+- 고객 리포트에 "이 고객에게 나가는 안내" 섹션 추가 (사용자 요청: 고객 안내 예시). 고객별 실제 트리거·채널·동의 상태대로 휴대폰 화면 렌더링
+- 데모 흐름 확인: P003 재진단 → 자동 RP 켜기 → 찾은 돈 카드, 되돌리기. AppTest로 5개 화면 무오류, 브라우저 스크린샷 확인
+- `README.md`, `.streamlit/config.toml`(남색 테마)
+- 테스트 49개 통과
+
+**M4에서 정한 것**
+- 설정 화면 변경은 세션에만 적용(config.yaml은 그대로). 발송함은 '기간 배치 실행'을 눌러야 새 값으로 다시 만든다
+- 첫 화면 진입 때 outbox.csv가 비어 있으면 30일 백필 + 참여 시뮬레이션을 자동 실행
+- PB 콜리스트의 "보류" 버튼은 action_log `dismissed`로 남겨 snooze가 적용된다
+- 차트 색: dataviz 기본 팔레트 1~3번(예수금 파랑, 쉬는 돈 주황, 자동 RP 청록)
+
+**남은 일 (M5)**
+- 실제 데모 리허설과 문구 다듬기, 15장 확인 필요 값 반영
+- 사용자 확인 필요: 이벤트유입형에 약정식 RP를 제안할지 (6.4 표 vs 6.5 규칙)
+
+### 2026-10-13 — M5 완료 (리허설·다듬기)
+**완료**
+- 브라우저로 13장 90초 시나리오 전체 리허설: P003 재진단 → 자동 RP 켜기 → 찾은 돈 5,410원(1일) / 앞으로 놓칠 돈 0원, PB 콜리스트 P002 스크립트, 설정 변경(최소 연속일 7→3, 최소 금액 500만→300만이면 해당 고객 107→131명)
+- 다듬은 것: 재진단 완료 문구 조사("안정형으로"), PB 제안 문장 겹괄호 제거(금리·위험등급을 별도 문장으로), 자동 RP 남겨둘 금액을 만원 단위로 같이 표시, PB 콜리스트 고객 검색 + 스크립트를 근거 위로, 사이드바 "90초 데모 순서"
+- PB 통화 스크립트는 발송함 기록이 아니라 **오늘 기준 finding으로 새로 생성** (기록을 그대로 보이면 카드 제목은 12일째인데 스크립트는 6일째로 어긋남). 발송함 기록은 "콜리스트에 오른 날"로만 표시
+- 테스트 49개 통과, 리허설 후 데모 상태 되돌림
+
+**아직 사용자 확인이 필요한 것 (추측으로 바꾸지 말 것)**
+- 15장 값: 유진 RP·예탁금 이용료율·외화 금리, 자동 RP 서비스 유무, 진단 유효기간, 성향별 허용 등급, 광고 문구 기준
+- 이벤트유입형에 약정식 RP를 제안할지 (6.4 표 vs 6.5 규칙, 지금은 6.5)
+
+### 2026-10-13 — 직원 대리 가입 불가 원칙 반영
+- 사용자 확인: **직원(PB)은 고객 대신 상품 가입을 할 수 없다.** 가입·실행은 고객이 앱에서 본인 인증 후 직접 한다
+- 반영: 첫 화면 이름 "고객 리포트" → "고객 앱 화면" + "버튼은 고객 본인이 누르는 상황 재현" 안내, 매수 모달 문구(고객이 본인 인증 후 직접 주문), PB 콜리스트 "실행됨" → "고객이 앱에서 직접 가입함"(결과 기록만), PB 통화 스크립트 끝에 "[안내] 앱에서 직접 가입" 추가
+- 앞으로도 PB 화면에 고객 대신 실행하는 버튼을 만들지 않는다
+
+### 2026-10-13 — 부록 A 항목(R2·R3·R4) 착수 + PB 고객별 현황
+사용자 요청: "놓친 돈 항목을 정리하고, 고객별로 예수금이 얼마나 놀고 어떤 항목을 얼마나 활용 못 하는지 PB가 보게, 고객에게 어떻게 알림이 가는지 보여줘" → 부록 A의 R2~R4를 구현 (착수 지시로 봄)
+**완료**
+- 데이터: `overseas_tax_ytd`, `pension_accounts`, `holdings`, `tender_offers` (column_map·adapter·생성기). 기존 잔고 데이터가 안 바뀌게 별도 난수(seed+1)
+- 규칙: `engine/rules/overseas_tax.py`(R2 손실 상계·공제 채우기), `tender_offer.py`(R3), `pension.py`(R4). 부록 A 예시값 그대로 테스트(880,000 / 110,000 / 330,000 / 4,000,000 / 528,000 / 660,000)
+- 페르소나에 붙임: P001 R2 손실 상계 880,000, P004 R2 공제 채우기 330,000, P002 R4 528,000, P003 R3 4,000,000
+- 알림: T_TAX(정보성), T_TENDER(정보성), T_PENSION(광고성) 템플릿. 발견 즉시 1회 + 마감 D-7에 1회 (`item_due`)
+- 화면: "놓친 돈 항목"(항목표·항목별 알림 예시·다음 단계·제외 항목), "PB 고객별 현황"(고객별 쉬는 원화·달러 예수금, 90일 놓친 이자, 1년 놓칠 이자, 양도세 절세, 공개매수 차익, 연금 세액공제, 가장 급한 마감 → 고객 선택 시 근거·알림), 고객 앱 화면에 항목 카드와 4번째 숫자, PB 콜리스트·대시보드 반영
+- 테스트 62개 통과
+
+**정한 해석 (사용자·준법 확인 필요)**
+- 연금저축 납입 안내는 광고성(ad)으로 봄 → 수신 동의 없으면 PB 통화. 양도세·공개매수는 정보성
+- 양도세 안내는 "매도 권유 아님, 다른 증권사 손익 미반영"을 문구에 넣음
+- config 확인 필요 값: 해외주식 기본공제·세율·올해 마지막 매도일, 연금저축 한도·공제율
+- 고객 앱 화면 '앞으로 놓칠 돈(1년)'은 예수금 항목만, 세금·공개매수는 '기한 안에 챙길 돈'으로 따로 표시 (성격이 달라 합치지 않음). PB 고객별 현황의 '챙길 수 있는 돈 합계'는 둘을 더한 값
+
+### 2026-10-13 — R4 연금저축 제거
+- 사용자 확인: **유진투자증권은 연금저축계좌를 취급하지 않는다.** (IRP·발행어음·개인투자용 국채도 미취급)
+- R4 규칙·T_PENSION 템플릿·pension_accounts 데이터·config·화면·테스트에서 모두 제거. "놓친 돈 항목 → 일부러 다루지 않는 것"에 "연금저축·IRP 세액공제: 유진 미취급"으로 표시
+- 부록 A의 R4는 이번 프로젝트에서 만들지 않는다. 테스트 60개 통과
+
+### 2026-10-13 — "자동 운용" 표현 정리
+- 사용자 피드백: "자동 운용"은 **회사가 마음대로 사고판다(일임)**는 느낌을 준다. 기능 자체는 유지
+- 이름을 **"예수금 자동 RP"**(신청/이용 중)로 바꾸고, 고객 화면·알림·PB 스크립트에 "주식이나 펀드를 대신 사고팔지 않는다. 정한 금액을 넘는 예수금만 RP에 넣고 쓸 때 자동으로 뺀다"를 명시
+- 정보성 알림(T_FOUND)은 상품명 금칙 때문에 "신청하신 (예수금) 서비스"로 부름
+- 앞으로 고객 문구에 "운용"을 일임처럼 들리게 쓰지 않는다. CMA(RP형)는 사용자 확인으로 제안 상품에 유지
+
+### 2026-10-13 — 서비스 이름 "잠자는 예수금 깨우기"
+- 사용자 선택: "놓친 돈 리포트" → **"잠자는 예수금 깨우기"**. 서비스 중심은 예수금으로 받을 수 있는 RP 이자. 양도세·공개매수는 "함께 챙길 것"으로 비중을 낮춤
+- 화면·알림 용어: 놓친 돈 → "이번 달 못 받은 이자", 놓칠 돈 → "깨우면 1년에 더 받을 이자", 찾은 돈 → "깨운 뒤 받은 이자". "기한 안에 챙길 돈"처럼 모호한 말 대신 "양도세 절세·공개매수 차익", "연내 마지막 매도일·청약 마감일"로 구체적으로 씀
+- 고객 문구에 "확정수익"은 쓰지 않는다 (RP는 예금자보호 대상이 아니고 수시 RP 금리는 변동 — 준법 위험). "RP 이자", "약정 금리"로 표현
+- 기획안 초안(docs/기획안_초안.md)을 새 이름으로 다시 씀. 2번 답에 계좌 진단 로직(미결제·평소 사용액 제외 → 7일 이상 남는 돈 → RP 기준 이자 역산)을 명시
+- 코드 내부 이름(missed, found, idle 등)과 프로젝트 폴더명은 그대로 둔다
+

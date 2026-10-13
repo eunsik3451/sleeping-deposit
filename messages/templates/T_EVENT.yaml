@@ -1,0 +1,30 @@
+# 배당·ELS 상환·채권 만기 유입 다음 날, 그날까지 재투자 없음
+# 정보성(info): 입금 사실만. 상품명·금리·가입 권유 없음
+msg_type: info
+
+push:
+  default:
+    title: "{event_label}이 들어왔어요"
+    body: "{event_date}에 {event_amount}이 들어와 그대로 있어요. 앱에서 확인해 보세요."
+
+kakao:
+  default:
+    title: "입금 알림"
+    body: |-
+      [유진투자증권] 입금 알림
+
+      {name}님, {event_date}에 {event_label} {event_amount}이 계좌에 들어왔어요.
+
+      이 돈은 지금 예수금으로 그대로 있어요. 예수금으로 두면 붙는 이자가 아주 적어요.
+
+      재투자 계획이 있으시면 담당 PB와 상의하실 수 있고, 앱 > 잠자는 예수금 깨우기에서 쓸 수 있는 방법을 확인할 수 있어요.
+
+pb_queue:
+  default:
+    title: "[통화] {name}님 · {event_label} {event_amount} 입금"
+    body: |-
+      [인사] 안녕하세요, {name}님. 유진투자증권 담당 PB입니다. {event_label} 입금 건으로 연락드렸습니다.
+      [근거] {event_date}에 {event_label} {event_amount}이 입금됐고, 아직 재투자 없이 예수금으로 남아 있습니다.
+      [제안] 재투자 계획이 있으시면 함께 살펴보고, 당분간 두실 거라면 수시 RP나 예수금 자동 RP로 쉬는 동안 이자를 받는 방법을 안내드리겠습니다.
+      [확인] 이번 {event_label}은 어떻게 쓰실 계획이신가요?
+      [안내] 운용을 시작하시려면 앱에서 상품설명서를 확인하고 직접 가입하실 수 있습니다.

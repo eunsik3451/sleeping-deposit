@@ -1,0 +1,21 @@
+# 매월 1일, 예수금 자동 RP를 신청한 고객에게 지난달 찾은 돈. 정보성(info)이라 상품명 대신 "신청하신 서비스"로 부른다
+msg_type: info
+
+push:
+  default:
+    title: "{month} 깨운 예수금 이자 {found_month}"
+    body: "신청하신 서비스로 {month}에 {found_month}을 더 받았어요. 신청 후 모두 {found_total}이에요."
+
+kakao:
+  default:
+    title: "깨운 예수금 이자 리포트"
+    body: |-
+      [유진투자증권] 깨운 예수금 이자 리포트
+
+      {name}님, 신청하신 예수금 서비스로 {month}에 {found_month}을 더 받았어요.
+
+      ■ 신청한 날: {found_on}
+      ■ 지금까지 받은 이자: {found_total}
+      ■ 지금 이자를 받고 있는 예수금: {found_invested}
+
+      남겨둘 금액은 앱 > 예수금 설정에서 바꾸거나 언제든 해지할 수 있어요.

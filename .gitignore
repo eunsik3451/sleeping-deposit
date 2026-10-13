@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.streamlit/secrets.toml
+# 생성 데이터 (scripts/generate_demo_data.py --seed 42 로 다시 만든다)
+data/demo/*.csv
+data/outbox.csv
+data/action_log.csv
+.gstack/
+
+# 공모전 기획안·내부 분석은 공개 저장소에 올리지 않는다
+docs/

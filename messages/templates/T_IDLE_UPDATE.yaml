@@ -1,0 +1,65 @@
+# 마지막 알림 후 renotify_days 경과(또는 금액 크게 증가), 여전히 쉬는 돈이 있을 때
+# 광고성(ad): 상품 안내 포함. 제목 앞 "(광고)"는 policy가 붙인다 (여기 쓰지 않음)
+msg_type: ad
+
+push:
+  default:
+    title: "놓친 이자 약 {missed}"
+    body: "{product}(연 {rate})에 {suggest}을 맡기면 쉬는 동안에도 이자가 붙어요."
+  plain:
+    title: "{name}님, 이자를 놓치고 있어요"
+    body: "예수금 {cash}이 {days}일째 그대로예요. {product}에 맡기면 이자가 붙어요."
+  brief:
+    title: "쉬는 돈 {idle}, 연 {rate}"
+    body: "{product}에 맡기면 1년에 약 {annual} 더 받을 수 있어요."
+  subtype:
+    active_trader:
+      title: "매수 대기 자금에도 이자를"
+      body: "남는 예수금만 RP에 넣고, 주식을 살 때 자동으로 빼요. 쉬는 동안 연 {rate}가 붙어요."
+    fx_idle:
+      title: "달러 예수금에도 이자를"
+      body: "환전 없이 {product}(연 {rate})에 {suggest}을 맡길 수 있어요."
+
+kakao:
+  default:
+    title: "쉬는 돈 운용 안내"
+    body: |-
+      {name}님, 예수금 {cash}이 {days}일째 그대로예요.
+      지난 {lookback}일 동안 놓친 이자는 약 {missed}이에요.
+
+      ■ 이렇게 운용할 수 있어요
+      {product} · 연 {rate} · {risk}
+      맡길 수 있는 금액: {suggest}
+
+      앱에서 상품설명서를 확인하고 바로 시작할 수 있어요.
+      ※ RP는 예금자보호법에 따라 보호되지 않으며 금리는 바뀔 수 있어요.
+
+      무료 수신거부: 앱 > 설정 > 알림 설정
+  subtype:
+    active_trader:
+      title: "매수 대기 자금 운용 안내"
+      body: |-
+        {name}님, 매수를 기다리는 예수금 {idle}이 이자 없이 쉬고 있어요.
+        지난 {lookback}일 동안 놓친 이자는 약 {missed}이에요.
+
+        ■ 예수금 자동 RP
+        주식을 대신 사고팔지 않아요. 정하신 금액을 넘는 예수금만 RP에 넣어 두고,
+        주식을 살 때 자동으로 빼서 매매에 지장이 없어요.
+        연 {rate} · {risk}
+
+        ※ RP는 예금자보호법에 따라 보호되지 않으며 금리는 바뀔 수 있어요.
+
+        무료 수신거부: 앱 > 설정 > 알림 설정
+    fx_idle:
+      title: "달러 예수금 운용 안내"
+      body: |-
+        {name}님, 달러 예수금 {cash}이 {days}일째 그대로예요.
+        지난 {lookback}일 동안 놓친 이자는 약 {missed}이에요.
+
+        ■ 환전 없이 달러 그대로
+        {product} · 연 {rate} · {risk}
+        맡길 수 있는 금액: {suggest}
+
+        ※ RP는 예금자보호법에 따라 보호되지 않으며 금리는 바뀔 수 있어요.
+
+        무료 수신거부: 앱 > 설정 > 알림 설정
