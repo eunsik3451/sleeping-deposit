@@ -46,7 +46,7 @@ SCHEMA = {
         "dates": ["date"],
         "bools": [],
     },
-    # 부록 A 항목 (R2 해외주식 양도세, R3 공개매수). R4 연금저축은 유진 미취급이라 제외
+    # 함께 챙길 항목 (R2 해외주식 양도세, R3 유상증자 권리, R4 펀드·ELS 만기)
     "overseas_tax_ytd": {
         "file": "demo/overseas_tax_ytd.csv",
         "columns": ["customer_id", "year", "realized_gain_krw", "unrealized_loss_krw", "unrealized_gain_krw"],
@@ -59,10 +59,16 @@ SCHEMA = {
         "dates": [],
         "bools": [],
     },
-    "tender_offers": {
-        "file": "demo/tender_offers.csv",
-        "columns": ["offer_id", "symbol", "name", "offer_price", "start_date", "end_date"],
-        "dates": ["start_date", "end_date"],
+    "rights_offers": {
+        "file": "demo/rights_offers.csv",
+        "columns": ["offer_id", "symbol", "name", "issue_price", "ratio", "sub_start", "sub_end"],
+        "dates": ["sub_start", "sub_end"],
+        "bools": [],
+    },
+    "maturities": {
+        "file": "demo/maturities.csv",
+        "columns": ["customer_id", "holding_id", "product_name", "kind", "maturity_date", "expected_amount_krw"],
+        "dates": ["maturity_date"],
         "bools": [],
     },
     "outbox": {

@@ -25,7 +25,9 @@ LOG_COLS = ["timestamp", "customer_id", "finding_id", "action"]
 
 @pytest.fixture(scope="module")
 def cfg():
-    return load_config()
+    # 골든 값(CLAUDE.md 11장)은 고정 금리 2.5% / 0.5%로 계산돼 있다. 실제 금리 config와 분리
+    return load_config(overrides={"cash": {"krw_rp_rate": 0.025, "krw_deposit_rate": 0.005,
+                                           "usd_rp_rate": 0.035, "usd_deposit_rate": 0.005}})
 
 
 def customer(**kw):

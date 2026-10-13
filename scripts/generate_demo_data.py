@@ -229,23 +229,24 @@ def personas(as_of):
 def products(cfg):
     c = cfg["cash"]
     rp = c["krw_rp_rate"]
-    # 금리는 config와 맞춘 가상값. 약정식 가산·CMA 차감폭도 데모용 가정 (확인 필요)
+    # 자동·수시 RP와 CMA는 config 금리(챔피언CMA(RP형)). 약정식 가산폭은 데모용 가정 (확인 필요)
     rows = [
         ("AUTO_RP", "예수금 자동 RP", "auto_rp", "KRW", 6, rp, 0, 0),
         ("RP_ON", "수시 RP", "on_demand_rp", "KRW", 6, rp, 0, 1 * M),
         ("RP_T30", "약정식 RP 30일", "term_rp", "KRW", 6, round(rp + 0.002, 4), 30, 10 * M),
         ("RP_T90", "약정식 RP 90일", "term_rp", "KRW", 6, round(rp + 0.004, 4), 90, 10 * M),
-        ("CMA_RP", "CMA(RP형)", "cma", "KRW", 6, round(rp - 0.001, 4), 0, 0),
+        ("CMA_RP", "챔피언CMA(RP형)", "cma", "KRW", 6, rp, 0, 0),
         ("USD_RP", "외화 RP(달러)", "usd_rp", "USD", 6, c["usd_rp_rate"], 0, 1000),
     ]
     cols = ["product_id", "name", "product_type", "currency", "risk_grade", "annual_rate", "term_days", "min_amount"]
     return pd.DataFrame(rows, columns=cols)
 
 
-# ── 부록 A 항목 데이터 (R2 해외주식 양도세, R3 공개매수) ──────────
+# ── 함께 챙길 항목 데이터 (R2 해외주식 양도세, R3 유상증자 권리, R4 펀드·ELS 만기) ──
 # 기존 잔고 데이터가 바뀌지 않도록 별도 난수(seed + 1)를 쓴다.
 
-DEMO_TENDER = {"offer_id": "TO1", "symbol": "999990", "name": "가상소재", "offer_price": 25_000, "market_price": 21_000}
+DEMO_RIGHTS = {"offer_id": "RO1", "symbol": "999991", "name": "가상바이오", "issue_price": 8_000,
+               "market_price": 10_500, "ratio": 0.25}
 
 
 def extra_tables(customers: pd.DataFrame, segments: dict, as_of, seed) -> dict:
@@ -258,8 +259,10 @@ def extra_tables(customers: pd.DataFrame, segments: dict, as_of, seed) -> dict:
                 "unrealized_loss_krw": 4 * M, "unrealized_gain_krw": 0})            # → 880,000원
     tax.append({"customer_id": "P004", "year": year, "realized_gain_krw": 1 * M,
                 "unrealized_loss_krw": 0, "unrealized_gain_krw": 5 * M})            # → 330,000원
-    hold.append({"customer_id": "P003", "symbol": DEMO_TENDER["symbol"], "name": DEMO_TENDER["name"],
-                 "qty": 1000, "current_price": DEMO_TENDER["market_price"]})        # → 4,000,000원
+    hold.append({"customer_id": "P001", "symbol": DEMO_RIGHTS["symbol"], "name": DEMO_RIGHTS["name"],
+                 "qty": 2000, "current_price": DEMO_RIGHTS["market_price"]})        # 500주 × 2,500원 → 1,250,000원
+    mat = [{"customer_id": "P003", "holding_id": "H-P003-1", "product_name": "가상 채권형펀드 3호", "kind": "펀드",
+            "maturity_date": as_of + pd.Timedelta(days=10), "expected_amount_krw": 50 * M}]   # → 88,356원
 
     for _, c in customers.iterrows():
         cid = c.customer_id
@@ -272,13 +275,21 @@ def extra_tables(customers: pd.DataFrame, segments: dict, as_of, seed) -> dict:
                         "unrealized_loss_krw": krw(rng.uniform(0, 8 * M)) if rng.random() < 0.6 else 0,
                         "unrealized_gain_krw": krw(rng.uniform(0, 10 * M)) if rng.random() < 0.6 else 0})
         if rng.random() < 0.03:
-            hold.append({"customer_id": cid, "symbol": DEMO_TENDER["symbol"], "name": DEMO_TENDER["name"],
-                         "qty": int(rng.integers(5, 200)) * 10, "current_price": DEMO_TENDER["market_price"]})
+            hold.append({"customer_id": cid, "symbol": DEMO_RIGHTS["symbol"], "name": DEMO_RIGHTS["name"],
+                         "qty": int(rng.integers(5, 200)) * 10, "current_price": DEMO_RIGHTS["market_price"]})
+        if rng.random() < 0.08:
+            kind = "ELS" if rng.random() < 0.5 else "펀드"
+            name = f"가상 ELS {int(rng.integers(1000, 9999))}호" if kind == "ELS" else f"가상 {rng.choice(['채권형', '혼합형', '목표전환형'])}펀드"
+            mat.append({"customer_id": cid, "holding_id": f"H-{cid}-1", "product_name": name, "kind": kind,
+                        "maturity_date": as_of + pd.Timedelta(days=int(rng.integers(-20, 30))),
+                        "expected_amount_krw": krw(rng.uniform(5 * M, 60 * M))})
 
-    offers = pd.DataFrame([{"offer_id": DEMO_TENDER["offer_id"], "symbol": DEMO_TENDER["symbol"],
-                            "name": DEMO_TENDER["name"], "offer_price": DEMO_TENDER["offer_price"],
-                            "start_date": as_of - pd.Timedelta(days=9), "end_date": as_of + pd.Timedelta(days=7)}])
-    return {"overseas_tax_ytd": pd.DataFrame(tax), "holdings": pd.DataFrame(hold), "tender_offers": offers}
+    offers = pd.DataFrame([{"offer_id": DEMO_RIGHTS["offer_id"], "symbol": DEMO_RIGHTS["symbol"],
+                            "name": DEMO_RIGHTS["name"], "issue_price": DEMO_RIGHTS["issue_price"],
+                            "ratio": DEMO_RIGHTS["ratio"],
+                            "sub_start": as_of + pd.Timedelta(days=4), "sub_end": as_of + pd.Timedelta(days=5)}])
+    return {"overseas_tax_ytd": pd.DataFrame(tax), "holdings": pd.DataFrame(hold), "rights_offers": offers,
+            "maturities": pd.DataFrame(mat)}
 
 
 def generate(cfg, seed=None) -> dict:

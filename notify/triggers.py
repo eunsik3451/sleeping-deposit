@@ -93,8 +93,8 @@ def from_findings(result, ctx, history, cfg) -> list:
     return out
 
 
-# R2·R3: (트리거, 메시지 성격). 둘 다 고객 계좌의 사실을 알리는 정보성
-ITEM_TRIGGERS = {"R2": ("T_TAX", "info"), "R3": ("T_TENDER", "info")}
+# R2~R4: (트리거, 메시지 성격). 모두 고객 계좌의 사실·일정을 알리는 정보성
+ITEM_TRIGGERS = {"R2": ("T_TAX", "info"), "R3": ("T_RIGHTS", "info"), "R4": ("T_MATURITY", "info")}
 
 
 def item_due(state, f, as_of, cfg) -> bool:

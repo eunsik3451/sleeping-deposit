@@ -579,3 +579,11 @@ v1 명세를 유지한다. 착수 지시가 있을 때만 구현.
 - 기획안 초안(docs/기획안_초안.md)을 새 이름으로 다시 씀. 2번 답에 계좌 진단 로직(미결제·평소 사용액 제외 → 7일 이상 남는 돈 → RP 기준 이자 역산)을 명시
 - 코드 내부 이름(missed, found, idle 등)과 프로젝트 폴더명은 그대로 둔다
 
+
+### 2026-10-13 — Streamlit → 정적 웹사이트(GitHub Pages), 공개매수 → 권리·만기 안내, 공시 금리
+- 사용자 요청: PC가 꺼져 있어도 다른 사람이 볼 수 있게 GitHub로, Streamlit 말고. `app/`(Streamlit)과 설정 화면 제거
+- `scripts/export_site.py`가 엔진을 돌려 `site/data.js`로 내보내고, `site/`(HTML·JS)가 화면을 그린다. GitHub Pages(gh-pages 브랜치)로 배포: https://eunsik3451.github.io/sleeping-deposit/
+- 데모 버튼 상태는 보는 사람 브라우저(localStorage)에만 저장. 재진단 후 결과는 export 때 미리 계산(`after_reassess`)
+- 금리: krw_rp 2.75%(챔피언CMA(RP형)), krw_deposit 0.60%, usd_deposit 0.60%. usd_rp 3.5%는 아직 확인 필요. 골든 테스트(test_cash·test_notify)는 스펙의 고정 금리 2.5%/0.5%로 계속 검증
+- R3 공개매수 제거 → R3 유상증자 청약 권리(`rights_offer.py`), R4 펀드·ELS 만기(`maturity.py`, 상환금이 한 달 쉬면 못 받는 이자). 모두 정보성. P001 유상증자 1,250,000원, P003 펀드 만기 88,356원
+- 공개 저장소에는 docs/(기획안·내부 분석)를 올리지 않는다

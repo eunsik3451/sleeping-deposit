@@ -61,7 +61,7 @@ def evidence_for(subtype, res, info, acct: AccountSeries, cfg) -> list:
         lines.append(f"최근 {c['active_trader_window_days']}일 중 {info['buy_days']}일 매수 결제 → 매수 대기 자금. "
                      f"매수할 때 자동으로 빠지는 예수금 자동 RP만 제안")
     elif subtype == "fx_idle":
-        lines.append("달러 예수금 → 환전 없이 외화 RP로 운용 제안")
+        lines.append("달러 예수금 → 환전 없이 외화 RP 안내")
     else:
         lines.append(f"최근 {c['active_trader_window_days']}일 매수 결제 {info['buy_days']}일 → 장기방치형")
     return lines

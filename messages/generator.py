@@ -91,7 +91,7 @@ class TemplateGenerator(MessageGenerator):
 
     @staticmethod
     def _item_values(f) -> dict:
-        """R2·R3 값. 금액은 만원 단위, 가격은 원 단위."""
+        """R2~R4 값. 금액은 만원 단위, 가격은 원 단위."""
         m = f.meta
         v = {"title": f.title, "amount": man(f.amount_krw), "deadline": md(pd.Timestamp(f.deadline)),
              "days_left": m["days_left"]}
@@ -99,8 +99,11 @@ class TemplateGenerator(MessageGenerator):
             v.update(realized=man(m["realized"]), loss=man(m["loss"]), gain=man(m["gain"]),
                      deduction=man(m["deduction"]), deduction_left=man(m["deduction_left"]), base=man(m["base"]))
         elif f.rule == "R3":
-            v.update(stock=m["stock"], qty=f"{m['qty']:,}주", now=f"{int(m['now']):,}원",
-                     offer_price=f"{int(m['offer_price']):,}원", start=md(pd.Timestamp(m["start"])))
+            v.update(stock=m["stock"], qty=f"{m['qty']:,}주", shares=f"{m['shares']:,}주",
+                     now=f"{int(m['now']):,}원", issue_price=f"{int(m['issue_price']):,}원",
+                     start=md(pd.Timestamp(m["start"])))
+        elif f.rule == "R4":
+            v.update(product_name=m["product_name"], kind=m["kind"], expected=man(m["expected"]))
         return v
 
     @staticmethod

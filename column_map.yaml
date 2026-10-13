@@ -62,10 +62,19 @@ holdings:
   qty: qty
   current_price: current_price
 
-tender_offers:
+rights_offers:
   offer_id: offer_id
   symbol: symbol
   name: name
-  offer_price: offer_price
-  start_date: start_date
-  end_date: end_date
+  issue_price: issue_price
+  ratio: ratio
+  sub_start: sub_start
+  sub_end: sub_end
+
+maturities:
+  customer_id: customer_id
+  holding_id: holding_id
+  product_name: product_name
+  kind: kind
+  maturity_date: maturity_date
+  expected_amount_krw: expected_amount_krw

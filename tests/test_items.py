@@ -1,4 +1,4 @@
-"""R2 해외주식 양도세, R3 공개매수 (CLAUDE.md 부록 A 예시값) + 알림. R4 연금저축은 유진 미취급이라 제외."""
+"""R2 해외주식 양도세, R3 유상증자 권리, R4 펀드·ELS 만기 + 알림. 연금저축·공개매수는 다루지 않는다."""
 import sys
 from pathlib import Path
 
@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from engine.config import load_config  # noqa: E402
-from engine.rules import overseas_tax, tender_offer  # noqa: E402
+from engine.rules import maturity, overseas_tax, rights_offer  # noqa: E402
 from engine.runner import make_context, run  # noqa: E402
 from messages import validator  # noqa: E402
 from messages.generator import TemplateGenerator  # noqa: E402
@@ -55,15 +55,28 @@ def test_r2_after_last_sell_date(cfg):
 
 # ── R3 ──
 
-def test_r3_spec_example(cfg):
-    holdings = pd.DataFrame([{"customer_id": "T1", "symbol": "X", "name": "가상", "qty": 1000, "current_price": 21_000}])
-    offers = pd.DataFrame([{"offer_id": "O1", "symbol": "X", "name": "가상", "offer_price": 25_000,
-                            "start_date": A - pd.Timedelta(days=3), "end_date": A + pd.Timedelta(days=5)}])
-    [f] = tender_offer.evaluate(holdings, offers, CUST, cfg, A)
-    assert f.amount_krw == 4_000_000 and f.meta["days_left"] == 5
-    assert tender_offer.evaluate(holdings, offers, CUST, cfg, A + pd.Timedelta(days=6)) == []   # 기간 끝
-    holdings.loc[0, "current_price"] = 26_000
-    assert tender_offer.evaluate(holdings, offers, CUST, cfg, A) == []                          # 현재가가 더 높음
+def test_r3_rights_offer(cfg):
+    holdings = pd.DataFrame([{"customer_id": "T1", "symbol": "X", "name": "가상", "qty": 2000, "current_price": 10_500}])
+    offers = pd.DataFrame([{"offer_id": "O1", "symbol": "X", "name": "가상", "issue_price": 8_000, "ratio": 0.25,
+                            "sub_start": A + pd.Timedelta(days=4), "sub_end": A + pd.Timedelta(days=5)}])
+    [f] = rights_offer.evaluate(holdings, offers, CUST, cfg, A)
+    assert f.amount_krw == 1_250_000 and f.meta["shares"] == 500 and f.meta["days_left"] == 5
+    assert rights_offer.evaluate(holdings, offers, CUST, cfg, A - pd.Timedelta(days=20)) == []   # 알림 기간 전
+    assert rights_offer.evaluate(holdings, offers, CUST, cfg, A + pd.Timedelta(days=6)) == []    # 마감 후
+    holdings.loc[0, "current_price"] = 7_000
+    assert rights_offer.evaluate(holdings, offers, CUST, cfg, A) == []                           # 현재가가 청약가 아래
+
+
+# ── R4 ──
+
+def test_r4_maturity(cfg):
+    rows = pd.DataFrame([{"customer_id": "T1", "holding_id": "H1", "product_name": "가상펀드", "kind": "펀드",
+                          "maturity_date": A + pd.Timedelta(days=10), "expected_amount_krw": 50 * M}])
+    [f] = maturity.evaluate(rows, CUST, cfg, A)
+    assert f.amount_krw == int(50 * M * 0.0215 * 30 / 365) == 88_356
+    assert f.pb_flag and f.meta["days_left"] == 10
+    assert maturity.evaluate(rows, CUST, cfg, A - pd.Timedelta(days=10)) == []    # 만기 20일 전: 아직
+    assert maturity.evaluate(rows, CUST, cfg, A + pd.Timedelta(days=10)) == []    # 만기 당일 이후
 
 
 # ── 데모 페르소나 + 알림 ──
@@ -84,7 +97,8 @@ def test_demo_personas_have_items(demo):
     _, _, r = demo
     assert item(r, "P001", "R2").amount_krw == 880_000
     assert item(r, "P004", "R2").amount_krw == 330_000
-    assert item(r, "P003", "R3").amount_krw == 4_000_000
+    assert item(r, "P001", "R3").amount_krw == 1_250_000
+    assert item(r, "P003", "R4").amount_krw == 88_356
 
 
 def test_deadline_items_ranked_first(demo):
@@ -126,7 +140,7 @@ def test_demo_outbox_has_item_alerts(cfg, demo):
     start = A - pd.Timedelta(days=29)
     ob = backfill(start, A, ctx, cfg, empty_outbox(), data["action_log"], gen, run_time_for=demo_run_time_for(start))
     trig = set(ob.trigger)
-    assert {"T_TAX", "T_TENDER"} <= trig
-    assert "T_PENSION" not in trig
-    p3 = ob[(ob.customer_id == "P003") & (ob.trigger == "T_TENDER")]
+    assert {"T_TAX", "T_RIGHTS", "T_MATURITY"} <= trig
+    assert not {"T_PENSION", "T_TENDER"} & trig
+    p3 = ob[(ob.customer_id == "P003") & (ob.trigger == "T_MATURITY")]
     assert set(p3.channel) == {"kakao", "pb_queue"}

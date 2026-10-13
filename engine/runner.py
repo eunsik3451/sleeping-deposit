@@ -1,4 +1,4 @@
-"""전체 고객에 R1~R3를 돌리고, 자동 RP 고객의 '찾은 돈'을 계산한다."""
+"""전체 고객에 R1~R4를 돌리고, 자동 RP 고객의 '찾은 돈'을 계산한다."""
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -6,7 +6,7 @@ import pandas as pd
 from engine.cash.idle import build_accounts, found_money
 from engine.priority import sort_findings
 from engine.adapter import SCHEMA
-from engine.rules import idle_cash, overseas_tax, tender_offer
+from engine.rules import idle_cash, maturity, overseas_tax, rights_offer
 
 
 @dataclass
@@ -16,12 +16,12 @@ class Context:
     customers: pd.DataFrame         # index = customer_id
     products: pd.DataFrame
     auto_on_dates: dict             # {customer_id: [Timestamp, ...]} action_log의 auto_rp_on
-    extra: dict = field(default_factory=dict)       # R2·R3 테이블 {name: DataFrame}
+    extra: dict = field(default_factory=dict)       # R2~R4 테이블 {name: DataFrame}
     _records: dict = field(default_factory=dict)
     _by_cid: dict = field(default_factory=dict)
 
     def rows_of(self, table, cid) -> pd.DataFrame:
-        """R2·R3 테이블에서 이 고객 행만 (고객별로 한 번만 묶어 둔다)."""
+        """R2~R4 테이블에서 이 고객 행만 (고객별로 한 번만 묶어 둔다)."""
         if table not in self._by_cid:
             df = self.extra.get(table)
             self._by_cid[table] = {} if df is None or df.empty else dict(tuple(df.groupby("customer_id")))
@@ -60,7 +60,7 @@ def auto_on_dates_from_log(action_log: pd.DataFrame) -> dict:
     return out
 
 
-EXTRA_TABLES = ("overseas_tax_ytd", "holdings", "tender_offers")
+EXTRA_TABLES = ("overseas_tax_ytd", "holdings", "rights_offers", "maturities")
 
 
 def make_context(data: dict, accounts=None) -> Context:
@@ -105,8 +105,9 @@ def run(ctx: Context, cfg, as_of=None) -> RunResult:
     for cid in ctx.customers.index:
         customer = ctx.customer(cid)
         for f in (overseas_tax.evaluate(ctx.row_of("overseas_tax_ytd", cid, as_of.year), customer, cfg, as_of),
-                  *tender_offer.evaluate(ctx.rows_of("holdings", cid), ctx.extra.get("tender_offers"),
-                                         customer, cfg, as_of)):
+                  *rights_offer.evaluate(ctx.rows_of("holdings", cid), ctx.extra.get("rights_offers"),
+                                         customer, cfg, as_of),
+                  *maturity.evaluate(ctx.rows_of("maturities", cid), customer, cfg, as_of)):
             if f:
                 result.findings.append(f)
         found = found_for(ctx, cid, cfg, as_of)
