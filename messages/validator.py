@@ -6,6 +6,7 @@ NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
 PERCENT_RE = re.compile(r"\d+(?:\.\d+)?\s*%")
 ALWAYS_ALLOWED = {"1"}          # "1년" 같은 표현만 허용. 나머지 숫자는 전부 {값}에서 와야 한다
 FORBIDDEN_INFO_WORDS = ("가입", "추천", "RP", "금리")
+PROTECTION_WORD = "예금자보호"    # 준법: RP·CMA(RP형)를 안내하면 예금자보호 대상이 아님을 반드시 알린다
 LIMITS = {"push": {"title": 20, "body": 60}, "kakao": {"body": 300}}
 
 
@@ -36,6 +37,11 @@ def check(title, body, values: dict, msg_type, channel, product_names=()) -> lis
             problems.append(f"정보성 금칙어: {', '.join(words)}")
         if PERCENT_RE.search(text):
             problems.append("정보성 메시지에 금리(%) 표기")
+
+    # 상품(RP·CMA)을 언급하는 문장은 예금자보호 미적용 고지가 있어야 한다 (광고성·PB 통화 공통)
+    text = f"{title}\n{body}"
+    if ("RP" in text or any(n and n in text for n in product_names)) and PROTECTION_WORD not in text:
+        problems.append("예금자보호 미적용 고지 없음")
 
     limit = LIMITS.get(channel, {})
     if "title" in limit and len(title) > limit["title"]:

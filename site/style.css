@@ -140,3 +140,5 @@ html, body { overflow-x: hidden; }
 main, .metrics > *, .nums > *, .split > *, .card { min-width: 0; }
 .card-title, .push p, .kk p { overflow-wrap: anywhere; }
 td b + .muted, td .muted { white-space: nowrap; }
+
+.protect { margin-top: 6px; font-size: 0.8rem; color: var(--warn); background: var(--warn-bg); border: 1px solid #F5DDB0; border-radius: 6px; padding: 4px 8px; }

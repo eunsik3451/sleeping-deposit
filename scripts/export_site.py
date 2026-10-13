@@ -28,7 +28,7 @@ from notify.triggers import ITEM_TRIGGERS, key_of  # noqa: E402
 OUT = ROOT / "site" / "data.js"
 PERSONAS = {"P001": "매매대기 + 달러 + 유상증자", "P002": "ELS 상환금", "P003": "장기방치 · 진단 만료 · 펀드 만기",
             "P004": "예수금 자동 RP 이용 중"}
-TRIGGER_LABELS = {"T_EVENT": "입금 다음 날 알림", "T_IDLE_FIRST": "처음 알림", "T_IDLE_UPDATE": "운용 안내(재알림)",
+TRIGGER_LABELS = {"T_EVENT": "입금 다음 날 알림", "T_IDLE_FIRST": "처음 알림", "T_IDLE_UPDATE": "이자 안내(재알림)",
                   "T_REASSESS": "진단 만료 안내", "T_MONTHLY": "월간 리포트", "T_FOUND": "깨운 예수금 이자 알림",
                   "T_TAX": "해외주식 세금 안내", "T_RIGHTS": "유상증자 청약 안내", "T_MATURITY": "만기 안내"}
 
@@ -77,11 +77,11 @@ def previews(f, cust, cfg, gen, as_of):
         else:
             items.append((f"처음 알림 ({cfg['cash']['min_idle_days']}일째 되는 날)", "T_IDLE_FIRST", "push", "info", f, None, None))
             if has_consent(cust, "kakao"):
-                items.append(("운용 안내 (재알림)", "T_IDLE_UPDATE", "kakao", "ad", f, None, None))
+                items.append(("이자 안내 (재알림)", "T_IDLE_UPDATE", "kakao", "ad", f, None, None))
             elif has_consent(cust, "push"):
-                items.append(("운용 안내 (재알림)", "T_IDLE_UPDATE", "push", "ad", f, None, None))
+                items.append(("이자 안내 (재알림)", "T_IDLE_UPDATE", "push", "ad", f, None, None))
             else:
-                items.append(("운용 안내 (재알림)", "T_IDLE_UPDATE", "pb_queue", "ad", f, None,
+                items.append(("이자 안내 (재알림)", "T_IDLE_UPDATE", "pb_queue", "ad", f, None,
                               "광고 수신 동의가 없어 앱 푸시·알림톡 대신 PB 통화로 대체됩니다."))
         if f.pb_flag and not any(i[2] == "pb_queue" for i in items):
             items.append(("PB 통화 스크립트", "T_IDLE_UPDATE", "pb_queue", "info", f, None,

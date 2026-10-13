@@ -31,6 +31,8 @@
   const holdLabel = h => { const [k, c] = String(h || "").split(":"); return (HOLD[k] ?? k) + (c ? " (이월)" : ""); };
   const TRIG = D.trigger_labels;
   const RP = D.rates.rp;
+  const PROTECT = "예금자보호법에 따라 보호되지 않는 상품입니다 (예금보험공사 보호 대상 아님). 금리는 바뀔 수 있습니다.";
+  const protectLine = `<div class="protect">${PROTECT}</div>`;
 
   // ── 보는 사람별 데모 상태 (브라우저 저장, 실패해도 동작) ──
   const KEY = "sleeping-deposit-demo-v1";
@@ -194,13 +196,13 @@
     } else if (rec.product_id === "AUTO_RP") {
       const p = D.products.AUTO_RP;
       body = `<div class="product"><b>예수금 자동 RP</b> · 연 ${pct(p.rate)} · ${p.grade}등급(${p.grade_label})<br>
-        <span class="muted">주식을 대신 사고팔지 않고, 매수할 때 자동으로 빠져서 매매에 지장이 없어요. 매수 대기 자금이라 약정식 RP는 권하지 않아요.</span></div>
+        <span class="muted">주식을 대신 사고팔지 않고, 매수할 때 자동으로 빠져서 매매에 지장이 없어요. 매수 대기 자금이라 약정식 RP는 권하지 않아요.</span>${protectLine}</div>
         <div class="btns"><button class="btn primary" data-act="auto" data-fid="${fid}">예수금 자동 RP 신청</button></div>`;
     } else {
       const p = D.products[rec.product_id];
       const others = (rec.candidates || []).filter(x => x !== rec.product_id).map(x => D.products[x].name);
       body = `<div class="product"><b>${esc(p.name)}</b> · 연 ${pct(p.rate)} · ${p.grade}등급(${p.grade_label})<br>
-        <span class="muted">맡길 수 있는 금액 ${money(rec.suggest_amount, f.currency)}${others.length ? " · 다른 선택: " + esc(others.join(", ")) : ""}</span></div>
+        <span class="muted">맡길 수 있는 금액 ${money(rec.suggest_amount, f.currency)}${others.length ? " · 다른 선택: " + esc(others.join(", ")) : ""}</span>${protectLine}</div>
         <label class="check"><input type="checkbox" data-doc="${fid}"> 상품설명서를 확인했어요</label>
         <div class="btns"><button class="btn primary" data-act="buy" data-fid="${fid}" disabled>데모: 매수 화면으로 이동</button>
         ${krw ? `<button class="btn" data-act="auto" data-fid="${fid}">예수금 자동 RP 신청</button>` : ""}
@@ -247,7 +249,7 @@
     if (kind === "buy") {
       const p = D.products[f.recommendation.product_id];
       return modal(`<h3>데모: 매수 화면으로 이동</h3>
-        <p>실서비스에서는 고객 앱의 <b>${esc(p.name)}</b> 매수 화면으로 이동하고, 금액 <b>${money(f.recommendation.suggest_amount, f.currency)}</b>이 미리 채워집니다. 고객이 본인 인증 후 직접 주문합니다.</p>
+        <p>실서비스에서는 고객 앱의 <b>${esc(p.name)}</b> 매수 화면으로 이동하고, 금액 <b>${money(f.recommendation.suggest_amount, f.currency)}</b>이 미리 채워집니다. 고객이 본인 인증 후 직접 주문합니다.</p>${protectLine}
         <p class="muted">프로토타입이라 실제 주문은 연동하지 않습니다.</p><div class="btns"><button class="btn primary" data-close>확인</button></div>`);
     }
     if (kind === "item") {
@@ -275,8 +277,8 @@
       <label>남겨둘 금액 (원)<input type="number" id="keep" min="0" step="100000" value="${buffer}"></label>
       <p class="muted small" id="keepman">남겨둘 금액 ${man(buffer)} · 기본값은 최근 3개월 중 하루에 가장 많이 쓰신 금액이에요.</p>
       <details><summary>상품설명서 요약 (데모)</summary><ul><li>위험등급 ${p.grade}등급(${p.grade_label})</li><li>금리 연 ${pct(p.rate)} (변동될 수 있음)</li>
-        <li>예금자보호법에 따라 보호되지 않음</li><li>언제든 해지할 수 있고, 해지하면 다음 영업일부터 예수금으로 남음</li></ul></details>
-      <label class="check"><input type="checkbox" id="c1"> 상품설명서를 확인했어요</label>
+        <li>${PROTECT}</li><li>언제든 해지할 수 있고, 해지하면 다음 영업일부터 예수금으로 남음</li></ul></details>
+      ${protectLine}<label class="check"><input type="checkbox" id="c1"> 상품설명서를 확인했어요 (예금자보호 대상이 아님을 포함)</label>
       <label class="check"><input type="checkbox" id="c2"> 예수금 자동 RP 이용에 동의해요</label>
       <div class="btns"><button class="btn primary" id="go" disabled>신청하기</button><button class="btn" data-close>닫기</button></div>`, dlg => {
       const keep = dlg.querySelector("#keep"), go = dlg.querySelector("#go"), c1 = dlg.querySelector("#c1"), c2 = dlg.querySelector("#c2");
@@ -328,6 +330,9 @@
       <h2>금리 기준</h2>
       <p>원화: 예탁금 이용료 연 ${pct(D.rates.deposit)}(100만원 초과분) → 챔피언CMA(RP형) 자유형 연 ${pct(RP)}(2026-08-28 기준, 세전). 차이 연 ${pct(RP - D.rates.deposit)}p.
         1억원이 1년 쉬면 약 ${man(1e8 * (RP - D.rates.deposit))}을 못 받습니다.</p>
+      <h2>준법 고지</h2>
+      <p>RP·CMA(RP형)는 예금자보호법에 따라 보호되지 않습니다. 상품을 안내하는 모든 문장(광고성 알림, PB 통화 스크립트, 앱 상품 카드)에 이 고지를 넣고,
+        고지가 빠진 문장은 검증기가 걸러 기본 문구로 바꿉니다. 정보성 알림에는 상품명·금리·가입 권유를 넣지 않습니다.</p>
       <h2>다음 단계 후보</h2>
       <ul><li>ISA 비과세 한도 미활용 — 회사 ISA 취급 여부 확인 필요</li><li>배당금 입금 후 방치 — 소액 배당 묶음 안내</li><li>신주인수권 매도 안내 — 청약하지 않을 고객에게 권리 매도 일정 안내</li></ul>
       <h2>일부러 다루지 않는 것</h2>

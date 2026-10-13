@@ -221,3 +221,12 @@ def test_demo_weekly_cap_respected(cfg, demo_outbox):
     ts = pd.to_datetime(sent.scheduled_at)
     sent["wk"] = ts.dt.isocalendar().year.astype(str) + "-" + ts.dt.isocalendar().week.astype(str)
     assert sent.groupby(["customer_id", "wk"]).size().max() <= cfg["notify"]["max_per_week"]
+
+
+def test_product_mention_requires_deposit_protection_notice():
+    """준법: RP·CMA를 안내하는 문장에는 예금자보호 대상이 아니라는 고지가 있어야 한다."""
+    names = ("챔피언CMA(RP형)",)
+    assert validator.check("(광고) 이자 안내", "수시 RP에 맡기면 이자가 붙어요.", {}, "ad", "push", names)
+    assert validator.check("(광고) 이자 안내", "챔피언CMA(RP형)에 맡겨요.", {}, "ad", "kakao", names)
+    assert not validator.check("(광고) 이자 안내", "수시 RP에 맡기면 이자가 붙어요. (예금자보호 대상 아님)",
+                               {}, "ad", "push", names)
