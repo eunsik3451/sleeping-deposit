@@ -197,7 +197,7 @@ def market_section(cfg, ctx):
     keep = ("customer_id", "symbol", "name", "kind", "ratio", "room", "trigger_price", "close", "credit_loan_krw", "value_krw",
             "shortfall_krw", "to_safe_krw", "big_days", "lookback", "ratio_hist", "trade_date")
     credit = [{k: b.get(k) for k in keep} for b in m.get("credit", [])]
-    return {"credit": credit, "ref_date": m["ref_date"], "generated": m["generated"], "indices": m["indices"], "movers": m["movers"],
+    return {"credit": credit, "positions": m.get("positions_all", []), "ref_date": m["ref_date"], "generated": m["generated"], "indices": m["indices"], "movers": m["movers"],
             "alerts": alerts, "holders": m["holders"], "big_move_pct": cfg["market"]["big_move_pct"],
             "maintenance_ratio": cfg["market"]["maintenance_ratio"], "notes_checked": {k: v.get("checked_by", "") for k, v in notes.items()}}
 
@@ -247,7 +247,13 @@ def main():
             pv.append(render(("매월 1일 깨운 예수금 이자", "T_FOUND", "push", "info", None, fe, None), c, cfg, gen, A))
         pv.append(render(("매월 1일 월간 리포트", "T_MONTHLY", "monthly_report", "info", None, extra, None), c, cfg, gen, A))
 
+        bal = {}
+        for acct in ctx.accounts_of(cid):
+            if acct.has(A):
+                k = acct.pos(A)
+                bal[acct.currency] = {"cash": float(acct.cash[k]), "auto_rp": float(acct.auto_rp[k]), "rate": float(acct.rate[k])}
         customers.append({
+            "balance": bal,
             "id": cid, "name": c["name"], "age": A.year - int(c["birth_year"]), "risk": c["risk_profile"],
             "diag": f"{diag:%Y-%m-%d}", "diag_valid": (A - diag).days <= cfg["suitability"]["risk_profile_valid_days"],
             "consent_push": has_consent(c, "push"), "consent_kakao": has_consent(c, "kakao"), "pb": c["pb_id"],

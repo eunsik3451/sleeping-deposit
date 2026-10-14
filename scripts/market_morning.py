@@ -66,6 +66,8 @@ def main():
               .sort_values("chg_pct", key=abs, ascending=False))
     out = {"ref_date": f"{ref:%Y-%m-%d}", "generated": f"{pd.Timestamp.now():%Y-%m-%d %H:%M}", "config": c,
            "indices": idx, "movers": movers.head(12).to_dict("records"), "alerts": alerts, "credit": credit,
+           "positions_all": pos[["customer_id", "symbol", "name", "currency", "qty", "close", "chg_pct", "value_krw",
+                                 "day_delta_krw", "pnl_krw", "credit_loan_krw", "trade_date"]].to_dict("records"),
            "holders": int(pos.customer_id.nunique()), "positions": int(len(pos))}
     MARKET.mkdir(parents=True, exist_ok=True)
     path = MARKET / f"{ref:%Y-%m-%d}.json"

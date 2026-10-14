@@ -397,3 +397,81 @@ body.is-pbm { background: #F2F4F6; }
 .cg-track.mini { height: 8px; }
 .cg-track.mini .cg-dot { width: 16px; height: 16px; }
 .rt-key { float: right; color: #F04452; font-size: 0.78rem; }
+
+/* PB 아침 브리핑 · 고객 전체 보기 · 연락 기록 */
+.brief h1 { font-size: 1.9rem; line-height: 1.3; }
+.brief .hl { color: #3182F6; }
+.pbm-stats.four { grid-template-columns: repeat(4, 1fr); }
+.pbm-stats b.red { color: #F04452; }
+.pbm-stats small { display: block; color: #8B95A1; font-size: 0.78rem; margin-top: 2px; }
+.brief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.client-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; }
+.client-grid .col { display: grid; gap: 16px; min-width: 0; }
+.bcard { background: #fff; border-radius: 20px; padding: 22px 24px; min-width: 0; }
+.bhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.bhead h2 { font-size: 1.15rem; }
+.bhead a { color: #3182F6; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+.pri { list-style: none; margin: 0; padding: 0; }
+.pri a { display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-radius: 14px; color: inherit; text-decoration: none; }
+.pri a:hover { background: #F9FAFB; }
+.pri em { font-style: normal; width: 24px; height: 24px; border-radius: 50%; background: #F2F4F6; display: grid; place-items: center; font-weight: 700; font-size: 0.8rem; flex: none; }
+.tag { flex: none; font-size: 0.75rem; font-weight: 700; border-radius: 999px; padding: 3px 9px; background: #F2F4F6; color: #4E5968; }
+.tag.s-call { background: #FFEBEE; color: #E42939; } .tag.s-warn { background: #FFF0E6; color: #E5600A; }
+.tag.s-move { background: #E8F3FF; color: #1B64DA; } .tag.s-due { background: #FFF8E1; color: #B07800; }
+.done-mark { color: #00A87E; font-weight: 700; }
+.idx-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 6px; }
+.idx-grid div { background: #F9FAFB; border-radius: 12px; padding: 10px; }
+.idx-grid span { display: block; color: #6B7684; font-size: 0.78rem; }
+.idx-grid b { display: block; font-size: 0.95rem; }
+.idx-grid em { font-style: normal; font-weight: 700; font-size: 0.85rem; }
+.issues { list-style: none; margin: 0; padding: 0; }
+.issues li { padding: 10px 0; border-top: 1px solid #F2F4F6; }
+.is-top { display: flex; gap: 8px; align-items: baseline; }
+.is-top em { font-style: normal; font-weight: 700; }
+.is-top small { margin-left: auto; color: #8B95A1; }
+.issues p { margin: 4px 0 0; color: #4E5968; font-size: 0.9rem; line-height: 1.5; word-break: keep-all; }
+.cal { list-style: none; margin: 0; padding: 0; }
+.cal li { display: flex; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid #F2F4F6; }
+.cal .d { width: 56px; flex: none; } .cal .d b { display: block; } .cal .d small { color: #8B95A1; font-weight: 600; } .cal .d small.red { color: #F04452; }
+.cal .t b { display: block; font-weight: 600; } .cal .t small { color: #8B95A1; }
+.empty { color: #8B95A1; padding: 14px 0; }
+.row-btns { display: flex; gap: 8px; margin-top: 10px; }
+.ghost.sm { padding: 9px 14px; font-size: 0.85rem; cursor: pointer; }
+.tl { list-style: none; margin: 0; padding: 0; }
+.tl li { display: grid; grid-template-columns: 14px 1fr; gap: 10px; padding: 10px 0; }
+.tl-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: #B0B8C1; }
+.tl-dot.called { background: #3182F6; } .tl-dot.joined { background: #00B493; } .tl-dot.no_answer { background: #F5B400; } .tl-dot.later { background: #B0B8C1; } .tl-dot.memo { background: #8B95A1; }
+.tl-head { margin: 0; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.tl-head small { color: #8B95A1; margin-left: auto; font-size: 0.78rem; }
+.tl-head a { color: #3182F6; text-decoration: none; }
+.tl-topic { margin: 2px 0 0; color: #6B7684; font-size: 0.85rem; }
+.tl-memo { margin: 4px 0 0; background: #F9FAFB; border-radius: 10px; padding: 8px 10px; font-size: 0.9rem; white-space: pre-wrap; }
+.memo, .logform textarea { width: 100%; border: none; background: #F2F4F6; border-radius: 14px; padding: 12px 14px; font: inherit; resize: vertical; outline: none; }
+.memo:focus, .logform textarea:focus { box-shadow: 0 0 0 2px #3182F6; }
+.logform { display: grid; gap: 8px; margin-bottom: 10px; }
+.seg.small { flex-wrap: wrap; }
+.seg.small button { padding: 7px 11px; font-size: 0.85rem; color: #333D4B; }
+.seg.small button:hover { background: #fff; }
+.acts .row.three { grid-template-columns: 1fr 1fr 1fr; }
+.crumb { color: #3182F6; text-decoration: none; font-weight: 600; display: inline-block; margin: 4px 0 14px; }
+.client h1 { font-size: 1.6rem; margin: 0; } .client h1 small { color: #8B95A1; font-size: 0.9rem; font-weight: 500; }
+.client .pbm-stats { margin-top: 18px; }
+.items li.static { cursor: default; }
+.okline { color: #00875F; font-weight: 600; margin: 10px 0 0; }
+.hold { list-style: none; margin: 0; padding: 0; }
+.hold li { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 10px 0; border-top: 1px solid #F2F4F6; }
+.hold .who .cg-tag { margin-left: 6px; }
+.alog { list-style: none; margin: 0; padding: 0; }
+.alog li { border-top: 1px solid #F2F4F6; }
+.alog summary { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; cursor: pointer; list-style: none; }
+.alog summary::-webkit-details-marker { display: none; }
+.alog summary b { display: block; font-weight: 600; font-size: 0.92rem; } .alog summary small { color: #8B95A1; font-size: 0.78rem; }
+.alog summary em { font-style: normal; color: #6B7684; font-size: 0.8rem; white-space: nowrap; }
+.alog p { margin: 0 0 10px; background: #F9FAFB; border-radius: 10px; padding: 10px 12px; font-size: 0.86rem; white-space: pre-wrap; }
+@media (max-width: 900px) {
+  .brief-grid, .client-grid { grid-template-columns: 1fr; }
+  .pbm-stats.four { grid-template-columns: 1fr 1fr; row-gap: 14px; }
+  .pbm-stats.four div:nth-child(3) { border-left: none; }
+  .idx-grid { grid-template-columns: 1fr 1fr; }
+  .hold li { grid-template-columns: 1fr auto; } .hold li .amt:last-child { display: none; }
+}

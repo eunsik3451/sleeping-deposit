@@ -187,7 +187,7 @@
 
     $app.querySelector("#cid").onchange = e => (location.hash = `#customer/${e.target.value}`);
     $app.querySelector("#replay").onclick = () => { cx.scene = firstPush(cid) ? "lock" : "home"; cx.sheet = null; drawPhone(); };
-    $app.querySelector("#reset").onclick = () => { S = { reassessed: {}, auto: {}, pb: {}, log: [] }; save(); cx.cid = null; toast("데모 상태를 처음으로 되돌렸어요"); render(); };
+    $app.querySelector("#reset").onclick = () => { S = { reassessed: {}, auto: {}, pb: {}, log: S.log }; save(); cx.cid = null; toast("데모 상태를 처음으로 되돌렸어요"); render(); };
     bindPhone();
   }
 
@@ -432,7 +432,7 @@
   // ════════════════ ③ PB 고객 관리 ════════════════
   // 한 화면에서 "누구에게, 무엇을, 무슨 말로" 연락할지. 목록은 고객 단위, 오른쪽(모바일은 시트)에 상세.
   const PB_BY_FID = Object.fromEntries(D.pb.map(r => [r.finding_id, r]));
-  const PB_STATUS = { called: "통화 완료", joined: "고객이 앱에서 직접 가입함", later: "나중에 연락" };
+  const PB_STATUS = { called: "통화 완료", no_answer: "부재중", joined: "고객이 앱에서 직접 가입함", later: "나중에 연락" };
   let pbm = { tab: "today", q: "", cid: null, fid: null, sheet: false };
 
   function todo(f) {   // PB가 할 일 한 문장
@@ -525,9 +525,11 @@
         : `<p class="sub">아직 이유를 확인하지 않았어요. 아침 점검 때 뉴스를 확인해 채웁니다.</p>`}</div>
       <h3>이렇게 말해 보세요</h3>
       <ol class="steps">${scriptSteps(a.script).map(([k, t]) => `<li><span>${esc(k)}</span><p>${esc(t)}</p></li>`).join("")}</ol>
+      <h3>최근 연락</h3>${logList(logsOf(r.cid).slice(0, 2), false)}
       <div class="acts">
+        <textarea id="pbmemo" class="memo" rows="2" placeholder="통화 메모 (선택) · 연락 기록에 함께 쌓여요"></textarea>
         <button class="cta" data-st="called">통화 완료</button>
-        <div class="row"><button class="ghost" data-st="later">나중에</button><a class="ghost center" href="#customer/${r.cid}">고객 앱 화면</a></div>
+        <div class="row three"><button class="ghost" data-st="no_answer">부재중</button><button class="ghost" data-st="later">나중에</button><a class="ghost center" href="#client/${r.cid}">고객 전체 보기</a></div>
         <p class="fine">사실과 보도 내용만 전하고 매수·매도를 권하거나 주가 방향을 단정하지 않아요. 이유는 언론 보도 요약이며 출처를 함께 확인하세요.</p>
       </div>`;
   }
@@ -579,6 +581,186 @@
       <p class="ac-sub">담보비율 ${Math.round(b.ratio * 100)}% · 기준가 ${won(b.trigger_price)} · ${MK.ref_date.slice(5).replace("-", "/")} 종가</p></div>`).join("")}</div>`;
   }
 
+  // ════════════════ 연락 기록 (이 브라우저에 날짜별로 누적) ════════════════
+  const LOG_RESULT = { called: "통화 완료", no_answer: "부재중", joined: "고객이 앱에서 직접 가입함", later: "나중에 연락", memo: "메모" };
+  if (!Array.isArray(S.log)) S.log = [];
+  function addLog(cid, result, topic, memo) {
+    S.log.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cid, at: new Date().toISOString(),
+      result, topic: topic || "", memo: (memo || "").trim() });
+    save();
+  }
+  const logsOf = cid => S.log.filter(l => l.cid === cid).sort((a, b) => b.at.localeCompare(a.at));
+  const fmtAt = iso => { const d = new Date(iso); return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const isToday = iso => new Date(iso).toDateString() === new Date().toDateString();
+  function logList(list, withName) {
+    if (!list.length) return `<p class="sub">아직 연락 기록이 없어요.</p>`;
+    return `<ul class="tl">${list.map(l => `<li><span class="tl-dot ${l.result}"></span><div>
+      <p class="tl-head"><b>${LOG_RESULT[l.result]}</b>${withName && CUST[l.cid] ? ` · <a href="#client/${l.cid}">${esc(CUST[l.cid].name)}</a>` : ""}<small>${fmtAt(l.at)}</small></p>
+      ${l.topic ? `<p class="tl-topic">${esc(l.topic)}</p>` : ""}${l.memo ? `<p class="tl-memo">${esc(l.memo)}</p>` : ""}</div></li>`).join("")}</ul>`;
+  }
+  function exportLogs() {
+    const blob = new Blob([JSON.stringify(S.log, null, 1)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `연락기록_${new Date().toISOString().slice(0, 10)}.json`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  function importLogs(file) {
+    file.text().then(t => {
+      const rows = JSON.parse(t);
+      if (!Array.isArray(rows)) throw new Error("형식 오류");
+      const seen = new Set(S.log.map(l => l.id));
+      const add = rows.filter(r => r && r.id && r.cid && r.at && !seen.has(r.id));
+      S.log.push(...add); save(); toast(`연락 기록 ${add.length}건을 가져왔어요`); render();
+    }).catch(() => toast("기록 파일을 읽지 못했어요"));
+  }
+
+  // ════════════════ PB 아침 브리핑 ════════════════
+  function priorityList() {
+    const out = [];
+    if (MK) MK.alerts.forEach(a => {
+      if (a.kind === "margin_call") out.push({ cid: a.customer_id, w: 0, why: `${a.name} 담보 ${Math.round(a.ratio * 100)}% · 약 ${man(a.shortfall_krw)} 부족`, tag: "반대매매 위험", cls: "s-call" });
+      if (a.kind === "margin_warn") out.push({ cid: a.customer_id, w: 1, why: `${a.name} 반대매매까지 −${(a.room * 100).toFixed(1)}%`, tag: "반대매매 경고", cls: "s-warn" });
+      if (a.kind === "big_move") out.push({ cid: a.customer_id, w: 3, amt: Math.abs(a.day_delta_krw), why: `${a.name} ${pctTxt(a.chg_pct)} · 평가 ${a.day_delta_krw < 0 ? "−" : "+"}${man(Math.abs(a.day_delta_krw))}`, tag: "보유 종목 급등락", cls: "s-move" });
+    });
+    D.customers.forEach(c => findingsOf(c.id).forEach(f => {
+      if (f.deadline && daysLeft(f.deadline) <= 3) out.push({ cid: c.id, w: 2, why: headline(f), tag: `마감 D-${daysLeft(f.deadline)}`, cls: "s-due" });
+    }));
+    const seen = new Set();
+    return out.sort((a, b) => a.w - b.w || (b.amt || 0) - (a.amt || 0)).filter(x => !seen.has(x.cid) && seen.add(x.cid));
+  }
+
+  function upcoming(days) {
+    const by = {};
+    D.customers.forEach(c => findingsOf(c.id).forEach(f => {
+      if (!f.deadline) return;
+      const dl = daysLeft(f.deadline);
+      if (dl < 0 || dl > days) return;
+      const key = `${f.deadline}|${f.subtype}|${f.rule === "R3" ? f.meta.stock : f.rule === "R4" ? "" : ""}`;
+      (by[key] ||= { date: f.deadline, dl, label: f.rule === "R3" ? `${f.meta.stock} 유상증자 청약 마감` : f.rule === "R4" ? "펀드·ELS 만기" : f.rule === "R2" ? "해외주식 올해 마지막 매도일" : f.rule === "R5" ? "연금저축 올해 납입 마감" : f.subtype_label, cids: new Set(), sum: 0 });
+      by[key].cids.add(c.id); by[key].sum += f.amount_krw;
+    }));
+    return Object.values(by).sort((a, b) => a.dl - b.dl);
+  }
+
+  function pageBrief() {
+    const now = new Date();
+    const pri = priorityList();
+    const top = pri.slice(0, 6);
+    const contact = D.customers.filter(c => findingsOf(c.id).some(f => PB_BY_FID[f.finding_id])).length;
+    const risk = MK ? MK.credit.filter(b => b.kind === "margin_call" || b.kind === "margin_warn").length : 0;
+    const movers = MK ? new Set(MK.alerts.filter(a => a.kind === "big_move").map(a => a.customer_id)).size : 0;
+    const due = upcoming(7).reduce((s, u) => s + u.cids.size, 0);
+    const todayLogs = S.log.filter(l => isToday(l.at));
+    const issues = MK ? Object.values(MK.alerts.filter(a => a.kind === "big_move" || a.kind === "margin_call").reduce((o, a) => {
+      (o[a.symbol] ||= { a, n: new Set() }).n.add(a.customer_id); return o; }, {})) : [];
+
+    $app.innerHTML = `<div class="pbm brief">
+      <p class="sub">${now.getMonth() + 1}월 ${now.getDate()}일 ${"일월화수목금토"[now.getDay()]}요일 아침</p>
+      <h1>오늘은 ${pri.length ? `<span class="hl">${esc(CUST[pri[0].cid].name)}님</span>부터 연락하세요` : "급한 연락이 없어요"}</h1>
+      <p class="sub">${pri.length ? esc(pri[0].why) : ""}</p>
+      <div class="pbm-stats four">
+        <div><span>반대매매 위험·경고</span><b class="${risk ? "red" : ""}">${risk}명</b></div>
+        <div><span>보유 종목 ±10%</span><b>${movers}명</b></div>
+        <div><span>마감 7일 이내</span><b>${due}건</b></div>
+        <div><span>오늘 연락 대상</span><b>${contact}명</b></div>
+      </div>
+
+      <div class="brief-grid">
+        <section class="bcard"><div class="bhead"><h2>먼저 연락할 고객</h2><a href="#pbm">전체 보기 ›</a></div>
+          <ul class="pri">${top.map((x, i) => `<li><a href="#client/${x.cid}"><em>${i + 1}</em>
+            <span class="who"><b>${esc(CUST[x.cid].name)}</b><small>${CUST[x.cid].age}세</small><i>${esc(x.why)}</i></span>
+            <span class="tag ${x.cls}">${esc(x.tag)}</span>${S.log.some(l => l.cid === x.cid && isToday(l.at)) ? `<span class="done-mark">✓</span>` : ""}</a></li>`).join("") || `<li class="empty">없어요</li>`}</ul></section>
+
+        <section class="bcard"><div class="bhead"><h2>어제 시장</h2>${MK ? `<span class="sub">${MK.ref_date} 종가</span>` : ""}</div>
+          ${MK ? `<div class="idx-grid">${MK.indices.map(i => `<div><span>${esc(i.name)}</span><b>${i.close.toLocaleString("ko-KR")}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></div>`).join("")}</div>
+          <h3>고객 보유 종목 이슈</h3>
+          <ul class="issues">${issues.map(({ a, n }) => `<li><div class="is-top"><b>${esc(a.name)}</b><em class="${a.chg_pct < 0 ? "dn" : "up"}">${pctTxt(a.chg_pct)}</em><small>보유 고객 ${n.size}명</small></div>
+            <p>${esc(a.reason ? a.reason.split(/(?<=다\.)\s/)[0] : "이유 확인 전")}</p></li>`).join("") || `<li class="empty">크게 움직인 보유 종목이 없어요</li>`}</ul>`
+          : `<p class="sub">아침 시장 점검을 아직 돌리지 않았어요.</p>`}</section>
+
+        <section class="bcard"><div class="bhead"><h2>다가오는 마감 (14일)</h2></div>
+          <ul class="cal">${upcoming(14).map(u => `<li><span class="d"><b>${u.date.slice(5).replace("-", "/")}</b><small class="${u.dl <= 3 ? "red" : ""}">D-${u.dl}</small></span>
+            <span class="t"><b>${esc(u.label)}</b><small>고객 ${u.cids.size}명 · 합계 ${man(u.sum)}</small></span></li>`).join("") || `<li class="empty">없어요</li>`}</ul>
+          <p class="sub small">데모 기준일 ${D.as_of} 기준</p></section>
+
+        <section class="bcard"><div class="bhead"><h2>연락 기록</h2><span class="sub">오늘 ${todayLogs.length}건 · 전체 ${S.log.length}건</span></div>
+          ${logList(S.log.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 6), true)}
+          <div class="row-btns"><button class="ghost sm" id="exp">기록 내보내기</button><label class="ghost sm">기록 가져오기<input type="file" id="imp" accept="application/json" hidden></label></div>
+          <p class="fine">기록은 이 브라우저에 날짜별로 쌓여요. 다른 기기로 옮길 때는 내보내기·가져오기를 쓰세요.</p></section>
+      </div></div>`;
+    $app.querySelector("#exp").onclick = exportLogs;
+    $app.querySelector("#imp").onchange = e => e.target.files[0] && importLogs(e.target.files[0]);
+  }
+
+  // ════════════════ 고객 한 명 전체 보기 ════════════════
+  function pageClient(cid) {
+    const c = CUST[cid];
+    if (!c) { location.hash = "#pbm"; return; }
+    const fs = findingsOf(cid), det = D.details[cid];
+    const krw = c.balance.KRW || { cash: 0, auto_rp: 0 }, usdB = c.balance.USD;
+    const pos = MK ? MK.positions.filter(p => p.customer_id === cid) : [];
+    const credit = MK ? MK.credit.filter(b => b.customer_id === cid) : [];
+    const stock = pos.reduce((s, p) => s + p.value_krw, 0), loan = pos.reduce((s, p) => s + p.credit_loan_krw, 0);
+    const alerts = D.outbox.filter(r => r.cid === cid).sort((a, b) => b.at.localeCompare(a.at));
+    const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "알림톡"].filter(Boolean);
+    const valid = c.diag_valid || S.reassessed[cid];
+
+    $app.innerHTML = `<div class="pbm client">
+      <a class="crumb" href="#pbm">‹ PB 고객 관리</a>
+      <div class="who-big"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
+        <div><h1>${esc(c.name)}님 <small>${cid}</small></h1>
+          <p class="sub">${c.age}세 · ${esc(S.reassessed[cid] || c.risk)} · 투자성향 진단 ${valid ? "유효" : `만료 (${c.diag})`} · ${consent.length ? "광고 동의: " + consent.join("·") : "광고 미동의 (PB 연락만)"} · 담당 ${c.pb}</p></div></div>
+
+      <div class="pbm-stats four">
+        <div><span>원화 예수금</span><b>${man(krw.cash)}</b>${krw.auto_rp ? `<small>자동 RP ${man(krw.auto_rp)}</small>` : ""}</div>
+        <div><span>달러 예수금</span><b>${usdB ? usd(usdB.cash) : "–"}</b>${usdB ? `<small>약 ${man(usdB.cash * usdB.rate)}</small>` : ""}</div>
+        <div><span>주식 평가금액</span><b>${pos.length ? man(stock) : "–"}</b>${MK && pos.length ? `<small>${MK.ref_date.slice(5).replace("-", "/")} 종가</small>` : ""}</div>
+        <div><span>신용 대출금</span><b class="${credit.some(b => b.kind !== "margin_safe") ? "red" : ""}">${loan ? man(loan) : "없음"}</b></div>
+      </div>
+
+      <div class="client-grid">
+        <div class="col">
+          <section class="bcard"><div class="bhead"><h2>챙길 것 ${fs.length}가지</h2><a href="#customer/${cid}/home">고객 앱 화면 ›</a></div>
+            ${fs.length ? `<ul class="items">${fs.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 D-${daysLeft(f.deadline)}` : ""}${PB_BY_FID[f.finding_id] ? " · 연락 대상" : ""}</small></span><em>+${man(amountOf(f))}</em></li>`).join("")}</ul>`
+              : `<p class="sub">지금 챙길 것이 없어요.</p>`}
+            ${foundOf(cid) ? `<p class="okline">예수금 자동 RP 이용 중 · 깨운 뒤 받은 이자 ${won(foundOf(cid).found_krw)}</p>` : ""}</section>
+
+          <section class="bcard"><div class="bhead"><h2>보유 종목 ${pos.length}개</h2>${MK ? `<span class="sub">${MK.ref_date} 종가</span>` : ""}</div>
+            ${pos.length ? `<ul class="hold">${pos.sort((a, b) => b.value_krw - a.value_krw).map(p => {
+              const b = credit.find(x => x.symbol === p.symbol);
+              return `<li><span class="who"><b>${esc(p.name)}</b><small>${p.qty.toLocaleString("ko-KR")}주</small>${b ? `<span class="cg-tag ${stageCls(b.kind)}">신용 · ${STAGE[b.kind][0]}${b.kind !== "margin_safe" ? ` −${(Math.max(0, b.room) * 100).toFixed(1)}%` : ""}</span>` : ""}</span>
+                <span class="amt"><b>${man(p.value_krw)}</b><small class="${p.chg_pct < 0 ? "dn" : "up"}">${pctTxt(p.chg_pct)}</small></span>
+                <span class="amt"><b class="${p.pnl_krw < 0 ? "dn" : "up"}">${p.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(p.pnl_krw))}</b><small>매입 후 손익</small></span></li>`; }).join("")}</ul>`
+              : `<p class="sub">보유 종목이 없어요 (가상 데이터).</p>`}
+            ${credit.filter(b => b.kind !== "margin_safe").map(b => `<h3>${esc(b.name)} 신용 · 반대매매까지</h3>${creditGauge(b)}`).join("")}</section>
+
+          ${det.trend.start ? `<section class="bcard"><div class="bhead"><h2>최근 6개월 예수금</h2></div>${lineChart(det.trend)}</section>` : ""}
+        </div>
+
+        <div class="col">
+          <section class="bcard"><div class="bhead"><h2>연락 기록</h2><span class="sub">${logsOf(cid).length}건</span></div>
+            <div class="logform">
+              <textarea id="memo" rows="3" placeholder="통화 내용이나 다음에 할 일을 적어 두세요"></textarea>
+              <div class="seg small">${["called", "no_answer", "joined", "later", "memo"].map(k => `<button data-log="${k}">${LOG_RESULT[k]}</button>`).join("")}</div>
+            </div>
+            ${logList(logsOf(cid), false)}</section>
+
+          <section class="bcard"><div class="bhead"><h2>이 고객에게 간 알림</h2><span class="sub">최근 30일 · ${alerts.length}건</span></div>
+            ${alerts.length ? `<ul class="alog">${alerts.slice(0, 12).map(r => `<li><details><summary><span><b>${esc(r.title)}</b><small>${r.at} · ${CH[r.channel]} · ${MT[r.msg_type]}${r.hold ? " · " + esc(holdLabel(r.hold)) : ""}</small></span><em>${ST[r.status] || r.status}</em></summary><p>${esc(r.body)}</p></details></li>`).join("")}</ul>`
+              : `<p class="sub">보낸 알림이 없어요.</p>`}</section>
+        </div>
+      </div></div>`;
+
+    $app.querySelectorAll("[data-log]").forEach(b => (b.onclick = () => {
+      const memo = $app.querySelector("#memo").value;
+      if (b.dataset.log === "memo" && !memo.trim()) return toast("메모 내용을 적어 주세요");
+      const topic = fs[0] ? headline(fs[0]) : "";
+      addLog(cid, b.dataset.log, topic, memo);
+      if (b.dataset.log !== "memo") S.pb[cid] = b.dataset.log, save();
+      toast(`${LOG_RESULT[b.dataset.log]}으로 기록했어요`); pageClient(cid);
+    }));
+  }
+
   function pagePbHome() {
     const all = pbCustomers();
     const today = all.filter(r => r.calls.length).sort((a, b) => a.rank - b.rank);
@@ -620,6 +802,8 @@
     $app.querySelectorAll("[data-cid]").forEach(li => (li.onclick = () => { pbm.cid = li.dataset.cid; pbm.fid = null; pbm.sheet = true; pagePbHome(); }));
     $app.querySelectorAll("[data-fid]").forEach(li => (li.onclick = () => { pbm.fid = li.dataset.fid; pagePbHome(); }));
     $app.querySelectorAll("[data-st]").forEach(b => (b.onclick = () => {
+      const topic = ($app.querySelector(".pbm-detail .todo b") || {}).textContent || "";
+      addLog(pbm.cid, b.dataset.st, topic, ($app.querySelector("#pbmemo") || {}).value);
       S.pb[(isMk ? "m:" : "") + pbm.cid] = b.dataset.st; save(); toast(`${PB_STATUS[b.dataset.st]}으로 기록했어요`); pagePbHome();
     }));
     const back = $app.querySelector("[data-back]");
@@ -661,10 +845,12 @@
         ${pb ? `<p class="sub">${esc(pb.reasons.join(" · "))}</p>` : ""}
         <ul>${f.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul></details>
 
+      <h3>최근 연락</h3>${logList(logsOf(c.id).slice(0, 2), false)}
       <div class="acts">
+        <textarea id="pbmemo" class="memo" rows="2" placeholder="통화 메모 (선택) · 연락 기록에 함께 쌓여요"></textarea>
         <button class="cta" data-st="called">통화 완료</button>
-        <div class="row"><button class="ghost" data-st="joined">고객이 앱에서 직접 가입함</button><button class="ghost" data-st="later">나중에</button></div>
-        <a class="link" href="#customer/${c.id}">고객이 보는 앱 화면 보기</a>
+        <div class="row three"><button class="ghost" data-st="no_answer">부재중</button><button class="ghost" data-st="joined">고객이 직접 가입함</button><button class="ghost" data-st="later">나중에</button></div>
+        <a class="link" href="#client/${c.id}">고객 전체 보기 ›</a>
         <p class="fine">PB는 고객 대신 가입하지 않아요. 가입은 고객이 앱에서 본인 인증 후 직접 해요. 처리 기록은 이 브라우저에만 저장돼요.</p>
       </div>`;
   }
@@ -733,10 +919,10 @@
   // ── 라우팅 ──
   function render() {
     const [page, arg, arg2] = (location.hash.slice(1) || "customer").split("/");
-    const tab = page === "overview" || page === "pb" ? "pbm" : page;
+    const tab = page === "overview" || page === "pb" || page === "client" ? "pbm" : page;
     document.querySelectorAll("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.page === tab));
-    document.body.classList.toggle("is-pbm", tab === "pbm");
-    ({ customer: () => pageCustomer(arg, arg2), items: pageItems, pbm: pagePbHome, overview: pagePbHome, pb: pagePbHome, outbox: pageOutbox, company: pageCompany }[page] || pageCustomer)();
+    document.body.classList.toggle("is-pbm", tab === "pbm" || tab === "brief");
+    ({ customer: () => pageCustomer(arg, arg2), items: pageItems, brief: pageBrief, client: () => pageClient(arg), pbm: pagePbHome, overview: pagePbHome, pb: pagePbHome, outbox: pageOutbox, company: pageCompany }[page] || pageCustomer)();
   }
   document.getElementById("asof").textContent = `기준일 ${D.as_of}`;
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
