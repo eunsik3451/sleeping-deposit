@@ -1,4 +1,5 @@
 """시장 이슈: 큰 등락·신용 담보 부족 판정 (가짜 시세로 검산)."""
+import math
 import sys
 from pathlib import Path
 
@@ -9,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from engine.config import load_config  # noqa: E402
-from engine.market import detect, positions  # noqa: E402
+from engine.market import credit_book, detect, positions  # noqa: E402
 
 M = 1_000_000
 
@@ -49,7 +50,20 @@ def test_margin_call_shortfall(cfg):
     assert call["shortfall_krw"] == 900_000                                           # 600만 × 1.4 − 750만
 
 
-def test_margin_watch_before_call(cfg):
-    hold, closes, fx, uni, ref = setup([10_000, 10_000, 9_000, 8_700, 8_700], loan=6 * M)   # 145%
-    [a] = detect(positions(hold, closes, fx, uni, ref, 3), cfg)
-    assert a["kind"] == "margin_watch"
+@pytest.mark.parametrize("price,stage", [(8_700, "margin_warn"),    # 145%: 하락 여력 3.4%
+                                         (9_500, "margin_watch"),   # 158%: 11.6%
+                                         (11_000, "margin_safe")])  # 183%: 23.6%
+def test_margin_stages(cfg, price, stage):
+    hold, closes, fx, uni, ref = setup([10_000, 10_000, 9_000, price, price], loan=6 * M)
+    [b] = credit_book(positions(hold, closes, fx, uni, ref, 3), cfg)
+    assert b["kind"] == stage
+    assert b["trigger_price"] == pytest.approx(6 * M * 1.4 / 1000)              # 반대매매 기준가 8,400원
+    assert b["room"] == pytest.approx(1 - 8_400 / price)
+    assert (stage == "margin_safe") == (stage not in [a["kind"] for a in detect(positions(hold, closes, fx, uni, ref, 3), cfg)])
+
+
+def test_margin_big_days_counts_past_drops(cfg):
+    # 하락 여력 3.4%(8,700원)인데 최근에 하루 −10%(10,000→9,000)가 한 번 있었음
+    hold, closes, fx, uni, ref = setup([10_000, 10_000, 9_000, 8_700, 8_700], loan=6 * M)
+    [b] = credit_book(positions(hold, closes, fx, uni, ref, 3), cfg)
+    assert b["big_days"] == 1 and b["to_safe_krw"] == math.ceil(6 * M * 1.4 / 0.8 - 8_700_000)

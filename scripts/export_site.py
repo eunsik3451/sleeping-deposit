@@ -157,14 +157,16 @@ def market_script(a, cust, note, cfg):
         lines[0] += f"신용으로 보유하신 {stock}의 담보가 부족해져 급히 연락드렸습니다."
         lines += [f"[사실] {when} 종가 기준 담보비율이 {a['ratio'] * 100:.0f}%로 유지비율 {maint * 100:.0f}%보다 낮아졌습니다. "
                   f"신용 대출금은 {man(a['credit_loan_krw'])}, 담보 평가금액은 {man(a['value_krw'])}입니다.",
-                  f"[안내] 부족한 금액은 약 {man(a['shortfall_krw'])}입니다. 정해진 기한까지 현금을 넣거나 일부 상환하지 않으시면 보유 주식이 반대매매(강제 매도)될 수 있습니다.",
+                  f"[안내] 부족한 금액은 약 {man(a['shortfall_krw'])}이고, 주의 단계 밖으로 돌리려면 약 {man(a['to_safe_krw'])}이 필요합니다. 정해진 기한까지 현금을 넣거나 일부 상환하지 않으시면 보유 주식이 반대매매(강제 매도)될 수 있습니다.",
                   f"[이유] {reason}",
                   "[확인] 추가 납입이나 상환 계획이 있으신가요? 방법은 앱에서 직접 하실 수 있게 안내드리겠습니다."]
     else:
-        drop = 1 - maint / a["ratio"]
-        lines[0] += f"신용으로 보유하신 {stock}의 담보비율이 낮아져 미리 알려드리려고 연락드렸습니다."
-        lines += [f"[사실] {when} 종가 기준 담보비율이 {a['ratio'] * 100:.0f}%로, 유지비율 {maint * 100:.0f}%에 가까워졌습니다. "
-                  f"주가가 약 {drop * 100:.0f}% 더 내리면 담보가 부족해질 수 있습니다.",
+        price = f"${a['trigger_price']:,.2f}" if a["currency"] == "USD" else f"{a['trigger_price']:,.0f}원"
+        lines[0] += f"신용으로 보유하신 {stock}의 담보비율이 낮아져 반대매매가 생기기 전에 미리 알려드리려고 연락드렸습니다."
+        lines += [f"[사실] {when} 종가 기준 담보비율이 {a['ratio'] * 100:.0f}%로, 유지비율 {maint * 100:.0f}%까지 여유가 줄었습니다. "
+                  f"주가가 약 {a['room'] * 100:.1f}% 더 내려 {price} 아래가 되면 담보가 부족해질 수 있습니다."
+                  + (f" 최근 {a['lookback']}거래일 중 하루에 이만큼 내린 날이 {a['big_days']}일 있었습니다." if a["big_days"] else ""),
+                  f"[안내] 주의 단계 밖으로 돌리려면 약 {man(a['to_safe_krw'])}을 더 넣거나 그만큼 신용을 줄이시면 됩니다.",
                   "[확인] 미리 담보를 보강하시거나 신용 비중을 줄이실 계획이 있으신지 여쭤봐도 될까요?",
                   "[안내] 결정은 고객님 판단이며, 진행은 앱에서 직접 하실 수 있습니다."]
     text = "\n".join(lines)
@@ -187,11 +189,15 @@ def market_section(cfg, ctx):
         note = notes.get(a["symbol"], {})
         alerts.append({k: a.get(k) for k in ("kind", "customer_id", "symbol", "name", "market", "currency", "qty", "close",
                                                   "prev_close", "chg_pct", "value_krw", "day_delta_krw", "pnl_krw",
-                                                  "credit_loan_krw", "ratio", "shortfall_krw", "trade_date", "spark")}
+                                                  "credit_loan_krw", "ratio", "shortfall_krw", "trade_date", "spark",
+                                                  "room", "trigger_price", "to_safe_krw", "big_days", "lookback", "ratio_hist")}
                       | {"cname": c["name"], "age": int(pd.Timestamp(cfg["as_of_date"]).year - int(c["birth_year"])),
                          "reason": note.get("reason", ""), "sources": note.get("sources", []),
                          "script": market_script(a, c, note, cfg)})
-    return {"ref_date": m["ref_date"], "generated": m["generated"], "indices": m["indices"], "movers": m["movers"],
+    keep = ("customer_id", "symbol", "name", "kind", "ratio", "room", "trigger_price", "close", "credit_loan_krw", "value_krw",
+            "shortfall_krw", "to_safe_krw", "big_days", "lookback", "ratio_hist", "trade_date")
+    credit = [{k: b.get(k) for k in keep} for b in m.get("credit", [])]
+    return {"credit": credit, "ref_date": m["ref_date"], "generated": m["generated"], "indices": m["indices"], "movers": m["movers"],
             "alerts": alerts, "holders": m["holders"], "big_move_pct": cfg["market"]["big_move_pct"],
             "maintenance_ratio": cfg["market"]["maintenance_ratio"], "notes_checked": {k: v.get("checked_by", "") for k, v in notes.items()}}
 

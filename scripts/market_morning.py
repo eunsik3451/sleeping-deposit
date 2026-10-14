@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from engine.config import load_config  # noqa: E402
-from engine.market import detect, positions  # noqa: E402
+from engine.market import credit_book, detect, positions  # noqa: E402
 from generate_demo_data import generate  # noqa: E402
 
 MARKET = ROOT / "data" / "market"
@@ -53,6 +53,7 @@ def main():
         return
     # 해외 종목은 기준일까지의 마지막 거래일 기준이라 날짜가 다를 수 있다
     alerts = detect(pos, cfg)
+    credit = credit_book(pos, cfg)
 
     idx = []
     for t, name in INDICES.items():
@@ -64,7 +65,7 @@ def main():
     movers = (pos.drop_duplicates("symbol")[["symbol", "name", "market", "chg_pct", "close", "prev_close", "trade_date", "spark"]]
               .sort_values("chg_pct", key=abs, ascending=False))
     out = {"ref_date": f"{ref:%Y-%m-%d}", "generated": f"{pd.Timestamp.now():%Y-%m-%d %H:%M}", "config": c,
-           "indices": idx, "movers": movers.head(12).to_dict("records"), "alerts": alerts,
+           "indices": idx, "movers": movers.head(12).to_dict("records"), "alerts": alerts, "credit": credit,
            "holders": int(pos.customer_id.nunique()), "positions": int(len(pos))}
     MARKET.mkdir(parents=True, exist_ok=True)
     path = MARKET / f"{ref:%Y-%m-%d}.json"
@@ -77,7 +78,7 @@ def main():
     notes = json.loads(npath.read_text(encoding="utf-8")) if npath.exists() else {}
     need = {}
     for a in alerts:
-        if a["kind"] == "big_move" or a["kind"] == "margin_call":
+        if a["kind"] in ("big_move", "margin_call", "margin_warn"):
             need[a["symbol"]] = (a["name"], a["chg_pct"], a["trade_date"])
     for sym, (name, chg, d) in need.items():
         notes.setdefault(sym, {"name": name, "trade_date": d, "chg_pct": round(chg * 100, 2),
