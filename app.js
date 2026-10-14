@@ -158,7 +158,7 @@
         <div class="metric"><div class="k">이번 달 못 받은 이자 (${ms}/1–${ms}/${AS_OF.getDate()})</div><div class="v accent">${man(c.missed_month)}</div></div>
         <div class="metric"><div class="k">깨우면 1년에 더 받을 이자</div><div class="v">${man(willMiss)}</div></div>
         <div class="metric"><div class="k">깨운 뒤 받은 이자</div><div class="v ok">${found ? won(found.found_krw) : "0원"}</div></div>
-        <div class="metric"><div class="k">함께 챙길 것 (절세·청약·만기)</div><div class="v">${man(fs.filter(f => f.rule !== "R1").reduce((s, f) => s + f.amount_krw, 0))}</div></div>
+        <div class="metric"><div class="k">함께 챙길 것 (절세·청약·만기·연금)</div><div class="v">${man(fs.filter(f => f.rule !== "R1").reduce((s, f) => s + f.amount_krw, 0))}</div></div>
       </div>
       ${det.trend.start ? `<h2>최근 6개월 예수금과 쉬는 돈</h2>${lineChart(det.trend)}
         <p class="muted">쉬는 돈 = 예수금 − 미결제 매수금 − 평소 쓰는 돈(최근 3개월 중 하루에 가장 많이 쓴 금액). 달러는 원화로 환산.</p>` : ""}
@@ -262,6 +262,11 @@
         ? `<p>고객 앱의 <b>유상증자 청약 화면</b>으로 이동합니다. ${esc(m.stock)} 청약 가능 수량 ${m.shares.toLocaleString("ko-KR")}주가 미리 채워집니다.</p>
            <ul><li>청약가 ${won(m.issue_price)} · 현재가 ${won(m.now)}</li><li>청약 기간 ${m.start} ~ ${f.deadline}</li></ul>
            <p class="muted">청약 여부는 고객이 판단합니다. 주가가 바뀌면 차이도 달라집니다.</p>`
+        : f.rule === "R5"
+        ? `<p>고객 앱의 <b>연금저축 입금 화면</b>으로 이동합니다.</p>
+           <ul><li>올해 납입 ${won(m.paid)} / 한도 ${won(m.limit)}</li><li>남은 한도 ${won(m.remain)} → 다 채우면 약 ${man(f.amount_krw)} 환급 (${f.deadline}까지 납입분)</li></ul>
+           <div class="protect">연금저축계좌는 펀드·ETF 등에 투자해 원금 손실이 날 수 있고 예금자보호 대상이 아닙니다.</div>
+           <p class="muted">다른 금융사 납입분은 반영하지 않습니다. 입금은 고객이 직접 합니다.</p>`
         : `<p>만기 뒤 상환금을 어디에 둘지 미리 정하는 화면입니다.</p>
            <ul><li>${esc(m.product_name)} 만기 ${f.deadline}, 상환 예정 ${man(m.expected)}</li>
            <li>선택지: 예수금 자동 RP 신청(쓸 때 자동으로 빠짐) · 담당 PB와 재투자 상담 · 그대로 두기</li></ul>
@@ -320,6 +325,7 @@
     ["세금", "해외주식 양도세 (손실 상계)", "평가손실을 올해 확정하지 않아 더 내는 양도세", "올해 유진 계좌 해외주식 실현이익 250만원 초과 + 평가손실 종목", "보유 종목 손익 확인, PB 절세 상담 (매도 권유 아님)", "발견 즉시 + 마지막 매도일 D-7 (정보성)", "P001"],
     ["세금", "해외주식 기본공제 남음", "쓰지 않고 넘어가는 기본공제 250만원", "올해 실현이익 250만원 미만 + 평가이익 종목", "보유 종목 손익 확인, PB 절세 상담 (매도 권유 아님)", "발견 즉시 + 마지막 매도일 D-7 (정보성)", "P004"],
     ["권리", "유상증자 청약 권리", "청약하지 않으면 받지 못하는 신주 (현재가 기준 청약가와의 차이)", "보유 종목의 유상증자 청약 일정 + 현재가 > 청약가", "앱에서 청약 내용 확인 (청약 권유 아님)", "청약 14일 전 발견 즉시 + 마감 D-7 (정보성)", "P001"],
+    ["세금", "연금저축 세액공제 한도 남음", "올해 채우지 않은 한도만큼 못 돌려받는 세금 (13.2%, 총급여 낮으면 16.5%)", "10~12월, 유진 연금저축 올해 납입액이 600만원 미만", "앱에서 직접 입금 (광고성: 수신 동의 필요, 원금 손실 가능·예금자보호 대상 아님 고지)", "10월부터 발견 즉시 + 연말 D-7 (광고성)", "P002"],
     ["만기", "펀드·ELS 만기", "상환금이 예수금으로 쉬는 동안의 이자 (한 달 기준)", "보유 펀드·ELS 만기 14일 전", "만기 후 계획 미리 정하기 · 예수금 자동 RP · PB 상담 (재투자 권유 아님)", "만기 14일 전 + D-7 (정보성)", "P003"],
   ];
   function pageItems() {
@@ -336,80 +342,122 @@
       <h2>다음 단계 후보</h2>
       <ul><li>ISA 비과세 한도 미활용 — 회사 ISA 취급 여부 확인 필요</li><li>배당금 입금 후 방치 — 소액 배당 묶음 안내</li><li>신주인수권 매도 안내 — 청약하지 않을 고객에게 권리 매도 일정 안내</li></ul>
       <h2>일부러 다루지 않는 것</h2>
-      <ul><li>환전 수수료 비교, 저보수 상품 전환 — 회사 수익이 줄어드는 제안</li><li>연금저축·IRP 세액공제, 발행어음, 개인투자용 국채 — 유진투자증권 미취급</li></ul>`;
+      <ul><li>환전 수수료 비교, 저보수 상품 전환 — 회사 수익이 줄어드는 제안</li><li>IRP, 발행어음, 개인투자용 국채 — 유진투자증권 미취급</li></ul>`;
   }
 
-  // ════════════════ ③ PB 고객별 현황 ════════════════
-  let ovState = { q: "", only: "" };
-  function overviewRows() {
+  // ════════════════ ③ PB 고객 관리 ════════════════
+  // 한 화면에서 "누구에게, 왜, 무슨 말로" 연락할지. 목록은 고객 단위, 오른쪽(모바일은 시트)에 상세.
+  const PB_BY_FID = Object.fromEntries(D.pb.map(r => [r.finding_id, r]));
+  const PB_STATUS = { called: "통화 완료", joined: "고객이 앱에서 직접 가입함", later: "나중에 연락" };
+  let pbm = { tab: "today", q: "", cid: null, fid: null, sheet: false };
+
+  function pbCustomers() {
     return D.customers.map(c => {
-      const fs = findingsOf(c.id); if (!fs.length) return null;
-      const r = { c, idle: 0, usd: 0, missed: 0, annual: 0, tax: 0, rights: 0, mat: 0, deadline: null, items: [], pb: false, reassess: false };
-      fs.forEach(f => {
-        r.items.push(f.subtype_label); r.pb ||= f.pb_flag;
-        if (f.rule === "R1") { f.currency === "USD" ? (r.usd += f.meta.idle_krw) : (r.idle += f.meta.idle_krw); r.missed += f.amount_krw; r.annual += f.annual_projection_krw; r.reassess ||= f.action.type === "reassess"; }
-        else r[{ R2: "tax", R3: "rights", R4: "mat" }[f.rule]] += f.amount_krw;
-        if (f.deadline && (!r.deadline || f.deadline < r.deadline)) r.deadline = f.deadline;
-      });
-      r.total = r.annual + r.tax + r.rights + r.mat;
-      return r;
-    }).filter(Boolean).sort((a, b) => b.total - a.total);
-  }
-  function pageOverview() {
-    const all = overviewRows();
-    const view = all.filter(r => (!ovState.q || (r.c.id + r.c.name).includes(ovState.q))
-      && (!ovState.only || (ovState.only === "pb" ? r.pb : ovState.only === "reassess" ? r.reassess : ovState.only === "deadline" ? r.deadline && daysLeft(r.deadline) <= 7 : true)));
-    const sum = k => view.reduce((s, r) => s + r[k], 0);
-    $app.innerHTML = `<h1>PB 고객별 현황</h1>
-      <p class="lead">담당 고객마다 예수금이 얼마나 쉬고 있고, 어떤 항목을 얼마나 놓치고 있는지 한 줄로 봅니다. 행을 누르면 그 고객의 앱 화면과 근거로 이동합니다.</p>
-      <div class="metrics">
-        <div class="metric"><div class="k">챙길 것이 있는 고객</div><div class="v">${view.length}명</div></div>
-        <div class="metric"><div class="k">쉬는 예수금 (원화+달러)</div><div class="v">${man(sum("idle") + sum("usd"))}</div></div>
-        <div class="metric"><div class="k">깨우면 1년에 더 받을 이자</div><div class="v accent">${man(sum("annual"))}</div></div>
-        <div class="metric"><div class="k">절세·청약·만기 금액</div><div class="v">${man(sum("tax") + sum("rights") + sum("mat"))}</div></div></div>
-      <div class="filters"><input type="search" id="q" placeholder="고객번호·이름 검색" value="${esc(ovState.q)}">
-        ${[["", "전체"], ["pb", "PB 연결 대상"], ["deadline", "마감 7일 이내"], ["reassess", "진단 만료"]].map(([k, t]) => `<button class="chip ${ovState.only === k ? "on" : ""}" data-only="${k}">${t}</button>`).join("")}</div>
-      <div class="tablewrap"><table><thead><tr><th>고객</th><th class="num">쉬는 원화</th><th class="num">쉬는 달러(원화)</th><th class="num">90일 놓친 이자</th><th class="num">1년 더 받을 이자</th><th class="num">양도세 절세</th><th class="num">청약 차이</th><th class="num">만기 이자</th><th>가장 급한 마감</th><th>항목</th></tr></thead>
-      <tbody>${view.map(r => `<tr class="click" data-cid="${r.c.id}"><td><b>${r.c.id}</b> ${esc(r.c.name)} <span class="muted">${r.c.age}세</span><br>
-        ${r.pb ? badge("PB", "accent") : ""}${r.reassess ? badge("진단 만료", "warn") : ""}${!(r.c.consent_push || r.c.consent_kakao) ? badge("연락만 가능", "warn") : ""}${S.auto[r.c.id] !== undefined || r.c.auto ? badge("자동 RP", "ok") : ""}</td>
-        <td class="num">${dash(r.idle)}</td><td class="num">${dash(r.usd)}</td><td class="num">${dash(r.missed)}</td><td class="num"><b>${dash(r.annual)}</b></td>
-        <td class="num">${dash(r.tax)}</td><td class="num">${dash(r.rights)}</td><td class="num">${dash(r.mat)}</td>
-        <td>${r.deadline ? `${r.deadline} <span class="muted">D-${daysLeft(r.deadline)}</span>` : "–"}</td><td class="small">${esc([...new Set(r.items)].join(" · "))}</td></tr>`).join("")}</tbody></table></div>`;
-    const q = $app.querySelector("#q");
-    q.oninput = () => { ovState.q = q.value.trim(); pageOverview(); const n = $app.querySelector("#q"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
-    $app.querySelectorAll("[data-only]").forEach(b => (b.onclick = () => { ovState.only = b.dataset.only; pageOverview(); }));
-    $app.querySelectorAll("tr[data-cid]").forEach(tr => (tr.onclick = () => (location.hash = `#customer/${tr.dataset.cid}`)));
+      const fs = findingsOf(c.id);
+      if (!fs.length) return null;
+      const calls = fs.filter(f => PB_BY_FID[f.finding_id]);
+      const total = fs.reduce((s, f) => s + (f.rule === "R1" ? f.annual_projection_krw : f.amount_krw), 0);
+      const deadlines = fs.filter(f => f.deadline).map(f => daysLeft(f.deadline));
+      const rank = calls.length ? Math.min(...calls.map(f => PB_BY_FID[f.finding_id].rank)) : 1e9;
+      const reasons = [...new Set(calls.flatMap(f => PB_BY_FID[f.finding_id].reasons))];
+      const lead = (calls[0] || fs[0]);
+      return { c, fs, calls, total, rank, reasons, lead, soon: deadlines.length ? Math.min(...deadlines) : null };
+    }).filter(Boolean);
   }
 
-  // ════════════════ ④ PB 콜리스트 ════════════════
-  let pbSel = null, pbQ = "";
-  function pagePb() {
-    const rows = D.pb.filter(r => !pbQ || (r.cid + r.name).includes(pbQ));
-    if (!pbSel || !rows.find(r => r.finding_id === pbSel)) pbSel = rows[0] && rows[0].finding_id;
-    const sel = D.pb.find(r => r.finding_id === pbSel);
-    const PBS = { called: "통화 완료", joined: "고객이 앱에서 직접 가입함", hold: "보류" };
-    $app.innerHTML = `<h1>PB 콜리스트</h1>
-      <p class="lead">판단이 필요한 상담과 큰 금액은 온라인으로 끝내지 않고 PB에게 보냅니다. 광고 수신 동의가 없는 고객의 이용 안내도 여기로 옵니다. 마감 임박 → 상환금 유입 → 금액 큰 순입니다.</p>
-      <div class="note">PB는 고객 대신 가입·실행하지 않습니다. 통화로 안내하고, 가입은 고객이 앱에서 본인 인증 후 직접 합니다.</div>
-      <div class="filters"><input type="search" id="q" placeholder="고객번호·이름 검색" value="${esc(pbQ)}"><span class="muted">${rows.length}건</span></div>
-      <div class="split"><div class="tablewrap"><table><thead><tr><th>#</th><th>고객</th><th>항목</th><th class="num">금액</th><th>사유</th><th>처리</th></tr></thead>
-        <tbody>${rows.map((r, i) => `<tr class="click ${r.finding_id === pbSel ? "sel" : ""}" data-fid="${esc(r.finding_id)}"><td>${i + 1}</td>
-          <td><b>${r.cid}</b> ${esc(r.name)} <span class="muted">${r.age}세</span>${r.contact_only ? "<br>" + badge("PB 연락만 가능", "warn") : ""}</td>
-          <td class="small">${esc(r.subtype)}</td><td class="num">${man(r.amount)}</td><td class="small">${esc(r.reasons.join(", "))}</td>
-          <td class="small">${S.pb[r.finding_id] ? badge(PBS[S.pb[r.finding_id]], "ok") : ""}</td></tr>`).join("")}</tbody></table></div>
-      <div>${sel ? `<div class="card">${badge(sel.subtype)}${sel.deadline ? badge(`마감 ${sel.deadline} · D-${daysLeft(sel.deadline)}`, "warn") : ""}${sel.contact_only ? badge("PB 연락만 가능", "warn") : ""}
-          <div class="card-title">${sel.cid} ${esc(sel.name)} · ${esc(sel.title)}</div>
-          <div class="muted">${esc(sel.label)}</div><div class="big">약 ${man(sel.amount)}</div>
-          <p class="muted small">사유: ${esc(sel.reasons.join(", "))}${sel.queued_on ? ` · 콜리스트에 오른 날 ${sel.queued_on}` : ""}</p>
-          <h2 style="font-size:1rem;margin-top:12px">통화 스크립트</h2><div class="script">${esc(sel.script.body)}</div>
-          <details><summary>근거 보기</summary><ul>${sel.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul></details>
-          <div class="btns">${Object.entries(PBS).map(([k, t]) => `<button class="btn ${k === "called" ? "primary" : ""}" data-pbs="${k}">${t}</button>`).join("")}
-            <a class="btn" href="#customer/${sel.cid}">고객 앱 화면 보기</a></div>
-          <p class="muted small">'고객이 앱에서 직접 가입함'은 결과를 기록만 합니다. 처리 결과는 이 브라우저에만 저장됩니다.</p></div>` : "<p>콜리스트가 비어 있어요.</p>"}</div></div>`;
-    const q = $app.querySelector("#q");
-    q.oninput = () => { pbQ = q.value.trim(); pagePb(); const n = $app.querySelector("#q"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
-    $app.querySelectorAll("tr[data-fid]").forEach(tr => (tr.onclick = () => { pbSel = tr.dataset.fid; pagePb(); }));
-    $app.querySelectorAll("[data-pbs]").forEach(b => (b.onclick = () => { S.pb[pbSel] = b.dataset.pbs; save(); toast(`${PBS[b.dataset.pbs]}으로 기록했어요`); pagePb(); }));
+  function scriptSteps(body) {
+    return String(body).split("\n").filter(Boolean).map(line => {
+      const m = line.match(/^\[(.+?)\]\s*(.*)$/);
+      return m ? [m[1], m[2]] : ["", line];
+    });
+  }
+
+  function pagePbHome() {
+    const all = pbCustomers();
+    const today = all.filter(r => r.calls.length).sort((a, b) => a.rank - b.rank);
+    const soon = all.filter(r => r.soon !== null && r.soon <= 7).sort((a, b) => a.soon - b.soon);
+    const every = all.slice().sort((a, b) => b.total - a.total);
+    const lists = { today, soon, all: every };
+    const q = pbm.q;
+    const rows = lists[pbm.tab].filter(r => !q || (r.c.id + r.c.name).includes(q));
+    if (!pbm.cid || !rows.find(r => r.c.id === pbm.cid)) { pbm.cid = rows[0] && rows[0].c.id; pbm.fid = null; }
+    const sel = rows.find(r => r.c.id === pbm.cid);
+    const doneCount = today.filter(r => S.pb[r.c.id]).length;
+
+    $app.innerHTML = `<div class="pbm ${pbm.sheet ? "sheet-open" : ""}">
+      <div class="pbm-head">
+        <div><h1>오늘 연락할 고객 ${today.length}명</h1>
+          <p class="sub">${doneCount ? `${doneCount}명 처리했어요 · ` : ""}금액·근거·통화 스크립트까지 준비해 뒀어요</p></div>
+      </div>
+      <div class="pbm-stats">
+        <div><span>오늘 연락</span><b>${today.length}명</b></div>
+        <div><span>마감 7일 이내</span><b>${soon.length}명</b></div>
+        <div><span>담당 고객이 챙길 돈</span><b>${man(every.reduce((s, r) => s + r.total, 0))}</b></div>
+      </div>
+      <div class="pbm-tools">
+        <div class="seg" role="tablist">${[["today", "오늘 연락", today.length], ["soon", "마감 임박", soon.length], ["all", "전체 고객", every.length]]
+          .map(([k, t, n]) => `<button role="tab" class="${pbm.tab === k ? "on" : ""}" data-tab="${k}">${t} <em>${n}</em></button>`).join("")}</div>
+        <input class="pill" type="search" id="pbq" placeholder="이름이나 고객번호로 찾기" value="${esc(q)}">
+      </div>
+      <div class="pbm-body">
+        <ul class="pbm-list">${rows.map(r => pbRow(r)).join("") || `<li class="empty">해당하는 고객이 없어요</li>`}</ul>
+        <section class="pbm-detail">${sel ? pbDetail(sel) : `<p class="sub">왼쪽에서 고객을 고르세요</p>`}</section>
+      </div></div>`;
+
+    $app.querySelectorAll("[data-tab]").forEach(b => (b.onclick = () => { pbm.tab = b.dataset.tab; pbm.cid = null; pagePbHome(); }));
+    const input = $app.querySelector("#pbq");
+    input.oninput = () => { pbm.q = input.value.trim(); pagePbHome(); const n = $app.querySelector("#pbq"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
+    $app.querySelectorAll("[data-cid]").forEach(li => (li.onclick = () => { pbm.cid = li.dataset.cid; pbm.fid = null; pbm.sheet = true; pagePbHome(); }));
+    $app.querySelectorAll("[data-fid]").forEach(li => (li.onclick = () => { pbm.fid = li.dataset.fid; pagePbHome(); }));
+    $app.querySelectorAll("[data-st]").forEach(b => (b.onclick = () => {
+      S.pb[pbm.cid] = b.dataset.st; save(); toast(`${PB_STATUS[b.dataset.st]}으로 기록했어요`); pagePbHome();
+    }));
+    const back = $app.querySelector("[data-back]");
+    if (back) back.onclick = () => { pbm.sheet = false; pagePbHome(); };
+    const undo = $app.querySelector("[data-undo]");
+    if (undo) undo.onclick = () => { delete S.pb[pbm.cid]; save(); pagePbHome(); };
+  }
+
+  function pbRow(r) {
+    const st = S.pb[r.c.id];
+    const sub = r.reasons.length ? r.reasons.slice(0, 2).join(" · ") : r.lead.title;
+    return `<li class="${r.c.id === pbm.cid ? "on" : ""} ${st ? "done" : ""}" data-cid="${r.c.id}">
+      <span class="ava">${esc(r.c.name.slice(0, 1))}</span>
+      <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세 · ${r.c.id}</small><i>${esc(st ? PB_STATUS[st] : sub)}</i></span>
+      <span class="amt"><b>${man(r.total)}</b>${r.soon !== null && r.soon <= 7 ? `<small class="due">D-${r.soon}</small>` : `<small>챙길 돈</small>`}</span></li>`;
+  }
+
+  function pbDetail(r) {
+    const c = r.c, fs = r.fs;
+    const f = fs.find(x => x.finding_id === pbm.fid) || r.calls[0] || fs[0];
+    const st = S.pb[c.id];
+    const consent = c.consent_push || c.consent_kakao;
+    const facts = [`${c.age}세`, c.risk, c.diag_valid || S.reassessed[c.id] ? "투자성향 진단 유효" : "투자성향 진단 만료", consent ? "광고 수신 동의" : "광고 미동의 · PB 연락만 가능"];
+    const pb = PB_BY_FID[f.finding_id];
+    return `<button class="back" data-back>← 목록</button>
+      <div class="who-big"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
+        <div><h2>${esc(c.name)}님</h2><p class="sub">${facts.map(esc).join(" · ")}</p></div></div>
+      <div class="total"><span>챙길 돈</span><b>${man(r.total)}</b></div>
+      ${st ? `<div class="state">${PB_STATUS[st]} <button class="txt" data-undo>되돌리기</button></div>` : ""}
+
+      <h3>챙길 것 ${fs.length}가지</h3>
+      <ul class="items">${fs.map(x => `<li class="${x.finding_id === f.finding_id ? "on" : ""}" data-fid="${esc(x.finding_id)}">
+        <span><b>${esc(x.title)}</b><small>${esc(x.subtype_label)}${x.deadline ? ` · D-${daysLeft(x.deadline)}` : ""}${PB_BY_FID[x.finding_id] ? " · 연락 대상" : ""}</small></span>
+        <em>${man(x.rule === "R1" ? x.annual_projection_krw : x.amount_krw)}</em></li>`).join("")}</ul>
+
+      <h3>이렇게 말해 보세요</h3>
+      <ol class="steps">${scriptSteps(f.script).map(([k, t]) => `<li><span>${esc(k)}</span><p>${esc(t)}</p></li>`).join("")}</ol>
+
+      <details class="why"><summary>왜 이 고객인가요?</summary>
+        ${pb ? `<p class="sub">${esc(pb.reasons.join(" · "))}</p>` : ""}
+        <ul>${f.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul></details>
+
+      <div class="acts">
+        <button class="cta" data-st="called">통화 완료</button>
+        <div class="row"><button class="ghost" data-st="joined">고객이 앱에서 직접 가입함</button><button class="ghost" data-st="later">나중에</button></div>
+        <a class="link" href="#customer/${c.id}">고객이 보는 앱 화면 보기</a>
+        <p class="fine">PB는 고객 대신 가입하지 않아요. 가입은 고객이 앱에서 본인 인증 후 직접 해요. 처리 기록은 이 브라우저에만 저장돼요.</p>
+      </div>`;
   }
 
   // ════════════════ ⑤ 알림 미리보기 ════════════════
@@ -459,7 +507,7 @@
       <div class="split"><div class="card">${bars(g1.map(([k, x]) => [k, x.a]), man)}</div>
         <div class="tablewrap"><table><thead><tr><th>유형</th><th class="num">고객 수</th><th class="num">90일 놓친 이자</th><th class="num">1년 더 받을 이자</th><th class="num">쉬는 돈</th></tr></thead>
         <tbody>${g1.map(([k, x]) => `<tr><td>${k}</td><td class="num">${x.n.size}명</td><td class="num">${man(x.v)}</td><td class="num">${man(x.a)}</td><td class="num">${man(x.idle)}</td></tr>`).join("")}</tbody></table></div></div>
-      <h2>함께 챙길 항목 — 세금·권리·만기</h2>
+      <h2>함께 챙길 항목 — 세금·권리·만기·연금</h2>
       <div class="split"><div class="card">${bars(g2.map(([k, x]) => [k, x.v]), man, "var(--s-auto)")}</div>
         <div class="tablewrap"><table><thead><tr><th>항목</th><th class="num">고객 수</th><th class="num">금액 합계</th></tr></thead>
         <tbody>${g2.map(([k, x]) => `<tr><td>${k}</td><td class="num">${x.n.size}명</td><td class="num">${man(x.v)}</td></tr>`).join("")}</tbody></table></div></div>
@@ -476,8 +524,10 @@
   // ── 라우팅 ──
   function render() {
     const [page, arg] = (location.hash.slice(1) || "customer").split("/");
-    document.querySelectorAll("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.page === page));
-    ({ customer: () => pageCustomer(arg), items: pageItems, overview: pageOverview, pb: pagePb, outbox: pageOutbox, company: pageCompany }[page] || pageCustomer)();
+    const tab = page === "overview" || page === "pb" ? "pbm" : page;
+    document.querySelectorAll("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.page === tab));
+    document.body.classList.toggle("is-pbm", tab === "pbm");
+    ({ customer: () => pageCustomer(arg), items: pageItems, pbm: pagePbHome, overview: pagePbHome, pb: pagePbHome, outbox: pageOutbox, company: pageCompany }[page] || pageCustomer)();
   }
   document.getElementById("asof").textContent = `기준일 ${D.as_of}`;
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
