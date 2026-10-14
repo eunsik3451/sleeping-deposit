@@ -520,8 +520,8 @@
       ${r.as.length > 1 ? `<h3>이 고객의 시장 이슈 ${r.as.length}건</h3><ul class="items">${r.as.map(x => `<li class="${x === a ? "on" : ""}" data-fid="${esc(x.symbol + x.kind)}"><span><b>${esc(mkHeadline(x))}</b><small>${MK_KIND[x.kind]}</small></span></li>`).join("")}</ul>` : ""}
       ${a.kind.startsWith("margin") ? `<h3>반대매매까지 얼마나 남았나요</h3>${creditGauge(a)}${ratioTrend(a)}<h3>${esc(a.name)} · 숫자</h3>` : `<h3>${esc(a.name)} · 최근 20거래일</h3>`}
       <div class="mk-card">${a.kind.startsWith("margin") ? "" : spark(a.spark, down)}${kv.map(([k, v]) => `<div class="s-kv"><span>${k}</span><b>${esc(v)}</b></div>`).join("")}</div>
-      <h3>왜 움직였나요</h3>
-      <div class="mk-why">${a.reason ? `<p>${esc(a.reason)}</p><ul>${a.sources.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a></li>`).join("")}</ul>`
+      <h3>${a.kind === "big_move" ? "왜 움직였나요" : "왜 담보가 줄었나요"}</h3>
+      <div class="mk-why">${a.reason ? `<p>${esc(a.reason)}</p><ul>${(a.sources || []).map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a></li>`).join("")}</ul>`
         : `<p class="sub">아직 이유를 확인하지 않았어요. 아침 점검 때 뉴스를 확인해 채웁니다.</p>`}</div>
       <h3>이렇게 말해 보세요</h3>
       <ol class="steps">${scriptSteps(a.script).map(([k, t]) => `<li><span>${esc(k)}</span><p>${esc(t)}</p></li>`).join("")}</ol>
@@ -651,7 +651,7 @@
     const movers = MK ? new Set(MK.alerts.filter(a => a.kind === "big_move").map(a => a.customer_id)).size : 0;
     const due = upcoming(7).reduce((s, u) => s + u.cids.size, 0);
     const todayLogs = S.log.filter(l => isToday(l.at));
-    const issues = MK ? Object.values(MK.alerts.filter(a => a.kind === "big_move" || a.kind === "margin_call").reduce((o, a) => {
+    const issues = MK ? Object.values(MK.alerts.filter(a => a.kind === "big_move").reduce((o, a) => {
       (o[a.symbol] ||= { a, n: new Set() }).n.add(a.customer_id); return o; }, {})) : [];
 
     $app.innerHTML = `<div class="pbm brief">
