@@ -8,6 +8,7 @@
   --date 없으면 오늘 이전 마지막 거래일 기준 (장중 데이터는 쓰지 않는다)
 """
 import argparse
+import urllib.request
 import re
 import json
 import sys
@@ -25,7 +26,21 @@ from engine.market import credit_book, detect, positions  # noqa: E402
 from generate_demo_data import generate  # noqa: E402
 
 MARKET = ROOT / "data" / "market"
-INDICES = {"^KS11": "코스피", "^KQ11": "코스닥", "^GSPC": "S&P 500", "^IXIC": "나스닥"}
+INDICES = {"^GSPC": "S&P 500", "^IXIC": "나스닥"}          # 미국 지수는 yfinance
+KR_INDICES = {"KOSPI": "코스피", "KOSDAQ": "코스닥"}         # 국내 지수는 네이버 금융 (yfinance는 갱신이 늦음)
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36"
+
+
+def naver_index(code, ref):
+    """네이버 금융 일별 지수에서 기준일 종가·등락률. 기준일 값이 없으면 None (추정해서 채우지 않음)."""
+    url = f"https://m.stock.naver.com/api/index/{code}/price?pageSize=10&page=1"
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    rows = json.loads(urllib.request.urlopen(req, timeout=10).read().decode("utf-8"))
+    for r in rows:
+        if r["localTradedAt"] == f"{ref:%Y-%m-%d}":
+            return {"close": float(r["closePrice"].replace(",", "")), "chg_pct": float(r["fluctuationsRatio"]) / 100,
+                    "date": r["localTradedAt"], "source": "네이버 금융"}
+    return None
 
 
 def set_as_of(day):
@@ -68,6 +83,16 @@ def main():
     credit = credit_book(pos, cfg)
 
     idx = []
+    for code, name in KR_INDICES.items():
+        try:
+            v = naver_index(code, ref)
+        except Exception as e:                       # 네트워크 오류는 알리고 빈칸으로 둔다
+            print(f"  {name} 지수를 받지 못했습니다: {e}")
+            v = None
+        if v:
+            idx.append({"name": name, **v})
+        else:
+            print(f"  {name} {ref:%Y-%m-%d} 종가가 아직 없습니다 (화면에 빠짐)")
     for t, name in INDICES.items():
         s = raw[t].dropna()
         if len(s) >= 2:
@@ -92,7 +117,7 @@ def main():
     notes = json.loads(npath.read_text(encoding="utf-8")) if npath.exists() else {}
     need = {}
     for a in alerts:
-        if a["kind"] in ("big_move", "margin_call", "margin_warn"):
+        if a["kind"] == "big_move":
             need[a["symbol"]] = (a["name"], a["chg_pct"], a["trade_date"])
     for sym, (name, chg, d) in need.items():
         notes.setdefault(sym, {"name": name, "trade_date": d, "chg_pct": round(chg * 100, 2),

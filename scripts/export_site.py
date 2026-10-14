@@ -143,6 +143,13 @@ def market_script(a, cust, note, cfg):
     d = pd.Timestamp(a["trade_date"])
     when = f"{d.month}월 {d.day}일"
     reason = note.get("reason") or "움직인 이유는 아직 확인 중입니다. 확인되는 대로 다시 말씀드리겠습니다."
+    sp = a.get("spark") or []
+    chg20 = sp[-1] / sp[0] - 1 if len(sp) > 1 else 0.0
+    rh = a.get("ratio_hist") or []
+    why_margin = (f"최근 {len(sp)}거래일 동안 주가가 {abs(chg20) * 100:.1f}% {'내려' if chg20 < 0 else '올라'} "
+                  f"담보비율이 {rh[0] * 100:.0f}%에서 {rh[-1] * 100:.0f}%로 바뀌었습니다." if rh else "")
+    if a["kind"] != "big_move":
+        reason = why_margin + (" " + note["reason"] if note.get("reason") and note.get("big_move") else "")
     maint = cfg["market"]["maintenance_ratio"]
     lines = [f"[인사] 안녕하세요, {name}님. 유진투자증권 담당 PB입니다. "]
     if a["kind"] == "big_move":
@@ -186,13 +193,14 @@ def market_section(cfg, ctx):
     alerts = []
     for a in m["alerts"]:
         c = ctx.customer(a["customer_id"])
-        note = notes.get(a["symbol"], {})
+        note = notes.get(a["symbol"], {}) if a["kind"] == "big_move" else {}
         alerts.append({k: a.get(k) for k in ("kind", "customer_id", "symbol", "name", "market", "currency", "qty", "close",
                                                   "prev_close", "chg_pct", "value_krw", "day_delta_krw", "pnl_krw",
                                                   "credit_loan_krw", "ratio", "shortfall_krw", "trade_date", "spark",
                                                   "room", "trigger_price", "to_safe_krw", "big_days", "lookback", "ratio_hist")}
                       | {"cname": c["name"], "age": int(pd.Timestamp(cfg["as_of_date"]).year - int(c["birth_year"])),
                          "reason": note.get("reason", ""), "sources": note.get("sources", []),
+                         "chg20": (a["spark"][-1] / a["spark"][0] - 1) if a.get("spark") and len(a["spark"]) > 1 else None,
                          "script": market_script(a, c, note, cfg)})
     keep = ("customer_id", "symbol", "name", "kind", "ratio", "room", "trigger_price", "close", "credit_loan_krw", "value_krw",
             "shortfall_krw", "to_safe_krw", "big_days", "lookback", "ratio_hist", "trade_date")
