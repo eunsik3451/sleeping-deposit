@@ -458,16 +458,88 @@
     });
   }
 
+  // ── 시장 이슈: 보유 종목 큰 등락·신용 담보 부족 ──
+  const MK = D.market;
+  const MK_KIND = { margin_call: "담보 부족 · 반대매매 위험", big_move: "보유 종목 큰 등락", margin_watch: "담보비율 주의" };
+  function marketCustomers() {
+    if (!MK) return [];
+    const by = {};
+    MK.alerts.forEach(a => (by[a.customer_id] ||= []).push(a));
+    return Object.entries(by).map(([cid, as]) => ({ cid, c: CUST[cid], as, lead: as[0] }));
+  }
+  const pctTxt = v => `${v > 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1)}%`;
+  function mkHeadline(a) {
+    if (a.kind === "margin_call") return `${a.name} 담보비율 ${Math.round(a.ratio * 100)}% · 반대매매 위험`;
+    if (a.kind === "margin_watch") return `${a.name} 담보비율 ${Math.round(a.ratio * 100)}% · 주의`;
+    return `${a.name} ${pctTxt(a.chg_pct)} (${a.trade_date.slice(5).replace("-", "/")})`;
+  }
+  function mkTodo(a) {
+    if (a.kind === "margin_call") return "반대매매 전에 담보 부족을 알려 주세요";
+    if (a.kind === "margin_watch") return "담보비율이 낮아졌다고 미리 알려 주세요";
+    return `${a.name} ${a.chg_pct < 0 ? "급락" : "급등"} 소식과 이유를 알려 주세요`;
+  }
+  function spark(v, down) {
+    const W = 240, H = 56, n = v.length, mn = Math.min(...v), mx = Math.max(...v), r = mx - mn || 1;
+    const pts = v.map((p, i) => `${(i / (n - 1) * W).toFixed(1)},${(H - 4 - (p - mn) / r * (H - 8)).toFixed(1)}`).join(" ");
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="spark" aria-label="최근 20거래일 종가"><polyline fill="none" stroke="${down ? "#3182F6" : "#F04452"}" stroke-width="2" points="${pts}"/></svg>`;
+  }
+  function marketStrip() {
+    if (!MK) return "";
+    return `<div class="mk-strip"><span class="mk-date">${MK.ref_date} 종가 기준 · ${MK.generated.slice(5, 16)} 점검</span>${MK.indices.map(i =>
+      `<span class="mk-idx"><b>${esc(i.name)}</b> ${i.close.toLocaleString("ko-KR")} <em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></span>`).join("")}</div>`;
+  }
+  function marketRow(r) {
+    const a = r.lead, st = S.pb["m:" + r.cid], down = a.day_delta_krw < 0;
+    const amt = a.kind === "margin_call" ? `${man(a.shortfall_krw)}` : `${down ? "−" : "+"}${man(Math.abs(a.day_delta_krw))}`;
+    const lbl = a.kind === "margin_call" ? "부족 담보" : "하루 평가금액";
+    return `<li class="${r.cid === pbm.cid ? "on" : ""} ${st ? "done" : ""}" data-cid="${r.cid}">
+      <span class="ava ${a.kind === "margin_call" ? "warn" : ""}">${esc(r.c.name.slice(0, 1))}</span>
+      <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세</small><i>${esc(st ? PB_STATUS[st] : mkHeadline(a))}</i></span>
+      <span class="amt"><b class="${a.kind === "margin_call" ? "red" : down ? "dn" : "up"}">${amt}</b><small>${lbl}${r.as.length > 1 ? ` 외 ${r.as.length - 1}` : ""}</small></span></li>`;
+  }
+  function marketDetail(r) {
+    const a = r.as.find(x => x.symbol + x.kind === pbm.fid) || r.lead, c = r.c, st = S.pb["m:" + r.cid];
+    const down = a.chg_pct < 0;
+    const consent = c.consent_push || c.consent_kakao;
+    const kv = a.kind === "big_move"
+      ? [["종가", `${a.currency === "USD" ? "$" + a.close.toLocaleString("en-US") : won(a.close)} (${pctTxt(a.chg_pct)})`], ["보유", `${a.qty.toLocaleString("ko-KR")}주 · 평가 ${man(a.value_krw)}`],
+         ["하루 평가금액 변동", `${down ? "−" : "+"}${man(Math.abs(a.day_delta_krw))}`], ["매입 후 손익", `${a.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(a.pnl_krw))}`]]
+      : [["담보비율", `${Math.round(a.ratio * 100)}% (유지 ${Math.round(MK.maintenance_ratio * 100)}%)`], ["신용 대출금", man(a.credit_loan_krw)],
+         ["담보 평가금액", man(a.value_krw)], ...(a.kind === "margin_call" ? [["부족 금액", `약 ${man(a.shortfall_krw)}`]] : []), ["종가 등락", pctTxt(a.chg_pct)]];
+    return `<button class="back" data-back>← 목록</button>
+      <div class="who-big"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
+        <div><h2>${esc(c.name)}님</h2><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent ? "광고 수신 동의" : "광고 미동의"}</p></div></div>
+      <div class="todo ${a.kind === "margin_call" ? "red" : ""}"><span>오늘 할 일</span><b>${esc(mkTodo(a))}</b><p>${esc(MK_KIND[a.kind])}</p></div>
+      ${st ? `<div class="state">${PB_STATUS[st]} <button class="txt" data-undo>되돌리기</button></div>` : ""}
+      ${r.as.length > 1 ? `<h3>이 고객의 시장 이슈 ${r.as.length}건</h3><ul class="items">${r.as.map(x => `<li class="${x === a ? "on" : ""}" data-fid="${esc(x.symbol + x.kind)}"><span><b>${esc(mkHeadline(x))}</b><small>${MK_KIND[x.kind]}</small></span></li>`).join("")}</ul>` : ""}
+      <h3>${esc(a.name)} · 최근 20거래일</h3>
+      <div class="mk-card">${spark(a.spark, down)}${kv.map(([k, v]) => `<div class="s-kv"><span>${k}</span><b>${esc(v)}</b></div>`).join("")}</div>
+      <h3>왜 움직였나요</h3>
+      <div class="mk-why">${a.reason ? `<p>${esc(a.reason)}</p><ul>${a.sources.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a></li>`).join("")}</ul>`
+        : `<p class="sub">아직 이유를 확인하지 않았어요. 아침 점검 때 뉴스를 확인해 채웁니다.</p>`}</div>
+      <h3>이렇게 말해 보세요</h3>
+      <ol class="steps">${scriptSteps(a.script).map(([k, t]) => `<li><span>${esc(k)}</span><p>${esc(t)}</p></li>`).join("")}</ol>
+      <div class="acts">
+        <button class="cta" data-st="called">통화 완료</button>
+        <div class="row"><button class="ghost" data-st="later">나중에</button><a class="ghost center" href="#customer/${r.cid}">고객 앱 화면</a></div>
+        <p class="fine">사실과 보도 내용만 전하고 매수·매도를 권하거나 주가 방향을 단정하지 않아요. 이유는 언론 보도 요약이며 출처를 함께 확인하세요.</p>
+      </div>`;
+  }
+
   function pagePbHome() {
     const all = pbCustomers();
     const today = all.filter(r => r.calls.length).sort((a, b) => a.rank - b.rank);
     const soon = all.filter(r => r.soon !== null && r.soon <= 7).sort((a, b) => a.soon - b.soon);
     const every = all.slice().sort((a, b) => amountOf(b.lead) - amountOf(a.lead));
+    const market = marketCustomers();
+    const isMk = pbm.tab === "market";
     const lists = { today, soon, all: every };
     const q = pbm.q;
-    const rows = lists[pbm.tab].filter(r => !q || (r.c.id + r.c.name).includes(q));
-    if (!pbm.cid || !rows.find(r => r.c.id === pbm.cid)) { pbm.cid = rows[0] && rows[0].c.id; pbm.fid = null; }
-    const sel = rows.find(r => r.c.id === pbm.cid);
+    const rows = isMk ? market.filter(r => !q || (r.cid + r.c.name).includes(q))
+      : lists[pbm.tab].filter(r => !q || (r.c.id + r.c.name).includes(q));
+    const idOf = r => isMk ? r.cid : r.c.id;
+    if (!pbm.cid || !rows.find(r => idOf(r) === pbm.cid)) { pbm.cid = rows[0] && idOf(rows[0]); pbm.fid = null; }
+    const sel = rows.find(r => idOf(r) === pbm.cid);
     const doneCount = today.filter(r => S.pb[r.c.id]).length;
 
     $app.innerHTML = `<div class="pbm ${pbm.sheet ? "sheet-open" : ""}">
@@ -475,17 +547,18 @@
       <p class="sub">${doneCount ? `${doneCount}명 처리했어요 · ` : ""}누구에게 무엇을 말할지 금액·근거·통화 스크립트까지 준비해 뒀어요</p>
       <div class="pbm-stats">
         <div><span>오늘 연락</span><b>${today.length}명</b></div>
-        <div><span>마감 7일 이내</span><b>${soon.length}명</b></div>
+        <div><span>시장 이슈 (${MK ? MK.ref_date.slice(5).replace("-", "/") : "-"})</span><b>${market.length}명</b></div>
         <div><span>고객들이 놓치는 1년 RP 이자</span><b>${man(every.reduce((s, r) => s + r.interest, 0))}</b></div>
       </div>
+      ${isMk ? marketStrip() : ""}
       <div class="pbm-tools">
-        <div class="seg" role="tablist">${[["today", "오늘 연락", today.length], ["soon", "마감 임박", soon.length], ["all", "전체 고객", every.length]]
+        <div class="seg" role="tablist">${[["today", "오늘 연락", today.length], ["market", "시장 이슈", market.length], ["soon", "마감 임박", soon.length], ["all", "전체 고객", every.length]]
           .map(([k, t, n]) => `<button role="tab" class="${pbm.tab === k ? "on" : ""}" data-tab="${k}">${t} <em>${n}</em></button>`).join("")}</div>
         <input class="pill" type="search" id="pbq" placeholder="이름이나 고객번호로 찾기" value="${esc(q)}">
       </div>
       <div class="pbm-body">
-        <ul class="pbm-list">${rows.map(pbRow).join("") || `<li class="empty">해당하는 고객이 없어요</li>`}</ul>
-        <section class="pbm-detail">${sel ? pbDetail(sel) : `<p class="sub">왼쪽에서 고객을 고르세요</p>`}</section>
+        <ul class="pbm-list">${rows.map(isMk ? marketRow : pbRow).join("") || `<li class="empty">${isMk ? "오늘은 크게 움직인 보유 종목이 없어요" : "해당하는 고객이 없어요"}</li>`}</ul>
+        <section class="pbm-detail">${sel ? (isMk ? marketDetail(sel) : pbDetail(sel)) : `<p class="sub">왼쪽에서 고객을 고르세요</p>`}</section>
       </div></div>`;
 
     $app.querySelectorAll("[data-tab]").forEach(b => (b.onclick = () => { pbm.tab = b.dataset.tab; pbm.cid = null; pagePbHome(); }));
@@ -494,12 +567,12 @@
     $app.querySelectorAll("[data-cid]").forEach(li => (li.onclick = () => { pbm.cid = li.dataset.cid; pbm.fid = null; pbm.sheet = true; pagePbHome(); }));
     $app.querySelectorAll("[data-fid]").forEach(li => (li.onclick = () => { pbm.fid = li.dataset.fid; pagePbHome(); }));
     $app.querySelectorAll("[data-st]").forEach(b => (b.onclick = () => {
-      S.pb[pbm.cid] = b.dataset.st; save(); toast(`${PB_STATUS[b.dataset.st]}으로 기록했어요`); pagePbHome();
+      S.pb[(isMk ? "m:" : "") + pbm.cid] = b.dataset.st; save(); toast(`${PB_STATUS[b.dataset.st]}으로 기록했어요`); pagePbHome();
     }));
     const back = $app.querySelector("[data-back]");
     if (back) back.onclick = () => { pbm.sheet = false; pagePbHome(); };
     const undo = $app.querySelector("[data-undo]");
-    if (undo) undo.onclick = () => { delete S.pb[pbm.cid]; save(); pagePbHome(); };
+    if (undo) undo.onclick = () => { delete S.pb[(isMk ? "m:" : "") + pbm.cid]; save(); pagePbHome(); };
   }
 
   function pbRow(r) {
