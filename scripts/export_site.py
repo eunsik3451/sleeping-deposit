@@ -137,19 +137,24 @@ def pb_reasons(f, cfg, hold_reason):
 FORBIDDEN_MARKET = ("매수하세요", "매도하세요", "사세요", "파세요", "오를 것", "반등할", "추천", "확실히", "보장")
 
 
+def margin_why(a):
+    """반대매매 건: 하루 등락 뉴스 대신 최근 20거래일 누적 하락과 담보비율 변화로 설명한다."""
+    sp, rh = a.get("spark") or [], a.get("ratio_hist") or []
+    if len(sp) < 2 or not rh:
+        return ""
+    chg = sp[-1] / sp[0] - 1
+    return (f"최근 {len(sp)}거래일 동안 주가가 {abs(chg) * 100:.1f}% {'내려' if chg < 0 else '올라'} "
+            f"담보비율이 {rh[0] * 100:.0f}%에서 {rh[-1] * 100:.0f}%로 바뀌었습니다.")
+
+
 def market_script(a, cust, note, cfg):
     """PB 통화 문구. 숫자는 계산값만, 이유는 확인된 메모만. 방향 단정·매매 권유 없음."""
     name, stock = cust["name"], a["name"]
     d = pd.Timestamp(a["trade_date"])
     when = f"{d.month}월 {d.day}일"
     reason = note.get("reason") or "움직인 이유는 아직 확인 중입니다. 확인되는 대로 다시 말씀드리겠습니다."
-    sp = a.get("spark") or []
-    chg20 = sp[-1] / sp[0] - 1 if len(sp) > 1 else 0.0
-    rh = a.get("ratio_hist") or []
-    why_margin = (f"최근 {len(sp)}거래일 동안 주가가 {abs(chg20) * 100:.1f}% {'내려' if chg20 < 0 else '올라'} "
-                  f"담보비율이 {rh[0] * 100:.0f}%에서 {rh[-1] * 100:.0f}%로 바뀌었습니다." if rh else "")
     if a["kind"] != "big_move":
-        reason = why_margin + (" " + note["reason"] if note.get("reason") and note.get("big_move") else "")
+        reason = margin_why(a)
     maint = cfg["market"]["maintenance_ratio"]
     lines = [f"[인사] 안녕하세요, {name}님. 유진투자증권 담당 PB입니다. "]
     if a["kind"] == "big_move":
@@ -199,7 +204,7 @@ def market_section(cfg, ctx):
                                                   "credit_loan_krw", "ratio", "shortfall_krw", "trade_date", "spark",
                                                   "room", "trigger_price", "to_safe_krw", "big_days", "lookback", "ratio_hist")}
                       | {"cname": c["name"], "age": int(pd.Timestamp(cfg["as_of_date"]).year - int(c["birth_year"])),
-                         "reason": note.get("reason", ""), "sources": note.get("sources", []),
+                         "reason": note.get("reason", "") if a["kind"] == "big_move" else margin_why(a), "sources": note.get("sources", []),
                          "chg20": (a["spark"][-1] / a["spark"][0] - 1) if a.get("spark") and len(a["spark"]) > 1 else None,
                          "script": market_script(a, c, note, cfg)})
     keep = ("customer_id", "symbol", "name", "kind", "ratio", "room", "trigger_price", "close", "credit_loan_krw", "value_krw",
