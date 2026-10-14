@@ -8,6 +8,7 @@
   --date 없으면 오늘 이전 마지막 거래일 기준 (장중 데이터는 쓰지 않는다)
 """
 import argparse
+import re
 import json
 import sys
 from pathlib import Path
@@ -27,11 +28,22 @@ MARKET = ROOT / "data" / "market"
 INDICES = {"^KS11": "코스피", "^KQ11": "코스닥", "^GSPC": "S&P 500", "^IXIC": "나스닥"}
 
 
+def set_as_of(day):
+    """서비스 기준일을 실제 날짜로 맞춘다 (화면 전체가 같은 날짜를 보게)."""
+    path = ROOT / "config.yaml"
+    text = path.read_text(encoding="utf-8")
+    new = re.sub(r"^as_of_date: .*$", f"as_of_date: {day}", text, count=1, flags=re.M)
+    path.write_text(new, encoding="utf-8")
+    print(f"서비스 기준일 → {day}")
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
-    ap.add_argument("--date", help="기준일(이 날짜 종가까지 사용). 기본: 오늘 이전 마지막 거래일")
+    ap.add_argument("--date", help="시세 기준일(이 날짜 종가까지 사용). 기본: 오늘 이전 마지막 거래일")
+    ap.add_argument("--as-of", help="서비스 기준일(예수금·마감 D-day 계산). 기본: 오늘. config.yaml의 as_of_date를 이 날짜로 바꾼다")
     args = ap.parse_args()
+    set_as_of(args.as_of or f"{pd.Timestamp.today():%Y-%m-%d}")
     cfg = load_config()
     c = cfg["market"]
     universe = pd.read_csv(MARKET / "universe.csv", dtype=str)

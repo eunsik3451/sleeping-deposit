@@ -42,7 +42,7 @@ def series(data, cid, currency, col="cash"):
 # ── config ──
 
 def test_config_loads_spec_values(cfg):
-    assert str(cfg["as_of_date"]) == "2026-12-10"
+    pd.Timestamp(str(cfg["as_of_date"]))          # 기준일은 아침 점검이 실제 날짜로 바꾼다 (날짜 형식만 확인)
     assert cfg["cash"]["min_idle_amount_krw"] == 5_000_000
     assert cfg["suitability"]["risk_matrix"]["안정형"] == [6]
 

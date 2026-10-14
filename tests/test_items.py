@@ -152,8 +152,9 @@ def test_item_due_first_and_d7(cfg):
 def test_demo_outbox_has_item_alerts(cfg, demo):
     data, ctx, _ = demo
     gen = TemplateGenerator(cfg, data["products"])
-    start = A - pd.Timedelta(days=29)
-    ob = backfill(start, A, ctx, cfg, empty_outbox(), data["action_log"], gen, run_time_for=demo_run_time_for(start))
+    as_of = pd.Timestamp(str(cfg["as_of_date"]))
+    start = as_of - pd.Timedelta(days=29)
+    ob = backfill(start, as_of, ctx, cfg, empty_outbox(), data["action_log"], gen, run_time_for=demo_run_time_for(start))
     trig = set(ob.trigger)
     assert {"T_TAX", "T_RIGHTS", "T_MATURITY"} <= trig
     assert "T_PENSION" in trig and "T_TENDER" not in trig

@@ -681,7 +681,7 @@
         <section class="bcard"><div class="bhead"><h2>다가오는 마감 (14일)</h2></div>
           <ul class="cal">${upcoming(14).map(u => `<li><span class="d"><b>${u.date.slice(5).replace("-", "/")}</b><small class="${u.dl <= 3 ? "red" : ""}">D-${u.dl}</small></span>
             <span class="t"><b>${esc(u.label)}</b><small>고객 ${u.cids.size}명 · 합계 ${man(u.sum)}</small></span></li>`).join("") || `<li class="empty">없어요</li>`}</ul>
-          <p class="sub small">데모 기준일 ${D.as_of} 기준</p></section>
+          <p class="sub small">${D.as_of} 기준</p></section>
 
         <section class="bcard"><div class="bhead"><h2>연락 기록</h2><span class="sub">오늘 ${todayLogs.length}건 · 전체 ${S.log.length}건</span></div>
           ${logList(S.log.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 6), true)}
@@ -924,7 +924,7 @@
     document.body.classList.toggle("is-pbm", tab === "pbm" || tab === "brief");
     ({ customer: () => pageCustomer(arg, arg2), items: pageItems, brief: pageBrief, client: () => pageClient(arg), pbm: pagePbHome, overview: pagePbHome, pb: pagePbHome, outbox: pageOutbox, company: pageCompany }[page] || pageCustomer)();
   }
-  document.getElementById("asof").textContent = `기준일 ${D.as_of}`;
+  document.getElementById("asof").textContent = `기준일 ${D.as_of}${MK ? ` · 시장 ${MK.ref_date.slice(5).replace("-", "/")} 종가` : ""}`;
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
   render();
 })();

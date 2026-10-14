@@ -217,7 +217,7 @@ def personas(as_of):
          [("KRW", p001_krw, None, 0), ("USD", p001_usd, None, 0)], "active_trader+fx_idle"),
         (cust("P002", "박서연", 52, "위험중립형", ago(200), True, True, False),
          [("KRW", p002, None, 0)], "event_inflow"),
-        (cust("P003", "김영자", 67, "안정형", pd.Timestamp("2025-11-02"), False, False, False),
+        (cust("P003", "김영자", 67, "안정형", ago(400), False, False, False),          # 진단 13개월 전 (기준일에 맞춰 이동)
          [("KRW", p003, None, 0)], "long_idle"),
         (cust("P004", "윤재민", 45, "안정추구형", ago(150), True, False, False, auto=True, keep=2 * M),
          [("KRW", p004, 60, 2 * M)], "auto_rp"),
@@ -342,26 +342,30 @@ def generate(cfg, seed=None) -> dict:
     seg_list += ["none"] * (n_generic - len(seg_list))
     rng.shuffle(seg_list)
 
+    base = demo["seed"] if seed is None else seed
     for idx, seg in enumerate(seg_list, start=1):
-        age = int(rng.integers(*AGE_RANGE[seg]))
-        expired = rng.random() < DIAG_EXPIRED_SHARE
-        diag = as_of - pd.Timedelta(days=int(rng.integers(366, 721) if expired else rng.integers(5, 361)))
-        no_ad = rng.random() < NO_AD_CONSENT_SHARE
-        accounts = SEGMENTS[seg](rng, n, dates)
+        # 고객마다 따로 정한 난수: 기준일(요일)이 바뀌어도 이름·나이·동의 같은 고객 정보가 그대로 유지된다
+        prng = np.random.default_rng([base, idx, 1])     # 고객 정보
+        arng = np.random.default_rng([base, idx, 2])     # 잔고·거래
+        age = int(prng.integers(*AGE_RANGE[seg]))
+        expired = prng.random() < DIAG_EXPIRED_SHARE
+        diag = as_of - pd.Timedelta(days=int(prng.integers(366, 721) if expired else prng.integers(5, 361)))
+        no_ad = prng.random() < NO_AD_CONSENT_SHARE
+        accounts = SEGMENTS[seg](arng, n, dates)
         auto_keep = accounts[0][3] if seg == "auto_rp" else 0
         cust = {
             "customer_id": f"C{idx:04d}",
-            "name": rng.choice(SURNAMES) + "".join(rng.choice(GIVEN, size=2)),
+            "name": prng.choice(SURNAMES) + "".join(prng.choice(GIVEN, size=2)),
             "birth_year": as_of.year - age,
-            "risk_profile": rng.choice(RISK_PROFILES, p=[0.15, 0.20, 0.30, 0.20, 0.15]),
+            "risk_profile": prng.choice(RISK_PROFILES, p=[0.15, 0.20, 0.30, 0.20, 0.15]),
             "risk_profile_date": diag,
-            "income_band": rng.choice(["low", "mid", "high"], p=[0.3, 0.5, 0.2]),
-            "pb_id": f"PB{int(rng.integers(1, 11)):02d}",
+            "income_band": prng.choice(["low", "mid", "high"], p=[0.3, 0.5, 0.2]),
+            "pb_id": f"PB{int(prng.integers(1, 11)):02d}",
             "auto_rp_enabled": seg == "auto_rp",
             "auto_rp_keep_krw": auto_keep,
             "consent_push_ad": not no_ad,
-            "consent_kakao_ad": (not no_ad) and rng.random() < 0.7,
-            "consent_night_ad": (not no_ad) and rng.random() < 0.15,
+            "consent_kakao_ad": (not no_ad) and prng.random() < 0.7,
+            "consent_night_ad": (not no_ad) and prng.random() < 0.15,
         }
         entries.append((cust, accounts, seg))
 
