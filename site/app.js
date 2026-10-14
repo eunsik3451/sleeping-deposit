@@ -120,200 +120,281 @@
       <div class="muted small" style="text-align:center">${p.checked ? "검증 통과 (숫자 일치·금칙어·글자 수)" : "기본 문구로 교체됨"}</div></div>`;
   }
 
+  // ── 항목 공통 표기 (고객 앱·PB 화면 같이 씀) ──
+  const SHORT = { R1: "1년 RP 이자", R2: "양도세 절세", R3: "청약 차이", R4: "만기금 한 달 이자", R5: "연금 세액공제" };
+  const EVLBL = { els_redemption: "ELS 상환금", bond_maturity: "채권 상환금", dividend: "배당금" };
+  const amountOf = f => f.rule === "R1" ? f.annual_projection_krw : f.amount_krw;
+  function headline(f) {
+    const m = f.meta, dl = f.deadline ? daysLeft(f.deadline) : null;
+    switch (f.subtype) {
+      case "long_idle": return `예수금 ${man(m.idle_krw)} ${m.streak}일째 쉼`;
+      case "active_trader": return `매수 대기 자금 ${man(m.idle_krw)} 쉼`;
+      case "event_inflow": return m.event ? `${EVLBL[m.event.flow_type] || "입금액"} ${man(m.event.amount)} ${m.event.days_since}일째 쉼` : `상환금 ${man(m.idle_krw)} 쉼`;
+      case "fx_idle": return `달러 ${usd(m.cash_today)} ${m.streak}일째 쉼`;
+      case "tax_loss_harvest": return `해외주식 손실 정리하면 절세 · D-${dl}`;
+      case "tax_deduction_fill": return `해외주식 공제 ${man(m.deduction_left)} 남음 · D-${dl}`;
+      case "rights_offer": return `${m.stock} 유상증자 청약 마감 D-${dl}`;
+      case "maturity": return `${m.product_name} 만기 D-${dl}`;
+      case "pension_credit": return `연금저축 한도 ${man(m.remain)} 남음 · D-${dl}`;
+      default: return f.title;
+    }
+  }
+
   // ════════════════ ① 고객 앱 화면 ════════════════
+  // 휴대폰 안에는 고객이 실제로 보는 앱만, 설명·데모 도구는 휴대폰 밖 발표자 패널에.
+  let cx = { cid: null, scene: "lock", sheet: null, step: 0, ans: [] };
+  const ITEM_ICON = { R2: "세", R3: "청", R4: "만", R5: "연" };
+
   function customerOrder() {
     const amt = {};
-    D.customers.forEach(c => { amt[c.id] = D.details[c.id].findings.reduce((s, f) => s + f.amount_krw, 0); });
+    D.customers.forEach(c => { amt[c.id] = D.details[c.id].findings.reduce((s, f) => s + amountOf(f), 0); });
     const rest = D.customers.map(c => c.id).filter(id => !PERSONAS.includes(id));
     rest.sort((a, b) => (amt[b] - amt[a]) || ((CUST[b].found ? 1 : 0) - (CUST[a].found ? 1 : 0)) || a.localeCompare(b));
     return { ids: [...PERSONAS, ...rest], amt };
   }
 
-  function pageCustomer(cid) {
-    const { ids, amt } = customerOrder();
+  function pageCustomer(cid, start) {
     cid = CUST[cid] ? cid : "P003";
-    const c = CUST[cid], fs = findingsOf(cid), found = foundOf(cid), det = D.details[cid];
-    const reassessed = S.reassessed[cid];
-    const valid = c.diag_valid || !!reassessed;
-    const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "알림톡"].filter(Boolean);
-    const willMiss = c.will_miss - (S.auto[cid] !== undefined ? det.findings.filter(f => f.rule === "R1" && f.currency === "KRW").reduce((s, f) => s + f.annual_projection_krw, 0) : 0);
+    if (cx.cid !== cid) cx = { cid, scene: firstPush(cid) && start !== "home" ? "lock" : "home", sheet: null, step: 0, ans: [] };
+    const { ids, amt } = customerOrder();
+    const c = CUST[cid], det = D.details[cid];
     const opts = ids.map(id => {
       const x = CUST[id];
-      const tag = x.persona ? ` · 데모: ${x.persona}` : amt[id] ? ` · 챙길 돈 ${man(amt[id])}` : "";
-      return `<option value="${id}" ${id === cid ? "selected" : ""}>${id} ${esc(x.name)} (${x.age}세, ${x.risk})${esc(tag)}</option>`;
+      const tag = x.persona ? ` · ${x.persona}` : amt[id] ? ` · ${man(amt[id])}` : "";
+      return `<option value="${id}" ${id === cid ? "selected" : ""}>${id} ${esc(x.name)} (${x.age}세)${esc(tag)}</option>`;
     }).join("");
-    const ms = AS_OF.getMonth() + 1;
+    const pv = det.previews;
 
-    $app.innerHTML = `
-      <h1>고객 앱 화면</h1>
-      <p class="lead">고객 본인이 앱에서 보는 '잠자는 예수금 깨우기'를 재현했습니다. 계좌·거래 데이터만으로 쉬고 있는 돈과 놓친 이자, 기한이 있는 일정을 찾아 보여줍니다.</p>
-      <div class="note">버튼(재진단, 예수금 자동 RP 신청, 매수 화면 이동)은 <b>고객 본인이 앱에서 직접 누르는 상황</b>을 재현합니다. 직원이 대신 가입하거나 실행하는 기능은 없습니다.
-        눌러 본 결과는 이 브라우저에만 저장됩니다. <button class="btn link" id="reset">데모 처음으로</button></div>
-      <select class="select" id="cid" aria-label="고객 선택">${opts}</select>
-      <div style="margin-top:10px">${badge(c.age + "세")}${badge(reassessed || c.risk)}
-        ${valid ? badge(`진단 ${reassessed ? D.as_of : c.diag} 유효`, "ok") : badge(`진단 ${c.diag} 만료`, "warn")}
-        ${consent.length ? badge("광고 동의: " + consent.join("·")) : badge("광고 수신 동의 없음", "warn")}
-        ${found ? badge("예수금 자동 RP 이용 중", "ok") : ""}</div>
-      <div class="metrics">
-        <div class="metric"><div class="k">이번 달 못 받은 이자 (${ms}/1–${ms}/${AS_OF.getDate()})</div><div class="v accent">${man(c.missed_month)}</div></div>
-        <div class="metric"><div class="k">깨우면 1년에 더 받을 이자</div><div class="v">${man(willMiss)}</div></div>
-        <div class="metric"><div class="k">깨운 뒤 받은 이자</div><div class="v ok">${found ? won(found.found_krw) : "0원"}</div></div>
-        <div class="metric"><div class="k">함께 챙길 것 (절세·청약·만기·연금)</div><div class="v">${man(fs.filter(f => f.rule !== "R1").reduce((s, f) => s + f.amount_krw, 0))}</div></div>
-      </div>
-      ${det.trend.start ? `<h2>최근 6개월 예수금과 쉬는 돈</h2>${lineChart(det.trend)}
-        <p class="muted">쉬는 돈 = 예수금 − 미결제 매수금 − 평소 쓰는 돈(최근 3개월 중 하루에 가장 많이 쓴 금액). 달러는 원화로 환산.</p>` : ""}
-      <h2>지금 확인할 것</h2>
-      ${found ? foundCard(found) : ""}
-      ${fs.map(f => f.rule === "R1" ? r1Card(f, cid) : itemCard(f)).join("")}
-      ${!fs.length && !found ? `<div class="okbox">지금은 쉬고 있는 돈이 없어요. 예수금이 잘 쓰이고 있어요.</div>` : ""}
-      <h2>이 고객에게 나가는 안내 (예시)</h2>
-      <p class="muted">실제로 보내지 않습니다. 엔진이 계산한 숫자를 템플릿에 채우고, 검증기(숫자 일치·정보성 금칙어·글자 수)를 통과한 문장만 씁니다.
-        말투는 나이에 맞춰 바뀝니다 (60대 이상 쉬운 말, 40·50대 표준, 20·30대 숫자 먼저).</p>
-      <div class="phones">${det.previews.filter(p => p.channel !== "pb_queue").map(previewBlock).join("")}</div>
-      ${det.previews.filter(p => p.channel === "pb_queue").map(p => `<h2 style="font-size:1rem">${esc(p.label)}</h2>${p.note ? `<p class="muted">${esc(p.note)}</p>` : ""}${phone(p)}`).join("")}
-    `;
+    $app.innerHTML = `<div class="stage">
+      <div class="device"><div class="device-screen" id="phone">${phoneScreen(cid)}</div></div>
+      <aside class="presenter">
+        <h1>고객 앱 화면</h1>
+        <p class="lead">고객 본인이 앱에서 보는 화면입니다. 버튼은 고객이 직접 누르는 상황이고, 직원이 대신 가입하는 기능은 없습니다.</p>
+        <label class="plabel" for="cid">고객 선택</label>
+        <select class="select" id="cid">${opts}</select>
+        <div class="pfacts">${badge(c.age + "세")}${badge(S.reassessed[cid] || c.risk)}${c.diag_valid || S.reassessed[cid] ? badge("진단 유효", "ok") : badge("진단 만료", "warn")}${c.consent_push || c.consent_kakao ? badge("광고 수신 동의") : badge("광고 미동의", "warn")}</div>
+        <div class="pbtns"><button class="btn" id="replay">알림부터 다시 보기</button><button class="btn link" id="reset">데모 처음으로</button></div>
+        <div class="guide"><b>시연 순서</b><ol>${guideFor(cid).map(g => `<li>${g}</li>`).join("")}</ol></div>
+        <details class="pv-wrap"><summary>이 고객에게 나가는 알림 ${pv.length}건 (실제로 보내지 않음)</summary>
+          <p class="muted small">엔진이 계산한 숫자를 템플릿에 채우고 검증기(숫자 일치·금칙어·예금자보호 고지·글자 수)를 통과한 문장만 씁니다.</p>
+          <div class="phones">${pv.filter(p => p.channel !== "pb_queue").map(previewBlock).join("")}</div>
+          ${pv.filter(p => p.channel === "pb_queue").map(p => `<div class="pv-label" style="margin-top:12px">${esc(p.label)}</div>${phone(p)}`).join("")}
+        </details>
+        <details class="pv-wrap"><summary>계산 근거 (심사위원용)</summary>
+          ${findingsOf(cid).map(f => `<p class="small"><b>${esc(f.title)}</b></p><ul class="small muted">${f.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul>`).join("") || `<p class="muted small">해당 없음</p>`}
+        </details>
+      </aside></div>`;
+
     $app.querySelector("#cid").onchange = e => (location.hash = `#customer/${e.target.value}`);
-    $app.querySelector("#reset").onclick = () => { S = { reassessed: {}, auto: {}, pb: {}, log: [] }; save(); toast("데모 상태를 처음으로 되돌렸어요"); render(); };
-    $app.querySelectorAll("[data-act]").forEach(b => (b.onclick = () => act(b.dataset.act, cid, b.dataset.fid)));
-    $app.querySelectorAll("input[data-doc]").forEach(ch => (ch.onchange = () => {
-      const b = $app.querySelector(`[data-act=buy][data-fid="${ch.dataset.doc}"]`); if (b) b.disabled = !ch.checked;
-    }));
+    $app.querySelector("#replay").onclick = () => { cx.scene = firstPush(cid) ? "lock" : "home"; cx.sheet = null; drawPhone(); };
+    $app.querySelector("#reset").onclick = () => { S = { reassessed: {}, auto: {}, pb: {}, log: [] }; save(); cx.cid = null; toast("데모 상태를 처음으로 되돌렸어요"); render(); };
+    bindPhone();
   }
 
-  function evidence(f) {
-    return `<details><summary>근거 보기</summary><ul>${f.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul></details>`;
+  function guideFor(cid) {
+    const fs = findingsOf(cid), r1 = fs.find(f => f.rule === "R1" && f.currency === "KRW");
+    const g = [];
+    if (firstPush(cid)) g.push("잠금화면 알림을 눌러 앱 열기");
+    if (r1 && r1.action.type === "reassess") g.push("진단 만료 → '투자성향 다시 진단하기'", "진단 후 '예수금 자동 RP로 깨우기' → 깨운 뒤 받은 이자로 바뀜");
+    else if (r1) g.push(r1.recommendation.product_id === "AUTO_RP" ? "매매가 잦아 예수금 자동 RP만 안내 (매수할 때 자동으로 빠짐)" : "하단 버튼으로 RP 맡기기 또는 예수금 자동 RP 신청");
+    if (fs.some(f => f.currency === "USD")) g.push("달러는 환전 없이 외화 RP로");
+    if (fs.some(f => f.rule !== "R1")) g.push("'함께 챙길 것'에서 세금·청약·만기·연금 항목 눌러 보기");
+    if (foundOf(cid)) g.push("예수금 자동 RP 이용 중: 깨운 뒤 받은 이자 확인");
+    g.push("'근거 보기'로 계산 방법 확인");
+    return g;
   }
 
-  function r1Card(f, cid) {
-    const m = f.meta, rec = f.recommendation, fid = esc(f.finding_id), krw = f.currency === "KRW";
-    let body = "";
-    if (f.action.type === "reassess") {
-      body = `<div class="warnbox">투자성향 진단 유효기간이 지나 지금은 바로 시작할 수 없어요. 진단을 다시 받으면 이용할 수 있는 방법이 열려요.</div>
-        <div class="btns"><button class="btn primary" data-act="reassess" data-fid="${fid}">투자성향 다시 진단하기</button>
-        ${krw ? `<button class="btn" disabled title="투자성향 진단 후 이용할 수 있어요">예수금 자동 RP 신청</button>` : ""}</div>`;
-    } else if (f.action.type === "pb_consult") {
-      body = `<div class="btns"><button class="btn primary" data-act="pbcall" data-fid="${fid}">담당 PB와 상담하기</button></div>`;
-    } else if (rec.product_id === "AUTO_RP") {
-      const p = D.products.AUTO_RP;
-      body = `<div class="product"><b>예수금 자동 RP</b> · 연 ${pct(p.rate)} · ${p.grade}등급(${p.grade_label})<br>
-        <span class="muted">주식을 대신 사고팔지 않고, 매수할 때 자동으로 빠져서 매매에 지장이 없어요. 매수 대기 자금이라 약정식 RP는 권하지 않아요.</span>${protectLine}</div>
-        <div class="btns"><button class="btn primary" data-act="auto" data-fid="${fid}">예수금 자동 RP 신청</button></div>`;
+  function firstPush(cid) {
+    const pv = D.details[cid].previews;
+    return pv.find(p => p.channel === "push") || pv.find(p => p.channel === "kakao");
+  }
+
+  // ── 휴대폰 화면 ──
+  function drawPhone() { document.getElementById("phone").innerHTML = phoneScreen(cx.cid); bindPhone(); }
+
+  function statusBar(dark) {
+    return `<div class="sbar ${dark ? "dark" : ""}"><b>10:00</b><span>5G ▮</span></div>`;
+  }
+
+  function phoneScreen(cid) {
+    if (cx.scene === "lock") {
+      const p = firstPush(cid);
+      const d = AS_OF;
+      return `<div class="lock">${statusBar(true)}
+        <div class="lk-date">${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}요일</div><div class="lk-time">10:00</div>
+        <button class="lk-noti" data-go="home"><div class="lk-app"><span class="icon">유진</span>${p.channel === "kakao" ? "카카오톡 · 유진투자증권" : "유진투자증권"}<em>지금</em></div>
+          <b>${esc(p.title)}</b><p>${esc(p.channel === "kakao" ? p.body.split("\n").filter(Boolean).slice(1, 3).join(" ") : p.body)}</p></button>
+        <div class="lk-hint">알림을 눌러 앱 열기</div></div>`;
+    }
+    return `<div class="app">${statusBar()}<div class="app-nav"><span>‹</span><b>잠자는 예수금 깨우기</b><span></span></div>
+      <div class="app-scroll">${homeBody(cid)}</div>${homeCta(cid)}${cx.sheet ? sheetHtml(cid) : ""}<div class="ph-toast" id="phtoast" hidden></div></div>`;
+  }
+
+  function mainR1(cid) { return findingsOf(cid).find(f => f.rule === "R1" && f.currency === "KRW") || findingsOf(cid).find(f => f.rule === "R1"); }
+
+  function homeBody(cid) {
+    const c = CUST[cid], fs = findingsOf(cid), found = foundOf(cid), r1 = mainR1(cid);
+    const items = fs.filter(f => f.rule !== "R1"), idles = fs.filter(f => f.rule === "R1");
+    let hero;
+    if (found) {
+      hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님의 예수금이 깨어 있어요</p>
+        <p class="h-label">깨운 뒤 받은 이자 (${found.days}일)</p><p class="h-big ok">+${won(found.found_krw)}</p>
+        <p class="h-meta">지금 RP에 ${man(found.invested_krw)} · 이대로 1년이면 약 ${man(found.annual_krw)}</p></div>`;
+    } else if (r1) {
+      hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님,<br><b>${esc(r1.title)}</b></p>
+        <p class="h-label">깨우면 1년에</p><p class="h-big">+${man(idles.reduce((s, f) => s + f.annual_projection_krw, 0))}</p>
+        <button class="h-meta link" data-sheet="why:${esc(r1.finding_id)}">지난 90일 못 받은 이자 ${man(idles.reduce((s, f) => s + f.amount_krw, 0))} · 근거 보기 ›</button>
+        ${r1.action.type === "reassess" ? `<div class="h-warn">투자성향 진단 유효기간이 지났어요. 다시 진단하면 바로 시작할 수 있어요.</div>` : ""}</div>`;
+    } else if (items.length) {
+      hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님, 기한 안에 챙길 것이</p><p class="h-big ink">${items.length}가지 있어요</p></div>`;
     } else {
-      const p = D.products[rec.product_id];
-      const others = (rec.candidates || []).filter(x => x !== rec.product_id).map(x => D.products[x].name);
-      body = `<div class="product"><b>${esc(p.name)}</b> · 연 ${pct(p.rate)} · ${p.grade}등급(${p.grade_label})<br>
-        <span class="muted">맡길 수 있는 금액 ${money(rec.suggest_amount, f.currency)}${others.length ? " · 다른 선택: " + esc(others.join(", ")) : ""}</span>${protectLine}</div>
-        <label class="check"><input type="checkbox" data-doc="${fid}"> 상품설명서를 확인했어요</label>
-        <div class="btns"><button class="btn primary" data-act="buy" data-fid="${fid}" disabled>데모: 매수 화면으로 이동</button>
-        ${krw ? `<button class="btn" data-act="auto" data-fid="${fid}">예수금 자동 RP 신청</button>` : ""}
-        ${f.subtype === "event_inflow" ? `<button class="btn" data-act="pbcall" data-fid="${fid}">PB와 재투자 상담</button>` : ""}</div>`;
+      hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님의 예수금이</p><p class="h-big ink">잘 쓰이고 있어요</p></div>`;
     }
-    return `<div class="card">${badge(f.subtype_label)}${badge(krw ? "원화" : "달러")}${f.pb_flag ? badge("PB 연결 대상", "accent") : ""}
-      <div class="card-title">${esc(f.title)}</div>
-      <div class="nums"><div><div class="k">${esc(f.amount_label)}</div><div class="big">약 ${man(f.amount_krw)}</div></div>
-        <div><div class="k">이대로 1년 두면</div><div class="big ink">약 ${man(f.annual_projection_krw)}</div></div>
-        <div><div class="k">지금 쉬고 있는 돈</div><div class="big ink">${man(m.idle_krw)}</div></div></div>
-      ${evidence(f)}${body}
-      <button class="btn link" data-act="dismiss" data-fid="${fid}">괜찮아요, 지금은 그대로 둘게요</button></div>`;
+    const tr = D.details[cid].trend;
+    const chart = tr.start ? `<div class="a-card"><div class="a-title">최근 6개월 예수금</div>${miniChart(tr)}</div>` : "";
+    const idleRows = idles.length > 1 || (idles.length && found) ? `<div class="a-card"><div class="a-title">쉬고 있는 돈</div>${idles.map(f => `
+      <button class="a-row" data-sheet="why:${esc(f.finding_id)}"><span class="a-ico">${f.currency === "USD" ? "$" : "₩"}</span>
+        <span class="a-txt"><b>${esc(headline(f))}</b><small>깨우면 1년에 +${man(f.annual_projection_krw)}</small></span><span class="a-go">›</span></button>`).join("")}</div>` : "";
+    const itemRows = items.length ? `<div class="a-card"><div class="a-title">함께 챙길 것</div>${items.map(f => {
+      const dl = daysLeft(f.deadline);
+      return `<button class="a-row" data-sheet="item:${esc(f.finding_id)}"><span class="a-ico">${ITEM_ICON[f.rule]}</span>
+        <span class="a-txt"><b>${esc(f.subtype_label)}</b><small>${esc(SHORT[f.rule])} · 마감 ${f.deadline.slice(5).replace("-", "/")}</small></span>
+        <span class="a-amt"><b>+${man(f.amount_krw)}</b><small class="${dl <= 7 ? "due" : ""}">D-${dl}</small></span></button>`; }).join("")}</div>` : "";
+    return `${hero}${chart}${idleRows}${itemRows}
+      <p class="a-fine">참고용 정보이며 투자 자문이 아닙니다. 이자는 가정한 금리로 계산한 추정치로 실제와 다를 수 있습니다. 가입 전 상품설명서를 확인하세요. 고객·종목·상품명은 가상입니다.</p>`;
   }
 
-  function itemCard(f) {
-    const dl = f.meta.days_left, fid = esc(f.finding_id);
-    return `<div class="card">${badge(f.subtype_label)}${badge(`마감 ${f.deadline} · D-${dl}`, dl <= 7 ? "warn" : "")}${f.pb_flag ? badge("PB 연결 대상", "accent") : ""}
-      <div class="card-title">${esc(f.title)}</div>
-      <div class="k muted">${esc(f.amount_label)}</div><div class="big">약 ${man(f.amount_krw)}</div>
-      ${f.rule === "R4" ? `<div class="muted">상환 예정 금액 ${man(f.meta.expected)}</div>` : ""}
-      ${evidence(f)}
-      <div class="btns"><button class="btn primary" data-act="item" data-fid="${fid}">${esc(f.action.label)}</button>
-        <button class="btn" data-act="pbcall" data-fid="${fid}">PB와 상담하기</button></div>
-      <button class="btn link" data-act="dismiss" data-fid="${fid}">괜찮아요, 지금은 넘어갈게요</button></div>`;
+  function homeCta(cid) {
+    const r1 = mainR1(cid);
+    if (foundOf(cid) || !r1) return "";
+    if (r1.action.type === "reassess") return `<div class="cta-bar"><button class="a-cta" data-sheet="reassess">투자성향 다시 진단하기</button></div>`;
+    if (r1.action.type === "pb_consult") return `<div class="cta-bar"><button class="a-cta" data-act="pb">담당 PB와 상담하기</button></div>`;
+    if (r1.currency === "USD") return `<div class="cta-bar"><button class="a-cta" data-sheet="buy:${esc(r1.finding_id)}">외화 RP에 맡기기</button></div>`;
+    if (r1.recommendation.product_id === "AUTO_RP") return `<div class="cta-bar"><button class="a-cta" data-sheet="auto:${esc(r1.finding_id)}">예수금 자동 RP로 깨우기</button></div>`;
+    const p = D.products[r1.recommendation.product_id];
+    return `<div class="cta-bar two"><button class="a-cta sub" data-sheet="auto:${esc(r1.finding_id)}">자동 RP</button>
+      <button class="a-cta" data-sheet="buy:${esc(r1.finding_id)}">${esc(p.name)}에 맡기기</button></div>`;
   }
 
-  function foundCard(fd) {
-    return `<div class="card">${badge("예수금 자동 RP 이용 중", "ok")}
-      <div class="card-title">예수금을 깨운 뒤 받은 이자</div>
-      <div class="nums"><div><div class="k">받은 이자 (${fd.days}일)</div><div class="big ok">${won(fd.found_krw)}</div></div>
-        <div><div class="k">지금 RP에 있는 돈</div><div class="big ink">${man(fd.invested_krw)}</div></div>
-        <div><div class="k">이대로 1년이면</div><div class="big ink">약 ${man(fd.annual_krw)}</div></div></div>
-      <p class="muted">${fd.on_date ? fd.on_date + "에 신청" : "신청일 기록 없음"} · 남겨둘 금액을 넘는 돈에 연 ${pct(RP)}를 적용한 시뮬레이션${fd.demo ? " (오늘 신청했다고 가정한 첫날 이자)" : ""}</p></div>`;
+  function miniChart(tr) {
+    const n = tr.cash.length, W = 320, H = 110, P = 6;
+    const max = Math.max(1, ...tr.cash, ...tr.auto.map((v, i) => v + tr.cash[i]));
+    const x = i => P + (W - 2 * P) * (n > 1 ? i / (n - 1) : 0), y = v => H - 18 - (H - 28) * (v / max);
+    const line = (v, col, w) => `<polyline fill="none" stroke="${col}" stroke-width="${w}" stroke-linejoin="round" points="${v.map((p, i) => `${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ")}"/>`;
+    const area = `<polygon fill="rgba(240,68,82,.12)" points="${tr.idle.map((p, i) => `${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ")} ${x(n - 1)},${y(0)} ${x(0)},${y(0)}"/>`;
+    const start = new Date(tr.start + "T00:00:00");
+    let lbl = "";
+    for (let i = 0; i < n; i++) { const d = new Date(start.getTime() + i * 864e5); if (d.getDate() === 1) lbl += `<text x="${x(i)}" y="${H - 3}" font-size="10" fill="#8B95A1" text-anchor="middle">${d.getMonth() + 1}월</text>`; }
+    const hasAuto = tr.auto.some(v => v > 0);
+    return `<svg viewBox="0 0 ${W} ${H}" class="mini" role="img" aria-label="최근 6개월 예수금과 쉬는 돈">${area}${line(tr.cash, "#3182F6", 2)}${line(tr.idle, "#F04452", 1.5)}${hasAuto ? line(tr.auto, "#00B493", 1.5) : ""}${lbl}</svg>
+      <div class="mini-lg"><span><i style="background:#3182F6"></i>예수금</span><span><i style="background:#F04452"></i>쉬는 돈</span>${hasAuto ? `<span><i style="background:#00B493"></i>자동 RP</span>` : ""}</div>`;
   }
 
-  function findF(cid, fid) { return findingsOf(cid).find(f => f.finding_id === fid); }
-
-  function act(kind, cid, fid) {
-    const f = findF(cid, fid);
-    if (kind === "dismiss") return toast(`${D.rules.snooze}일 동안 이 알림을 보내지 않아요`);
-    if (kind === "pbcall") return toast("담당 PB에게 상담 요청을 보냈어요 (데모)");
-    if (kind === "reassess") return reassessDialog(cid);
-    if (kind === "auto") return autoDialog(cid, f);
-    if (kind === "buy") {
-      const p = D.products[f.recommendation.product_id];
-      return modal(`<h3>데모: 매수 화면으로 이동</h3>
-        <p>실서비스에서는 고객 앱의 <b>${esc(p.name)}</b> 매수 화면으로 이동하고, 금액 <b>${money(f.recommendation.suggest_amount, f.currency)}</b>이 미리 채워집니다. 고객이 본인 인증 후 직접 주문합니다.</p>${protectLine}
-        <p class="muted">프로토타입이라 실제 주문은 연동하지 않습니다.</p><div class="btns"><button class="btn primary" data-close>확인</button></div>`);
+  // ── 바텀 시트 ──
+  const PROTECT_SHORT = "RP·CMA(RP형)는 예금자보호법에 따라 보호되지 않아요. 금리는 바뀔 수 있어요.";
+  function sheetHtml(cid) {
+    const [kind, fid] = cx.sheet.split(":");
+    const f = fid && findingsOf(cid).find(x => x.finding_id === fid);
+    let body = "";
+    if (kind === "why") {
+      body = `<h3>${esc(f.title)}</h3><p class="s-sub">이렇게 계산했어요</p>
+        <ul class="s-list">${f.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul>
+        <p class="s-note">최근 3개월 중 하루에 가장 많이 쓰신 금액은 남겨두고 계산했어요.</p>
+        <button class="a-cta" data-close>확인</button>`;
+    } else if (kind === "auto") {
+      const keep = Math.round(f.meta.buffer_krw), p = D.products.AUTO_RP;
+      body = `<h3>예수금 자동 RP</h3>
+        <p class="s-lead">정한 금액을 넘는 예수금만 RP에 넣어 두고,<br>주식을 사거나 출금할 때 자동으로 빼요.</p>
+        <div class="s-box"><b>주식이나 펀드를 대신 사고팔지 않아요</b></div>
+        <label class="s-field"><span>남겨둘 금액</span><input type="number" id="keep" min="0" step="100000" value="${keep}"><em id="keepman">${man(keep)}</em></label>
+        <p class="s-note">기본값은 최근 3개월 중 하루에 가장 많이 쓰신 금액이에요.</p>
+        <div class="s-kv"><span>금리</span><b>연 ${pct(p.rate)} (세전, 변동)</b></div>
+        <div class="s-kv"><span>위험등급</span><b>${p.grade}등급 ${p.grade_label}</b></div>
+        <div class="s-protect">${PROTECT_SHORT}</div>
+        <label class="s-check"><input type="checkbox" id="c1"> 상품설명서를 확인했어요</label>
+        <label class="s-check"><input type="checkbox" id="c2"> 예수금 자동 RP 이용에 동의해요</label>
+        <button class="a-cta" id="go" disabled>신청하기</button>`;
+    } else if (kind === "buy") {
+      const rec = f.recommendation, p = D.products[rec.product_id];
+      body = `<h3>${esc(p.name)}</h3>
+        <div class="s-kv"><span>맡길 금액</span><b>${money(rec.suggest_amount, f.currency)}</b></div>
+        <div class="s-kv"><span>금리</span><b>연 ${pct(p.rate)} (세전)</b></div>
+        <div class="s-kv"><span>위험등급</span><b>${p.grade}등급 ${p.grade_label}</b></div>
+        <div class="s-kv"><span>1년 예상 이자</span><b>약 ${man(f.annual_projection_krw)}</b></div>
+        <div class="s-protect">${f.currency === "USD" ? "외화 RP는 예금자보호법에 따라 보호되지 않아요. 환전하지 않고 달러 그대로 맡겨요." : PROTECT_SHORT}</div>
+        <label class="s-check"><input type="checkbox" id="c1"> 상품설명서를 확인했어요</label>
+        <button class="a-cta" id="go" disabled>본인 인증 후 주문하기</button>
+        <p class="s-note center">데모라 실제 주문은 하지 않아요</p>`;
+    } else if (kind === "reassess") {
+      const Q = REASSESS_Q[cx.step];
+      body = `<div class="s-prog"><i style="width:${(cx.step + 1) / REASSESS_Q.length * 100}%"></i></div>
+        <p class="s-sub">투자성향 다시 진단하기 · ${cx.step + 1}/${REASSESS_Q.length}</p><h3>${Q[0]}</h3>
+        <div class="s-opts">${Q[1].map((o, j) => `<button class="s-opt" data-ans="${j}">${o}</button>`).join("")}</div>
+        <p class="s-note">데모용 간이 진단이에요. 실서비스는 회사 진단 절차를 따라요.</p>`;
+    } else if (kind === "item") {
+      body = itemSheet(f);
+    } else if (kind === "done") {
+      body = `<div class="s-done"><div class="s-check-ico">✓</div><h3>${esc(fid)}</h3></div><button class="a-cta" data-close>확인</button>`;
     }
-    if (kind === "item") {
-      const m = f.meta;
-      const text = f.rule === "R2"
-        ? `<p>고객 앱의 <b>해외주식 손익 화면</b>으로 이동합니다. 종목별 평가손익과 올해 실현손익이 함께 보입니다.</p>
-           <ul><li>올해 실현이익 ${won(m.realized)}</li><li>평가손실 ${won(m.loss)} · 평가이익 ${won(m.gain)}</li><li>계산상 줄일 수 있는 세금 약 ${man(f.amount_krw)} (마지막 매도일 ${f.deadline})</li></ul>
-           <p class="muted">매도 여부는 고객이 판단합니다. 다른 증권사 손익은 반영하지 않습니다.</p>`
-        : f.rule === "R3"
-        ? `<p>고객 앱의 <b>유상증자 청약 화면</b>으로 이동합니다. ${esc(m.stock)} 청약 가능 수량 ${m.shares.toLocaleString("ko-KR")}주가 미리 채워집니다.</p>
-           <ul><li>청약가 ${won(m.issue_price)} · 현재가 ${won(m.now)}</li><li>청약 기간 ${m.start} ~ ${f.deadline}</li></ul>
-           <p class="muted">청약 여부는 고객이 판단합니다. 주가가 바뀌면 차이도 달라집니다.</p>`
-        : f.rule === "R5"
-        ? `<p>고객 앱의 <b>연금저축 입금 화면</b>으로 이동합니다.</p>
-           <ul><li>올해 납입 ${won(m.paid)} / 한도 ${won(m.limit)}</li><li>남은 한도 ${won(m.remain)} → 다 채우면 약 ${man(f.amount_krw)} 환급 (${f.deadline}까지 납입분)</li></ul>
-           <div class="protect">연금저축계좌는 펀드·ETF 등에 투자해 원금 손실이 날 수 있고 예금자보호 대상이 아닙니다.</div>
-           <p class="muted">다른 금융사 납입분은 반영하지 않습니다. 입금은 고객이 직접 합니다.</p>`
-        : `<p>만기 뒤 상환금을 어디에 둘지 미리 정하는 화면입니다.</p>
-           <ul><li>${esc(m.product_name)} 만기 ${f.deadline}, 상환 예정 ${man(m.expected)}</li>
-           <li>선택지: 예수금 자동 RP 신청(쓸 때 자동으로 빠짐) · 담당 PB와 재투자 상담 · 그대로 두기</li></ul>
-           <p class="muted">재투자를 권유하지 않습니다. 가입은 고객이 앱에서 직접 합니다.</p>`;
-      return modal(`<h3>앱에서 직접 진행 (데모)</h3>${text}<div class="btns"><button class="btn primary" data-close>확인</button></div>`);
-    }
+    return `<div class="sheet-dim" data-close></div><div class="sheet"><div class="grab"></div>${body}</div>`;
   }
 
-  function autoDialog(cid, f) {
-    const buffer = f ? Math.round(f.meta.buffer_krw) : 1000000, p = D.products.AUTO_RP;
-    modal(`<h3>예수금 자동 RP 신청</h3>
-      <p><b>주식이나 펀드를 대신 사고팔지 않아요.</b> 정한 금액을 넘는 예수금만 RP에 넣어 두고, 주식을 사거나 출금할 때 필요한 만큼 자동으로 빼요.</p>
-      <label>남겨둘 금액 (원)<input type="number" id="keep" min="0" step="100000" value="${buffer}"></label>
-      <p class="muted small" id="keepman">남겨둘 금액 ${man(buffer)} · 기본값은 최근 3개월 중 하루에 가장 많이 쓰신 금액이에요.</p>
-      <details><summary>상품설명서 요약 (데모)</summary><ul><li>위험등급 ${p.grade}등급(${p.grade_label})</li><li>금리 연 ${pct(p.rate)} (변동될 수 있음)</li>
-        <li>${PROTECT}</li><li>언제든 해지할 수 있고, 해지하면 다음 영업일부터 예수금으로 남음</li></ul></details>
-      ${protectLine}<label class="check"><input type="checkbox" id="c1"> 상품설명서를 확인했어요 (예금자보호 대상이 아님을 포함)</label>
-      <label class="check"><input type="checkbox" id="c2"> 예수금 자동 RP 이용에 동의해요</label>
-      <div class="btns"><button class="btn primary" id="go" disabled>신청하기</button><button class="btn" data-close>닫기</button></div>`, dlg => {
-      const keep = dlg.querySelector("#keep"), go = dlg.querySelector("#go"), c1 = dlg.querySelector("#c1"), c2 = dlg.querySelector("#c2");
-      const upd = () => { go.disabled = !(c1.checked && c2.checked); dlg.querySelector("#keepman").textContent = `남겨둘 금액 ${man(+keep.value || 0)} · 기본값은 최근 3개월 중 하루에 가장 많이 쓰신 금액이에요.`; };
-      [keep, c1, c2].forEach(el => (el.oninput = el.onchange = upd));
+  const REASSESS_Q = [["투자해 본 상품은요?", ["예적금만", "RP·채권 정도", "주식·펀드", "파생상품까지"]],
+    ["원금 손실은 어디까지 괜찮으세요?", ["손실은 싫어요", "조금은 괜찮아요", "어느 정도 감수해요", "크게 감수할 수 있어요"]],
+    ["투자하실 기간은요?", ["1년 미만", "1~3년", "3년 이상"]]];
+  const PROFILES = ["안정형", "안정추구형", "위험중립형", "적극투자형", "공격투자형"];
+
+  function itemSheet(f) {
+    const m = f.meta, dl = daysLeft(f.deadline);
+    const rows = {
+      R2: [["올해 실현이익", won(m.realized)], ["평가손실 / 평가이익", `${won(m.loss)} / ${won(m.gain)}`], ["올해 마지막 매도일", `${f.deadline} (D-${dl})`]],
+      R3: [["보유 → 청약 가능", `${m.qty.toLocaleString("ko-KR")}주 → ${m.shares.toLocaleString("ko-KR")}주`], ["청약가 / 현재가", `${won(m.issue_price)} / ${won(m.now)}`], ["청약 기간", `${m.start} ~ ${f.deadline}`]],
+      R4: [["만기일", `${f.deadline} (D-${dl})`], ["상환 예정 금액", man(m.expected)], ["한 달 그대로 두면", `약 ${man(f.amount_krw)} 못 받음`]],
+      R5: [["올해 납입 / 한도", `${man(m.paid)} / ${man(m.limit)}`], ["남은 한도", man(m.remain)], ["마감", `${f.deadline} 납입분까지 (D-${dl})`]],
+    }[f.rule];
+    const note = { R2: "매도를 권하는 안내가 아니에요. 다른 증권사 손익은 빠져 있어요.",
+      R3: "청약 여부는 직접 판단해 주세요. 주가가 바뀌면 차이도 달라져요.",
+      R4: "다시 투자할지는 직접 정하세요. 정하기 전까지는 예수금 자동 RP로 이자를 받을 수 있어요.",
+      R5: "연금저축계좌는 펀드·ETF 등에 투자해 원금 손실이 날 수 있고 예금자보호 대상이 아니에요." }[f.rule];
+    const go = { R2: "보유 종목 손익 보기", R3: "청약하러 가기", R4: "만기 후 계획 정하기", R5: "연금저축 입금하기" }[f.rule];
+    return `<p class="s-sub">${esc(f.subtype_label)} · D-${dl}</p><h3>${esc(f.title)}</h3>
+      <p class="h-label">${esc(f.amount_label)}</p><p class="s-big">+${man(f.amount_krw)}</p>
+      ${rows.map(([k, v]) => `<div class="s-kv"><span>${k}</span><b>${esc(v)}</b></div>`).join("")}
+      <div class="${f.rule === "R5" ? "s-protect" : "s-box soft"}">${note}</div>
+      <button class="a-cta" data-done="${go} 화면으로 이동해요 (데모)">${go}</button>
+      <button class="a-cta sub" data-act="pb">담당 PB에게 물어보기</button>`;
+  }
+
+  function phToast(msg) {
+    const t = document.getElementById("phtoast"); if (!t) return toast(msg);
+    t.textContent = msg; t.hidden = false; clearTimeout(phToast._t); phToast._t = setTimeout(() => (t.hidden = true), 2400);
+  }
+
+  function bindPhone() {
+    const root = document.getElementById("phone"), cid = cx.cid;
+    root.querySelectorAll("[data-go]").forEach(b => (b.onclick = () => { cx.scene = b.dataset.go; drawPhone(); }));
+    root.querySelectorAll("[data-sheet]").forEach(b => (b.onclick = () => { cx.sheet = b.dataset.sheet; cx.step = 0; cx.ans = []; drawPhone(); }));
+    root.querySelectorAll("[data-close]").forEach(b => (b.onclick = () => { cx.sheet = null; drawPhone(); }));
+    root.querySelectorAll("[data-act=pb]").forEach(b => (b.onclick = () => { cx.sheet = "done:담당 PB에게 상담을 요청했어요"; drawPhone(); }));
+    root.querySelectorAll("[data-done]").forEach(b => (b.onclick = () => { cx.sheet = "done:" + b.dataset.done; drawPhone(); }));
+    root.querySelectorAll("[data-ans]").forEach(b => (b.onclick = () => {
+      cx.ans.push(+b.dataset.ans);
+      if (cx.step + 1 < REASSESS_Q.length) { cx.step++; drawPhone(); return; }
+      const prof = PROFILES[Math.min(4, Math.floor(cx.ans.reduce((s, v) => s + v, 0) / 2))];
+      S.reassessed[cid] = prof; save();
+      cx.sheet = `done:투자성향이 ${prof}으로 진단됐어요`; render();
+    }));
+    const go = root.querySelector("#go");
+    if (go) {
+      const checks = [...root.querySelectorAll(".sheet input[type=checkbox]")];
+      checks.forEach(ch => (ch.onchange = () => (go.disabled = !checks.every(x => x.checked))));
+      const keep = root.querySelector("#keep");
+      if (keep) keep.oninput = () => (root.querySelector("#keepman").textContent = man(+keep.value || 0));
       go.onclick = () => {
-        S.auto[cid] = Math.max(0, +keep.value || 0); save(); closeModal();
-        toast(`예수금 자동 RP를 신청했어요. ${won(S.auto[cid])}을 넘는 예수금만 RP에 넣어요.`); render();
+        if (keep) { S.auto[cid] = Math.max(0, +keep.value || 0); save(); cx.sheet = `done:예수금 자동 RP를 신청했어요`; render(); }
+        else { cx.sheet = "done:주문 화면으로 이동해요 (데모)"; drawPhone(); }
       };
-    });
-  }
-
-  function reassessDialog(cid) {
-    const q = [["투자해 본 상품", ["예적금만", "RP·채권 정도", "주식·펀드", "파생상품까지"]],
-      ["원금 손실은 어디까지 괜찮으세요?", ["손실은 싫어요", "조금은 괜찮아요", "어느 정도 감수해요", "크게 감수할 수 있어요"]],
-      ["투자하실 기간", ["1년 미만", "1~3년", "3년 이상"]]];
-    const PROFILES = ["안정형", "안정추구형", "위험중립형", "적극투자형", "공격투자형"];
-    modal(`<h3>투자성향 다시 진단하기</h3><p class="muted small">데모용 간이 진단입니다. 실서비스는 회사 투자성향 진단 절차를 그대로 따릅니다.</p>
-      ${q.map(([t, opts], i) => `<fieldset><legend>${t}</legend>${opts.map((o, j) => `<label class="check"><input type="radio" name="q${i}" value="${j}" ${j === 0 ? "checked" : ""}> ${o}</label>`).join("")}</fieldset>`).join("")}
-      <div class="okbox" id="res"></div>
-      <div class="btns"><button class="btn primary" id="go">진단 완료</button><button class="btn" data-close>닫기</button></div>`, dlg => {
-      const score = () => [0, 1, 2].reduce((s, i) => s + +dlg.querySelector(`input[name=q${i}]:checked`).value, 0);
-      const prof = () => PROFILES[Math.min(4, Math.floor(score() / 2))];
-      const upd = () => (dlg.querySelector("#res").textContent = `진단 결과: ${prof()}`);
-      dlg.querySelectorAll("input").forEach(el => (el.onchange = upd)); upd();
-      dlg.querySelector("#go").onclick = () => {
-        S.reassessed[cid] = prof(); save(); closeModal();
-        toast(`투자성향을 ${S.reassessed[cid]}으로 다시 진단했어요. 이제 바로 시작할 수 있어요.`); render();
-      };
-    });
+    }
   }
 
   // ════════════════ ② 항목 한눈에 ════════════════
@@ -346,22 +427,27 @@
   }
 
   // ════════════════ ③ PB 고객 관리 ════════════════
-  // 한 화면에서 "누구에게, 왜, 무슨 말로" 연락할지. 목록은 고객 단위, 오른쪽(모바일은 시트)에 상세.
+  // 한 화면에서 "누구에게, 무엇을, 무슨 말로" 연락할지. 목록은 고객 단위, 오른쪽(모바일은 시트)에 상세.
   const PB_BY_FID = Object.fromEntries(D.pb.map(r => [r.finding_id, r]));
   const PB_STATUS = { called: "통화 완료", joined: "고객이 앱에서 직접 가입함", later: "나중에 연락" };
   let pbm = { tab: "today", q: "", cid: null, fid: null, sheet: false };
+
+  function todo(f) {   // PB가 할 일 한 문장
+    if (f.rule === "R1") return f.action.type === "reassess" ? "투자성향 재진단부터 도와 주세요" : "쉬는 예수금으로 이자 받는 방법을 알려 주세요";
+    return { R2: "연내 마지막 매도일 전에 해외주식 세금을 알려 주세요", R3: `청약 마감(D-${daysLeft(f.deadline)}) 전에 알려 주세요`,
+      R4: "만기 뒤 상환금을 어떻게 쓸지 여쭤 보세요", R5: "연금저축 남은 한도를 알려 주세요" }[f.rule];
+  }
 
   function pbCustomers() {
     return D.customers.map(c => {
       const fs = findingsOf(c.id);
       if (!fs.length) return null;
       const calls = fs.filter(f => PB_BY_FID[f.finding_id]);
-      const total = fs.reduce((s, f) => s + (f.rule === "R1" ? f.annual_projection_krw : f.amount_krw), 0);
       const deadlines = fs.filter(f => f.deadline).map(f => daysLeft(f.deadline));
       const rank = calls.length ? Math.min(...calls.map(f => PB_BY_FID[f.finding_id].rank)) : 1e9;
-      const reasons = [...new Set(calls.flatMap(f => PB_BY_FID[f.finding_id].reasons))];
-      const lead = (calls[0] || fs[0]);
-      return { c, fs, calls, total, rank, reasons, lead, soon: deadlines.length ? Math.min(...deadlines) : null };
+      const lead = calls[0] || fs.slice().sort((a, b) => amountOf(b) - amountOf(a))[0];
+      return { c, fs, calls, rank, lead, soon: deadlines.length ? Math.min(...deadlines) : null,
+        interest: fs.filter(f => f.rule === "R1").reduce((s, f) => s + f.annual_projection_krw, 0) };
     }).filter(Boolean);
   }
 
@@ -376,7 +462,7 @@
     const all = pbCustomers();
     const today = all.filter(r => r.calls.length).sort((a, b) => a.rank - b.rank);
     const soon = all.filter(r => r.soon !== null && r.soon <= 7).sort((a, b) => a.soon - b.soon);
-    const every = all.slice().sort((a, b) => b.total - a.total);
+    const every = all.slice().sort((a, b) => amountOf(b.lead) - amountOf(a.lead));
     const lists = { today, soon, all: every };
     const q = pbm.q;
     const rows = lists[pbm.tab].filter(r => !q || (r.c.id + r.c.name).includes(q));
@@ -385,14 +471,12 @@
     const doneCount = today.filter(r => S.pb[r.c.id]).length;
 
     $app.innerHTML = `<div class="pbm ${pbm.sheet ? "sheet-open" : ""}">
-      <div class="pbm-head">
-        <div><h1>오늘 연락할 고객 ${today.length}명</h1>
-          <p class="sub">${doneCount ? `${doneCount}명 처리했어요 · ` : ""}금액·근거·통화 스크립트까지 준비해 뒀어요</p></div>
-      </div>
+      <h1>오늘 연락할 고객 ${today.length}명</h1>
+      <p class="sub">${doneCount ? `${doneCount}명 처리했어요 · ` : ""}누구에게 무엇을 말할지 금액·근거·통화 스크립트까지 준비해 뒀어요</p>
       <div class="pbm-stats">
         <div><span>오늘 연락</span><b>${today.length}명</b></div>
         <div><span>마감 7일 이내</span><b>${soon.length}명</b></div>
-        <div><span>담당 고객이 챙길 돈</span><b>${man(every.reduce((s, r) => s + r.total, 0))}</b></div>
+        <div><span>고객들이 놓치는 1년 RP 이자</span><b>${man(every.reduce((s, r) => s + r.interest, 0))}</b></div>
       </div>
       <div class="pbm-tools">
         <div class="seg" role="tablist">${[["today", "오늘 연락", today.length], ["soon", "마감 임박", soon.length], ["all", "전체 고객", every.length]]
@@ -400,7 +484,7 @@
         <input class="pill" type="search" id="pbq" placeholder="이름이나 고객번호로 찾기" value="${esc(q)}">
       </div>
       <div class="pbm-body">
-        <ul class="pbm-list">${rows.map(r => pbRow(r)).join("") || `<li class="empty">해당하는 고객이 없어요</li>`}</ul>
+        <ul class="pbm-list">${rows.map(pbRow).join("") || `<li class="empty">해당하는 고객이 없어요</li>`}</ul>
         <section class="pbm-detail">${sel ? pbDetail(sel) : `<p class="sub">왼쪽에서 고객을 고르세요</p>`}</section>
       </div></div>`;
 
@@ -419,17 +503,16 @@
   }
 
   function pbRow(r) {
-    const st = S.pb[r.c.id];
-    const sub = r.reasons.length ? r.reasons.slice(0, 2).join(" · ") : r.lead.title;
+    const st = S.pb[r.c.id], f = r.lead, dl = f.deadline ? daysLeft(f.deadline) : null;
     return `<li class="${r.c.id === pbm.cid ? "on" : ""} ${st ? "done" : ""}" data-cid="${r.c.id}">
       <span class="ava">${esc(r.c.name.slice(0, 1))}</span>
-      <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세 · ${r.c.id}</small><i>${esc(st ? PB_STATUS[st] : sub)}</i></span>
-      <span class="amt"><b>${man(r.total)}</b>${r.soon !== null && r.soon <= 7 ? `<small class="due">D-${r.soon}</small>` : `<small>챙길 돈</small>`}</span></li>`;
+      <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세</small><i>${esc(st ? PB_STATUS[st] : headline(f))}</i></span>
+      <span class="amt"><b>+${man(amountOf(f))}</b><small class="${dl !== null && dl <= 7 ? "due" : ""}">${dl !== null && dl <= 7 ? `D-${dl} · ` : ""}${SHORT[f.rule]}${r.fs.length > 1 ? ` 외 ${r.fs.length - 1}` : ""}</small></span></li>`;
   }
 
   function pbDetail(r) {
     const c = r.c, fs = r.fs;
-    const f = fs.find(x => x.finding_id === pbm.fid) || r.calls[0] || fs[0];
+    const f = fs.find(x => x.finding_id === pbm.fid) || r.lead;
     const st = S.pb[c.id];
     const consent = c.consent_push || c.consent_kakao;
     const facts = [`${c.age}세`, c.risk, c.diag_valid || S.reassessed[c.id] ? "투자성향 진단 유효" : "투자성향 진단 만료", consent ? "광고 수신 동의" : "광고 미동의 · PB 연락만 가능"];
@@ -437,13 +520,13 @@
     return `<button class="back" data-back>← 목록</button>
       <div class="who-big"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
         <div><h2>${esc(c.name)}님</h2><p class="sub">${facts.map(esc).join(" · ")}</p></div></div>
-      <div class="total"><span>챙길 돈</span><b>${man(r.total)}</b></div>
+      <div class="todo"><span>오늘 할 일</span><b>${esc(todo(f))}</b><p>${esc(headline(f))}</p></div>
       ${st ? `<div class="state">${PB_STATUS[st]} <button class="txt" data-undo>되돌리기</button></div>` : ""}
 
-      <h3>챙길 것 ${fs.length}가지</h3>
+      <h3>고객이 받을 수 있는 돈</h3>
       <ul class="items">${fs.map(x => `<li class="${x.finding_id === f.finding_id ? "on" : ""}" data-fid="${esc(x.finding_id)}">
-        <span><b>${esc(x.title)}</b><small>${esc(x.subtype_label)}${x.deadline ? ` · D-${daysLeft(x.deadline)}` : ""}${PB_BY_FID[x.finding_id] ? " · 연락 대상" : ""}</small></span>
-        <em>${man(x.rule === "R1" ? x.annual_projection_krw : x.amount_krw)}</em></li>`).join("")}</ul>
+        <span><b>${esc(headline(x))}</b><small>${SHORT[x.rule]}${x.deadline ? ` · 마감 D-${daysLeft(x.deadline)}` : ""}</small></span>
+        <em>+${man(amountOf(x))}</em></li>`).join("")}</ul>
 
       <h3>이렇게 말해 보세요</h3>
       <ol class="steps">${scriptSteps(f.script).map(([k, t]) => `<li><span>${esc(k)}</span><p>${esc(t)}</p></li>`).join("")}</ol>
@@ -523,11 +606,11 @@
 
   // ── 라우팅 ──
   function render() {
-    const [page, arg] = (location.hash.slice(1) || "customer").split("/");
+    const [page, arg, arg2] = (location.hash.slice(1) || "customer").split("/");
     const tab = page === "overview" || page === "pb" ? "pbm" : page;
     document.querySelectorAll("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.page === tab));
     document.body.classList.toggle("is-pbm", tab === "pbm");
-    ({ customer: () => pageCustomer(arg), items: pageItems, pbm: pagePbHome, overview: pagePbHome, pb: pagePbHome, outbox: pageOutbox, company: pageCompany }[page] || pageCustomer)();
+    ({ customer: () => pageCustomer(arg, arg2), items: pageItems, pbm: pagePbHome, overview: pagePbHome, pb: pagePbHome, outbox: pageOutbox, company: pageCompany }[page] || pageCustomer)();
   }
   document.getElementById("asof").textContent = `기준일 ${D.as_of}`;
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
