@@ -490,7 +490,7 @@
   function marketStrip() {
     if (!MK) return "";
     return `<div class="mk-strip"><span class="mk-date">${MK.ref_date} 종가 기준 · ${MK.generated.slice(5, 16)} 점검</span>${MK.indices.map(i =>
-      `<span class="mk-idx"><b>${esc(i.name)}</b> ${i.close.toLocaleString("ko-KR")} <em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></span>`).join("")}</div>`;
+      `<span class="mk-idx"><b>${esc(i.name)}</b> ${i.close.toLocaleString("ko-KR")} <em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em>${i.date !== MK.ref_date ? `<small class="stale"> ${i.date.slice(5).replace("-", "/")}</small>` : ""}</span>`).join("")}</div>`;
   }
   function marketRow(r) {
     const a = r.lead, st = S.pb["m:" + r.cid], down = a.day_delta_krw < 0;
@@ -672,7 +672,7 @@
             <span class="tag ${x.cls}">${esc(x.tag)}</span>${S.log.some(l => l.cid === x.cid && isToday(l.at)) ? `<span class="done-mark">✓</span>` : ""}</a></li>`).join("") || `<li class="empty">없어요</li>`}</ul></section>
 
         <section class="bcard"><div class="bhead"><h2>어제 시장</h2>${MK ? `<span class="sub">${MK.ref_date} 종가</span>` : ""}</div>
-          ${MK ? `<div class="idx-grid">${MK.indices.map(i => `<div><span>${esc(i.name)}</span><b>${i.close.toLocaleString("ko-KR")}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></div>`).join("")}</div>
+          ${MK ? `<div class="idx-grid">${MK.indices.map(i => `<div><span>${esc(i.name)}</span><b>${i.close.toLocaleString("ko-KR")}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em>${i.date !== MK.ref_date ? `<small class="stale">${i.date.slice(5).replace("-", "/")} 기준</small>` : ""}</div>`).join("")}</div>
           <h3>고객 보유 종목 이슈</h3>
           <ul class="issues">${issues.map(({ a, n }) => `<li><div class="is-top"><b>${esc(a.name)}</b><em class="${a.chg_pct < 0 ? "dn" : "up"}">${pctTxt(a.chg_pct)}</em><small>보유 고객 ${n.size}명</small></div>
             <p>${esc(a.reason ? a.reason.split(/(?<=다\.)\s/)[0] : "이유 확인 전")}</p></li>`).join("") || `<li class="empty">크게 움직인 보유 종목이 없어요</li>`}</ul>`

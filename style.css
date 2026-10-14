@@ -475,3 +475,5 @@ body.is-pbm { background: #F2F4F6; }
   .idx-grid { grid-template-columns: 1fr 1fr; }
   .hold li { grid-template-columns: 1fr auto; } .hold li .amt:last-child { display: none; }
 }
+.stale { color: #8B95A1; font-size: 0.75rem; display: block; }
+.mk-idx .stale { display: inline; }
