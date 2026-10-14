@@ -26,11 +26,12 @@ from notify.policy import ad_title, has_consent  # noqa: E402
 from notify.triggers import ITEM_TRIGGERS, key_of  # noqa: E402
 
 OUT = ROOT / "site" / "data.js"
-PERSONAS = {"P001": "매매대기 + 달러 + 유상증자", "P002": "ELS 상환금", "P003": "장기방치 · 진단 만료 · 펀드 만기",
+PERSONAS = {"P001": "매매대기 + 달러 + 유상증자", "P002": "ELS 상환금 · 연금저축", "P003": "장기방치 · 진단 만료 · 펀드 만기",
             "P004": "예수금 자동 RP 이용 중"}
 TRIGGER_LABELS = {"T_EVENT": "입금 다음 날 알림", "T_IDLE_FIRST": "처음 알림", "T_IDLE_UPDATE": "이자 안내(재알림)",
                   "T_REASSESS": "진단 만료 안내", "T_MONTHLY": "월간 리포트", "T_FOUND": "깨운 예수금 이자 알림",
-                  "T_TAX": "해외주식 세금 안내", "T_RIGHTS": "유상증자 청약 안내", "T_MATURITY": "만기 안내"}
+                  "T_TAX": "해외주식 세금 안내", "T_RIGHTS": "유상증자 청약 안내", "T_MATURITY": "만기 안내",
+                  "T_PENSION": "연금저축 세액공제 안내"}
 
 
 def jsonable(x):
@@ -64,9 +65,14 @@ def previews(f, cust, cfg, gen, as_of):
     if f.rule != "R1":
         trig, mtype = ITEM_TRIGGERS[f.rule]
         name = TRIGGER_LABELS[trig]
-        items += [(f"{name} (발견 즉시)", trig, "push", "info", f, None, None),
-                  (f"{name} (알림톡)", trig, "kakao", "info", f, None, None)]
-        if f.pb_flag:
+        if mtype == "info":
+            items += [(f"{name} (발견 즉시)", trig, "push", "info", f, None, None),
+                      (f"{name} (알림톡)", trig, "kakao", "info", f, None, None)]
+        elif has_consent(cust, "kakao") or has_consent(cust, "push"):
+            items.append((name, trig, "kakao" if has_consent(cust, "kakao") else "push", "ad", f, None, None))
+        else:
+            items.append((name, trig, "pb_queue", "ad", f, None, "광고 수신 동의가 없어 PB 통화로 대체됩니다."))
+        if f.pb_flag and not any(i[2] == "pb_queue" for i in items):
             items.append(("PB 통화 스크립트", trig, "pb_queue", "info", f, None, "금액이 커서 PB 콜리스트에도 올라갑니다."))
     else:
         if f.subtype == "event_inflow" and f.meta.get("event"):
@@ -181,7 +187,7 @@ def main():
             "items_total": sum(f.amount_krw for f in fs if f.rule != "R1"),
         })
         details[cid] = {
-            "findings": [finding_dict(f) for f in fs],
+            "findings": [{**finding_dict(f), "script": pb_script(f, c, cfg, gen, A)["body"]} for f in fs],
             "previews": pv,
             "trend": {"start": f"{trend.date.iloc[0]:%Y-%m-%d}" if len(trend) else None,
                       "cash": [round(x / 1e4) for x in trend.cash_krw], "idle": [round(x / 1e4) for x in trend.idle_krw],

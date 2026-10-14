@@ -91,7 +91,7 @@ class TemplateGenerator(MessageGenerator):
 
     @staticmethod
     def _item_values(f) -> dict:
-        """R2~R4 값. 금액은 만원 단위, 가격은 원 단위."""
+        """R2~R5 값. 금액은 만원 단위, 가격은 원 단위."""
         m = f.meta
         v = {"title": f.title, "amount": man(f.amount_krw), "deadline": md(pd.Timestamp(f.deadline)),
              "days_left": m["days_left"]}
@@ -104,6 +104,8 @@ class TemplateGenerator(MessageGenerator):
                      start=md(pd.Timestamp(m["start"])))
         elif f.rule == "R4":
             v.update(product_name=m["product_name"], kind=m["kind"], expected=man(m["expected"]))
+        elif f.rule == "R5":
+            v.update(paid=man(m["paid"]), limit=man(m["limit"]), remain=man(m["remain"]))
         return v
 
     @staticmethod

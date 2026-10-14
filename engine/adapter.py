@@ -46,10 +46,16 @@ SCHEMA = {
         "dates": ["date"],
         "bools": [],
     },
-    # 함께 챙길 항목 (R2 해외주식 양도세, R3 유상증자 권리, R4 펀드·ELS 만기)
+    # 함께 챙길 항목 (R2 해외주식 양도세, R3 유상증자 권리, R4 펀드·ELS 만기, R5 연금저축)
     "overseas_tax_ytd": {
         "file": "demo/overseas_tax_ytd.csv",
         "columns": ["customer_id", "year", "realized_gain_krw", "unrealized_loss_krw", "unrealized_gain_krw"],
+        "dates": [],
+        "bools": [],
+    },
+    "pension_accounts": {
+        "file": "demo/pension_accounts.csv",
+        "columns": ["customer_id", "year", "paid_ytd_krw"],
         "dates": [],
         "bools": [],
     },

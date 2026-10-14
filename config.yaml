@@ -52,6 +52,13 @@ maturity:                        # R4 만기 안내 (펀드·ELS)
   notice_days: 14                # 만기 며칠 전부터 알릴지
   pb_threshold_krw: 30000000     # 상환 예정 금액이 이 이상이면 PB 상담 대상
 
+pension:                         # R5 연금저축 세액공제 (IRP는 유진 미취급이라 제외)
+  annual_limit_krw: 6000000      # 확인 필요: 연금저축 세액공제 한도
+  credit_rate: 0.132             # 확인 필요: 세액공제율
+  credit_rate_low_income: 0.165  # 확인 필요: 총급여 5,500만원 이하
+  start_month: 10                # 10~12월에만 알림
+  deadline: 2026-12-31
+
 priority:
   urgent_days: 7
   max_cards_customer: 3
