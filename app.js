@@ -200,6 +200,7 @@
     if (fs.some(f => f.currency === "USD")) g.push("달러는 환전 없이 외화 RP로");
     if (fs.some(f => f.rule !== "R1")) g.push("'함께 챙길 것'에서 세금·청약·만기·연금 항목 눌러 보기");
     if (foundOf(cid)) g.push("예수금 자동 RP 이용 중: 깨운 뒤 받은 이자 확인");
+    if (MK && MK.credit.some(b => b.customer_id === cid)) g.push("'신용으로 산 주식'에서 반대매매까지 남은 하락 폭 확인 (반대매매 전에 미리 알 수 있음)");
     g.push("'근거 보기'로 계산 방법 확인");
     return g;
   }
@@ -247,6 +248,8 @@
         ${r1.action.type === "reassess" ? `<div class="h-warn">투자성향 진단 유효기간이 지났어요. 다시 진단하면 바로 시작할 수 있어요.</div>` : ""}</div>`;
     } else if (items.length) {
       hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님, 기한 안에 챙길 것이</p><p class="h-big ink">${items.length}가지 있어요</p></div>`;
+    } else if (MK && MK.credit.some(b => b.customer_id === cid && b.kind !== "margin_safe")) {
+      hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님,</p><p class="h-big ink">신용으로 산 주식을<br>확인해 주세요</p></div>`;
     } else {
       hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님의 예수금이</p><p class="h-big ink">잘 쓰이고 있어요</p></div>`;
     }
@@ -260,7 +263,7 @@
       return `<button class="a-row" data-sheet="item:${esc(f.finding_id)}"><span class="a-ico">${ITEM_ICON[f.rule]}</span>
         <span class="a-txt"><b>${esc(f.subtype_label)}</b><small>${esc(SHORT[f.rule])} · 마감 ${f.deadline.slice(5).replace("-", "/")}</small></span>
         <span class="a-amt"><b>+${man(f.amount_krw)}</b><small class="${dl <= 7 ? "due" : ""}">D-${dl}</small></span></button>`; }).join("")}</div>` : "";
-    return `${hero}${chart}${idleRows}${itemRows}
+    return `${hero}${appCreditCard(cid)}${chart}${idleRows}${itemRows}
       <p class="a-fine">참고용 정보이며 투자 자문이 아닙니다. 이자는 가정한 금리로 계산한 추정치로 실제와 다를 수 있습니다. 가입 전 상품설명서를 확인하세요. 고객·종목·상품명은 가상입니다.</p>`;
   }
 
@@ -460,7 +463,7 @@
 
   // ── 시장 이슈: 보유 종목 큰 등락·신용 담보 부족 ──
   const MK = D.market;
-  const MK_KIND = { margin_call: "담보 부족 · 반대매매 위험", big_move: "보유 종목 큰 등락", margin_watch: "담보비율 주의" };
+  const MK_KIND = { margin_call: "담보 부족 · 반대매매 위험", margin_warn: "반대매매 경고 · 하락 여력 10% 미만", big_move: "보유 종목 큰 등락", margin_watch: "담보비율 주의 · 하락 여력 20% 미만" };
   function marketCustomers() {
     if (!MK) return [];
     const by = {};
@@ -470,12 +473,13 @@
   const pctTxt = v => `${v > 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1)}%`;
   function mkHeadline(a) {
     if (a.kind === "margin_call") return `${a.name} 담보비율 ${Math.round(a.ratio * 100)}% · 반대매매 위험`;
-    if (a.kind === "margin_watch") return `${a.name} 담보비율 ${Math.round(a.ratio * 100)}% · 주의`;
+    if (a.kind === "margin_warn" || a.kind === "margin_watch") return `${a.name} 반대매매까지 −${(a.room * 100).toFixed(1)}% · ${STAGE[a.kind][0]}`;
     return `${a.name} ${pctTxt(a.chg_pct)} (${a.trade_date.slice(5).replace("-", "/")})`;
   }
   function mkTodo(a) {
     if (a.kind === "margin_call") return "반대매매 전에 담보 부족을 알려 주세요";
-    if (a.kind === "margin_watch") return "담보비율이 낮아졌다고 미리 알려 주세요";
+    if (a.kind === "margin_warn") return "반대매매가 가까워졌다고 미리 알려 주세요";
+    if (a.kind === "margin_watch") return "담보비율이 낮아지고 있다고 미리 알려 주세요";
     return `${a.name} ${a.chg_pct < 0 ? "급락" : "급등"} 소식과 이유를 알려 주세요`;
   }
   function spark(v, down) {
@@ -490,12 +494,13 @@
   }
   function marketRow(r) {
     const a = r.lead, st = S.pb["m:" + r.cid], down = a.day_delta_krw < 0;
-    const amt = a.kind === "margin_call" ? `${man(a.shortfall_krw)}` : `${down ? "−" : "+"}${man(Math.abs(a.day_delta_krw))}`;
-    const lbl = a.kind === "margin_call" ? "부족 담보" : "하루 평가금액";
+    const margin = a.kind.startsWith("margin");
+    const amt = a.kind === "margin_call" ? `${man(a.shortfall_krw)}` : margin ? `−${(a.room * 100).toFixed(1)}%` : `${down ? "−" : "+"}${man(Math.abs(a.day_delta_krw))}`;
+    const lbl = a.kind === "margin_call" ? "부족 담보" : margin ? "반대매매까지" : "하루 평가금액";
     return `<li class="${r.cid === pbm.cid ? "on" : ""} ${st ? "done" : ""}" data-cid="${r.cid}">
-      <span class="ava ${a.kind === "margin_call" ? "warn" : ""}">${esc(r.c.name.slice(0, 1))}</span>
+      <span class="ava ${a.kind === "margin_call" || a.kind === "margin_warn" ? "warn" : ""}">${esc(r.c.name.slice(0, 1))}</span>
       <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세</small><i>${esc(st ? PB_STATUS[st] : mkHeadline(a))}</i></span>
-      <span class="amt"><b class="${a.kind === "margin_call" ? "red" : down ? "dn" : "up"}">${amt}</b><small>${lbl}${r.as.length > 1 ? ` 외 ${r.as.length - 1}` : ""}</small></span></li>`;
+      <span class="amt"><b class="${a.kind === "margin_call" || a.kind === "margin_warn" ? "red" : margin ? "amber" : down ? "dn" : "up"}">${amt}</b><small>${lbl}${r.as.length > 1 ? ` 외 ${r.as.length - 1}` : ""}</small></span></li>`;
   }
   function marketDetail(r) {
     const a = r.as.find(x => x.symbol + x.kind === pbm.fid) || r.lead, c = r.c, st = S.pb["m:" + r.cid];
@@ -504,16 +509,17 @@
     const kv = a.kind === "big_move"
       ? [["종가", `${a.currency === "USD" ? "$" + a.close.toLocaleString("en-US") : won(a.close)} (${pctTxt(a.chg_pct)})`], ["보유", `${a.qty.toLocaleString("ko-KR")}주 · 평가 ${man(a.value_krw)}`],
          ["하루 평가금액 변동", `${down ? "−" : "+"}${man(Math.abs(a.day_delta_krw))}`], ["매입 후 손익", `${a.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(a.pnl_krw))}`]]
-      : [["담보비율", `${Math.round(a.ratio * 100)}% (유지 ${Math.round(MK.maintenance_ratio * 100)}%)`], ["신용 대출금", man(a.credit_loan_krw)],
-         ["담보 평가금액", man(a.value_krw)], ...(a.kind === "margin_call" ? [["부족 금액", `약 ${man(a.shortfall_krw)}`]] : []), ["종가 등락", pctTxt(a.chg_pct)]];
+      : [["담보비율", `${Math.round(a.ratio * 100)}% (유지 ${Math.round(MK.maintenance_ratio * 100)}%)`], ["반대매매 기준가", `${won(a.trigger_price)} (지금 ${won(a.close)})`],
+         ["신용 대출금 / 담보 평가금액", `${man(a.credit_loan_krw)} / ${man(a.value_krw)}`],
+         ...(a.kind === "margin_call" ? [["부족 금액", `약 ${man(a.shortfall_krw)}`]] : []), ["주의 단계 밖으로 돌리려면", `약 ${man(a.to_safe_krw)} 추가`], ["종가 등락", pctTxt(a.chg_pct)]];
     return `<button class="back" data-back>← 목록</button>
       <div class="who-big"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
         <div><h2>${esc(c.name)}님</h2><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent ? "광고 수신 동의" : "광고 미동의"}</p></div></div>
       <div class="todo ${a.kind === "margin_call" ? "red" : ""}"><span>오늘 할 일</span><b>${esc(mkTodo(a))}</b><p>${esc(MK_KIND[a.kind])}</p></div>
       ${st ? `<div class="state">${PB_STATUS[st]} <button class="txt" data-undo>되돌리기</button></div>` : ""}
       ${r.as.length > 1 ? `<h3>이 고객의 시장 이슈 ${r.as.length}건</h3><ul class="items">${r.as.map(x => `<li class="${x === a ? "on" : ""}" data-fid="${esc(x.symbol + x.kind)}"><span><b>${esc(mkHeadline(x))}</b><small>${MK_KIND[x.kind]}</small></span></li>`).join("")}</ul>` : ""}
-      <h3>${esc(a.name)} · 최근 20거래일</h3>
-      <div class="mk-card">${spark(a.spark, down)}${kv.map(([k, v]) => `<div class="s-kv"><span>${k}</span><b>${esc(v)}</b></div>`).join("")}</div>
+      ${a.kind.startsWith("margin") ? `<h3>반대매매까지 얼마나 남았나요</h3>${creditGauge(a)}${ratioTrend(a)}<h3>${esc(a.name)} · 숫자</h3>` : `<h3>${esc(a.name)} · 최근 20거래일</h3>`}
+      <div class="mk-card">${a.kind.startsWith("margin") ? "" : spark(a.spark, down)}${kv.map(([k, v]) => `<div class="s-kv"><span>${k}</span><b>${esc(v)}</b></div>`).join("")}</div>
       <h3>왜 움직였나요</h3>
       <div class="mk-why">${a.reason ? `<p>${esc(a.reason)}</p><ul>${a.sources.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a></li>`).join("")}</ul>`
         : `<p class="sub">아직 이유를 확인하지 않았어요. 아침 점검 때 뉴스를 확인해 채웁니다.</p>`}</div>
@@ -524,6 +530,53 @@
         <div class="row"><button class="ghost" data-st="later">나중에</button><a class="ghost center" href="#customer/${r.cid}">고객 앱 화면</a></div>
         <p class="fine">사실과 보도 내용만 전하고 매수·매도를 권하거나 주가 방향을 단정하지 않아요. 이유는 언론 보도 요약이며 출처를 함께 확인하세요.</p>
       </div>`;
+  }
+
+  // ── 신용 위험도: 반대매매 전에 알 수 있게 ──
+  const STAGE = { margin_call: ["위험", "반대매매 기준 미달"], margin_warn: ["경고", "하락 여력 10% 미만"],
+    margin_watch: ["주의", "하락 여력 20% 미만"], margin_safe: ["안전", "하락 여력 20% 이상"] };
+  const stageCls = k => ({ margin_call: "s-call", margin_warn: "s-warn", margin_watch: "s-watch", margin_safe: "s-safe" }[k]);
+  const priceTxt = (v, cur) => cur === "USD" ? `$${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}` : won(v);
+
+  function creditGauge(b) {   // 하락 여력 0~30% 위에 현재 위치. 왼쪽 끝이 반대매매 기준
+    const room = Math.max(0, b.room), max = 0.30, pos = Math.min(1, room / max) * 100;
+    return `<div class="cg ${stageCls(b.kind)}">
+      <div class="cg-head"><b>${b.kind === "margin_call" ? "이미 반대매매 기준 아래" : `반대매매까지 −${(b.room * 100).toFixed(1)}%`}</b><span class="cg-tag">${STAGE[b.kind][0]}</span></div>
+      <div class="cg-track"><i class="z1"></i><i class="z2"></i><i class="z3"></i><span class="cg-dot" style="left:${pos}%"></span></div>
+      <div class="cg-scale"><span>반대매매 기준</span><span>−10%</span><span>−20%</span><span>−30%</span></div>
+      <p class="cg-note">${b.kind === "margin_call" ? `담보가 약 ${man(b.shortfall_krw)} 부족해요.` : `주가가 ${priceTxt(b.trigger_price, "KRW")} 아래로 내리면 담보비율이 ${Math.round(MK.maintenance_ratio * 100)}% 밑으로 떨어져요.`}
+        ${b.big_days ? ` 최근 ${b.lookback}거래일 중 하루에 이만큼 내린 날이 <b>${b.big_days}일</b> 있었어요.` : b.kind !== "margin_call" ? ` 최근 ${b.lookback}거래일 동안 하루에 이만큼 내린 날은 없었어요.` : ""}</p></div>`;
+  }
+
+  function ratioTrend(b) {
+    const v = b.ratio_hist, n = v.length, maint = MK.maintenance_ratio;
+    if (!n) return "";
+    const W = 320, H = 90, lo = Math.min(...v, maint) - 0.05, hi = Math.max(...v) + 0.05;
+    const x = i => i / (n - 1) * W, y = r => H - 14 - (r - lo) / (hi - lo) * (H - 22);
+    const pts = v.map((r, i) => `${x(i).toFixed(1)},${y(r).toFixed(1)}`).join(" ");
+    return `<div class="rt"><div class="rt-title">담보비율 최근 20거래일 <b>${Math.round(v[0] * 100)}% → ${Math.round(v[n - 1] * 100)}%</b><span class="rt-key">- - 유지비율 ${Math.round(maint * 100)}%</span></div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="rt-svg" aria-label="담보비율 추이">
+        <line x1="0" x2="${W}" y1="${y(maint)}" y2="${y(maint)}" stroke="#F04452" stroke-dasharray="4 4" stroke-width="1.2"/>
+        <polyline fill="none" stroke="#191F28" stroke-width="2" points="${pts}"/></svg></div>`;
+  }
+
+  function creditSummary() {
+    if (!MK || !MK.credit.length) return "";
+    const n = k => MK.credit.filter(b => b.kind === k).length;
+    return `<div class="cs"><span class="cs-t">신용 보유 고객 ${new Set(MK.credit.map(b => b.customer_id)).size}명</span>
+      ${["margin_call", "margin_warn", "margin_watch", "margin_safe"].map(k => `<span class="cs-i ${stageCls(k)}"><i></i>${STAGE[k][0]} <b>${n(k)}</b></span>`).join("")}
+      <span class="cs-h">위험·경고·주의는 아래 목록에 있어요</span></div>`;
+  }
+
+  function appCreditCard(cid) {   // 고객 앱: 본인 신용 보유분
+    if (!MK) return "";
+    const mine = MK.credit.filter(b => b.customer_id === cid);
+    if (!mine.length) return "";
+    return `<div class="a-card"><div class="a-title">신용으로 산 주식</div>${mine.map(b => `
+      <div class="ac-credit"><div class="ac-top"><b>${esc(b.name)}</b><span class="cg-tag ${stageCls(b.kind)}">${STAGE[b.kind][0]}</span></div>
+      <p class="ac-line">${b.kind === "margin_call" ? `담보가 약 ${man(b.shortfall_krw)} 부족해서 반대매매될 수 있어요` : `주가가 <b>${(b.room * 100).toFixed(1)}%</b> 더 내리면 반대매매될 수 있어요`}</p>
+      <div class="cg-track mini ${stageCls(b.kind)}"><i class="z1"></i><i class="z2"></i><i class="z3"></i><span class="cg-dot" style="left:${Math.min(1, Math.max(0, b.room) / 0.3) * 100}%"></span></div>
+      <p class="ac-sub">담보비율 ${Math.round(b.ratio * 100)}% · 기준가 ${won(b.trigger_price)} · ${MK.ref_date.slice(5).replace("-", "/")} 종가</p></div>`).join("")}</div>`;
   }
 
   function pagePbHome() {
@@ -550,7 +603,7 @@
         <div><span>시장 이슈 (${MK ? MK.ref_date.slice(5).replace("-", "/") : "-"})</span><b>${market.length}명</b></div>
         <div><span>고객들이 놓치는 1년 RP 이자</span><b>${man(every.reduce((s, r) => s + r.interest, 0))}</b></div>
       </div>
-      ${isMk ? marketStrip() : ""}
+      ${isMk ? marketStrip() + creditSummary() : ""}
       <div class="pbm-tools">
         <div class="seg" role="tablist">${[["today", "오늘 연락", today.length], ["market", "시장 이슈", market.length], ["soon", "마감 임박", soon.length], ["all", "전체 고객", every.length]]
           .map(([k, t, n]) => `<button role="tab" class="${pbm.tab === k ? "on" : ""}" data-tab="${k}">${t} <em>${n}</em></button>`).join("")}</div>
