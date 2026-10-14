@@ -296,6 +296,36 @@ def extra_tables(customers: pd.DataFrame, segments: dict, as_of, seed) -> dict:
             "maturities": pd.DataFrame(mat)}
 
 
+# ── 시장 이슈용 보유 종목 (실제 상장 종목, 고객은 가상) ──────────────────────
+# 수량은 정하지 않고 매입금액만 둔다. 수량·평균가는 market_morning.py가 그 시점 시세로 정한다.
+KR_LARGE = ["005930", "000660", "373220", "207940", "005380", "035420", "035720", "068270", "006400",
+            "012450", "329180", "042660", "034020", "010140"]
+KR_VOLATILE = ["086520", "247540", "196170", "028300", "112040", "263750", "277810", "141080", "214450"]
+US = ["NVDA", "TSLA", "AAPL", "PLTR", "AMD", "MSTR", "IONQ", "RGTI", "SMCI", "COIN", "SOXL"]
+
+
+def stock_holdings(customers: pd.DataFrame, as_of, seed) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    rows = [  # 페르소나
+        ("P001", "086520", 30 * M, 15 * M), ("P001", "IONQ", 8 * M, 0), ("P001", "SOXL", 6 * M, 0),
+        ("P002", "068270", 20 * M, 0), ("P002", "028300", 10 * M, 0),
+        ("P003", "005930", 40 * M, 0),
+        ("P004", "000660", 15 * M, 0), ("P004", "NVDA", 10 * M, 0),
+    ]
+    for c in customers.itertuples():
+        if c.customer_id.startswith("P") or rng.random() > 0.45:
+            continue
+        age = as_of.year - int(c.birth_year)
+        pool = KR_LARGE * 3 + KR_VOLATILE * (2 if age < 50 else 1) + US * (2 if age < 45 else 1)
+        picks = rng.choice(pool, size=int(rng.integers(1, 5)), replace=False)
+        credit_slot = rng.integers(0, len(picks)) if rng.random() < 0.10 else -1
+        for i, sym in enumerate(dict.fromkeys(picks)):
+            amount = krw(rng.uniform(3, 80) * M)
+            loan = krw(amount * rng.uniform(0.4, 0.6)) if i == credit_slot and sym.isdigit() else 0
+            rows.append((c.customer_id, sym, amount, loan))
+    return pd.DataFrame(rows, columns=["customer_id", "symbol", "buy_amount_krw", "credit_loan_krw"])
+
+
 def generate(cfg, seed=None) -> dict:
     demo = cfg["demo"]
     rng = np.random.default_rng(demo["seed"] if seed is None else seed)
@@ -361,6 +391,7 @@ def generate(cfg, seed=None) -> dict:
     return {
         **extra_tables(customers_df, segments, as_of, (demo["seed"] if seed is None else seed) + 1),
         "customers": customers_df,
+        "stock_holdings": stock_holdings(customers_df, as_of, (demo["seed"] if seed is None else seed) + 2),
         "cash_balances_daily": pd.concat(balances, ignore_index=True)
                                  .sort_values(["customer_id", "currency", "date"], ignore_index=True),
         "cash_flows": flow_df.sort_values(["customer_id", "currency", "date", "flow_type"], ignore_index=True),

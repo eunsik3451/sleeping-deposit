@@ -1,0 +1,96 @@
+"""아침 시장 이슈 점검 (사용자가 요청할 때 실행).
+
+1) 가상 고객 보유 종목(실제 상장 종목)의 시세를 받아 2) 하루 ±10% 등락과 신용 담보 부족을 찾고
+3) data/market/<기준일>.json 에 저장, 4) 이유를 적을 notes 파일(data/market/notes/<기준일>.json)의 빈칸을 만든다.
+이유(뉴스 요약·출처)는 notes에 사람이(또는 Claude가 웹 검색으로) 채운다. 그 뒤 export_site.py → publish.
+
+실행: python scripts/market_morning.py [--date YYYY-MM-DD]
+  --date 없으면 오늘 이전 마지막 거래일 기준 (장중 데이터는 쓰지 않는다)
+"""
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import pandas as pd
+import yfinance as yf
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from engine.config import load_config  # noqa: E402
+from engine.market import detect, positions  # noqa: E402
+from generate_demo_data import generate  # noqa: E402
+
+MARKET = ROOT / "data" / "market"
+INDICES = {"^KS11": "코스피", "^KQ11": "코스닥", "^GSPC": "S&P 500", "^IXIC": "나스닥"}
+
+
+def main():
+    sys.stdout.reconfigure(encoding="utf-8")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--date", help="기준일(이 날짜 종가까지 사용). 기본: 오늘 이전 마지막 거래일")
+    args = ap.parse_args()
+    cfg = load_config()
+    c = cfg["market"]
+    universe = pd.read_csv(MARKET / "universe.csv", dtype=str)
+    holdings = generate(cfg)["stock_holdings"]
+
+    tickers = list(universe.ticker) + list(INDICES) + ["KRW=X"]
+    raw = yf.download(tickers, period="6mo", progress=False, auto_adjust=False)["Close"]
+    raw.index = pd.to_datetime(raw.index).tz_localize(None).normalize()
+    cutoff = pd.Timestamp(args.date) if args.date else pd.Timestamp.today().normalize() - pd.Timedelta(days=1)
+    raw = raw.loc[:cutoff]
+    closes = raw[list(universe.ticker)].rename(columns=dict(zip(universe.ticker, universe.symbol)))
+    fx = raw["KRW=X"].dropna()
+
+    # 기준일 = 국내 종목이 마지막으로 거래된 날 (해외는 그 날짜까지의 마지막 종가)
+    ref = closes[universe[universe.currency == "KRW"].symbol].dropna(how="all").index[-1]
+    pos = positions(holdings, closes, fx, universe, ref, c["base_lag_days"])
+    if pos.empty:
+        print("보유 종목 시세가 없습니다.")
+        return
+    # 해외 종목은 기준일까지의 마지막 거래일 기준이라 날짜가 다를 수 있다
+    alerts = detect(pos, cfg)
+
+    idx = []
+    for t, name in INDICES.items():
+        s = raw[t].dropna()
+        if len(s) >= 2:
+            idx.append({"name": name, "close": round(float(s.iloc[-1]), 2), "chg_pct": float(s.iloc[-1] / s.iloc[-2] - 1),
+                        "date": f"{s.index[-1]:%Y-%m-%d}"})
+
+    movers = (pos.drop_duplicates("symbol")[["symbol", "name", "market", "chg_pct", "close", "prev_close", "trade_date", "spark"]]
+              .sort_values("chg_pct", key=abs, ascending=False))
+    out = {"ref_date": f"{ref:%Y-%m-%d}", "generated": f"{pd.Timestamp.now():%Y-%m-%d %H:%M}", "config": c,
+           "indices": idx, "movers": movers.head(12).to_dict("records"), "alerts": alerts,
+           "holders": int(pos.customer_id.nunique()), "positions": int(len(pos))}
+    MARKET.mkdir(parents=True, exist_ok=True)
+    path = MARKET / f"{ref:%Y-%m-%d}.json"
+    path.write_text(json.dumps(out, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
+
+    # 이유를 적을 빈칸 (이미 있으면 채운 내용은 지키고 새 종목만 추가)
+    notes_dir = MARKET / "notes"
+    notes_dir.mkdir(exist_ok=True)
+    npath = notes_dir / f"{ref:%Y-%m-%d}.json"
+    notes = json.loads(npath.read_text(encoding="utf-8")) if npath.exists() else {}
+    need = {}
+    for a in alerts:
+        if a["kind"] == "big_move" or a["kind"] == "margin_call":
+            need[a["symbol"]] = (a["name"], a["chg_pct"], a["trade_date"])
+    for sym, (name, chg, d) in need.items():
+        notes.setdefault(sym, {"name": name, "trade_date": d, "chg_pct": round(chg * 100, 2),
+                               "reason": "", "sources": [], "checked_by": ""})
+    npath.write_text(json.dumps(notes, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    kinds = pd.Series([a["kind"] for a in alerts]).value_counts().to_dict() if alerts else {}
+    print(f"기준일 {ref:%Y-%m-%d} · 보유 고객 {out['holders']}명 · 보유 {out['positions']}건 · 알림 {kinds}")
+    for sym, (name, chg, d) in need.items():
+        mark = "✓" if notes[sym]["reason"] else "이유 필요"
+        print(f"  {name}({sym}) {chg * 100:+.1f}% [{d}] → {mark}")
+    print(f"저장: {path.relative_to(ROOT)} · 이유 메모: {npath.relative_to(ROOT)}")
+
+
+if __name__ == "__main__":
+    main()

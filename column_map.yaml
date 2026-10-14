@@ -60,6 +60,12 @@ pension_accounts:
   year: year
   paid_ytd_krw: paid_ytd_krw
 
+stock_holdings:
+  customer_id: customer_id
+  symbol: symbol
+  buy_amount_krw: buy_amount_krw
+  credit_loan_krw: credit_loan_krw
+
 holdings:
   customer_id: customer_id
   symbol: symbol

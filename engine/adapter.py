@@ -59,6 +59,12 @@ SCHEMA = {
         "dates": [],
         "bools": [],
     },
+    "stock_holdings": {          # 시장 이슈용: 실제 상장 종목 보유 (매입금액·신용 대출금)
+        "file": "demo/stock_holdings.csv",
+        "columns": ["customer_id", "symbol", "buy_amount_krw", "credit_loan_krw"],
+        "dates": [],
+        "bools": [],
+    },
     "holdings": {
         "file": "demo/holdings.csv",
         "columns": ["customer_id", "symbol", "name", "qty", "current_price"],

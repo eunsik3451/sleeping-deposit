@@ -59,6 +59,12 @@ pension:                         # R5 연금저축 세액공제 (IRP는 유진 �
   start_month: 10                # 10~12월에만 알림
   deadline: 2026-12-31
 
+market:                          # 시장 이슈 알림 (보유 종목 큰 등락·신용 담보 부족)
+  big_move_pct: 0.10             # 하루 등락률 이 이상이면 연락 대상
+  maintenance_ratio: 1.40        # 확인 필요: 신용 담보 유지비율 (미만이면 추가 담보 없으면 반대매매)
+  watch_ratio: 1.50              # 이 아래면 주의 (반대매매 전 미리 안내)
+  base_lag_days: 60              # 가상 보유 수량을 정하는 기준: 기준일 60거래일 전 종가에 매입했다고 가정
+
 priority:
   urgent_days: 7
   max_cards_customer: 3
