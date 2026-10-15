@@ -398,7 +398,7 @@
     $app.innerHTML = `<h1>서비스 안내</h1>
       <p class="lead">고객이 놓치거나 잊기 쉬운 돈과 일정을 계좌 데이터만으로 찾습니다. 금액 계산은 검증 가능한 규칙 엔진이 맡고, 문장은 숫자를 바꿀 수 없습니다.</p>
       <div class="tablewrap" style="max-height:none"><table><thead><tr><th>구분</th><th>항목</th><th>놓치는 돈</th><th>찾는 방법</th><th>안내</th><th>알림 시점</th><th>데모 고객</th></tr></thead>
-      <tbody>${ITEMS.map(r => `<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[5])}</td><td><a href="#customer/${r[6]}">${r[6]} ${esc(CUST[r[6]].name)}</a></td></tr>`).join("")}</tbody></table></div>
+      <tbody>${ITEMS.map(r => `<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[5])}</td><td><a href="#client/${r[6]}">${r[6]} ${esc(CUST[r[6]].name)}</a></td></tr>`).join("")}</tbody></table></div>
       <h2>금리 기준</h2>
       <p>원화: 예탁금 이용료 연 ${pct(D.rates.deposit)}(100만원 초과분) → 챔피언CMA(RP형) 자유형 연 ${pct(RP)}(2026-08-28 기준, 세전). 차이 연 ${pct(RP - D.rates.deposit)}p.
         1억원이 1년 쉬면 약 ${man(1e8 * (RP - D.rates.deposit))}을 못 받습니다.</p>
@@ -741,7 +741,7 @@
       </div>
       ${cv.showWhy ? `<ul class="why-list">${r1.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
       <div class="dfoot"><span>금리와 보유기간에 따라 달라질 수 있습니다. 가입은 고객이 앱에서 직접 합니다.</span>
-        <div><button class="ghost sm" data-why>${cv.showWhy ? "근거 접기" : "산출 근거 보기"}</button><a class="cta sm" href="#customer/${cid}/home">고객 앱 화면 보기</a></div></div></section>`;
+        <div><button class="ghost sm" data-why>${cv.showWhy ? "근거 접기" : "산출 근거 보기"}</button></div></div></section>`;
   }
 
   function callPanel(cid) {
@@ -788,8 +788,7 @@
     $app.innerHTML = `<div class="pg c360">
       <a class="crumb" href="#clients">‹ 고객 목록</a>
       <div class="c360-head"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
-        <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p></div>
-        <a class="ghost sm" href="#customer/${cid}/home">고객 앱 화면 미리보기</a></div>
+        <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p></div></div>
 
       <div class="kpis">
         <div><span>총자산</span><b>${man(total)}</b><small>예수금·RP·달러·주식</small></div>
@@ -1030,7 +1029,7 @@
 
   // ════════════════ 셸: 제목·검색·라우팅 ════════════════
   const PAGES = { calendar: "일정", today: "오늘", clients: "고객", client: "고객", market: "시장 이슈", outbox: "알림 발송함", insights: "성과", guide: "서비스 안내", customer: "고객" };
-  const ALIAS = { brief: "today", pbm: "clients", pb: "clients", overview: "clients", company: "insights", items: "guide" };
+  const ALIAS = { customer: "client", brief: "today", pbm: "clients", pb: "clients", overview: "clients", company: "insights", items: "guide" };
   function setupShell() {
     const dl = document.getElementById("custlist");
     dl.innerHTML = D.customers.map(c => `<option value="${esc(c.name)} · ${c.id}">`).join("");
