@@ -1,6 +1,6 @@
 /* 잠자는 예수금 깨우기 — 정적 웹 데모.
    계산은 전부 파이썬 엔진(scripts/export_site.py)이 끝낸 결과(data.js)를 쓴다.
-   데모 버튼(재진단·자동 RP 신청·PB 처리)은 보는 사람 브라우저에만 저장된다. */
+   데모 버튼(자동 RP 신청·RP 맡기기·PB 처리)은 보는 사람 브라우저에만 저장된다. */
 (function () {
   const D = window.SITE_DATA;
   const $app = document.getElementById("app");
@@ -57,7 +57,7 @@
 
   // ── 고객별 현재 상태 (데모 변경 반영) ──
   function findingsOf(cid) {
-    const fs = D.details[cid].findings.map(f => (S.reassessed[cid] && D.after_reassess[f.finding_id]) || f);
+    const fs = D.details[cid].findings;
     return S.auto[cid] !== undefined ? fs.filter(f => !(f.rule === "R1" && f.currency === "KRW")) : fs;
   }
   function foundOf(cid) {
@@ -172,7 +172,7 @@
         <p class="lead">고객 본인이 앱에서 보는 화면입니다. 버튼은 고객이 직접 누르는 상황이고, 직원이 대신 가입하는 기능은 없습니다.</p>
         <label class="plabel" for="cid">고객 선택</label>
         <select class="select" id="cid">${opts}</select>
-        <div class="pfacts">${badge(c.age + "세")}${badge(S.reassessed[cid] || c.risk)}${c.diag_valid || S.reassessed[cid] ? badge("진단 유효", "ok") : badge("진단 만료", "warn")}${c.consent_push || c.consent_kakao ? badge("광고 수신 동의") : badge("광고 미동의", "warn")}</div>
+        <div class="pfacts">${badge(c.age + "세")}${badge(c.risk)}${c.consent_push || c.consent_kakao ? badge("광고 수신 동의") : badge("광고 미동의", "warn")}</div>
         <div class="pbtns"><button class="btn" id="replay">알림부터 다시 보기</button><button class="btn link" id="reset">데모 처음으로</button></div>
         <div class="guide"><b>시연 순서</b><ol>${guideFor(cid).map(g => `<li>${g}</li>`).join("")}</ol></div>
         <details class="pv-wrap"><summary>이 고객에게 나가는 알림 ${pv.length}건 (실제로 보내지 않음)</summary>
@@ -195,8 +195,7 @@
     const fs = findingsOf(cid), r1 = fs.find(f => f.rule === "R1" && f.currency === "KRW");
     const g = [];
     if (firstPush(cid)) g.push("잠금화면 알림을 눌러 앱 열기");
-    if (r1 && r1.action.type === "reassess") g.push("진단 만료 → '투자성향 다시 진단하기'", "진단 후 '예수금 자동 RP로 깨우기' → 깨운 뒤 받은 이자로 바뀜");
-    else if (r1) g.push(r1.recommendation.product_id === "AUTO_RP" ? "매매가 잦아 예수금 자동 RP만 안내 (매수할 때 자동으로 빠짐)" : "하단 버튼으로 RP 맡기기 또는 예수금 자동 RP 신청");
+    if (r1) g.push(r1.recommendation.product_id === "AUTO_RP" ? "매매가 잦아 예수금 자동 RP만 안내 (매수할 때 자동으로 빠짐)" : "하단 버튼으로 RP 맡기기 또는 예수금 자동 RP 신청");
     if (fs.some(f => f.currency === "USD")) g.push("달러는 환전 없이 외화 RP로");
     if (fs.some(f => f.rule !== "R1")) g.push("'함께 챙길 것'에서 세금·청약·만기·연금 항목 눌러 보기");
     if (foundOf(cid)) g.push("예수금 자동 RP 이용 중: 깨운 뒤 받은 이자 확인");
@@ -245,7 +244,7 @@
       hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님,<br><b>${esc(r1.title)}</b></p>
         <p class="h-label">깨우면 1년에</p><p class="h-big">+${man(idles.reduce((s, f) => s + f.annual_projection_krw, 0))}</p>
         <button class="h-meta link" data-sheet="why:${esc(r1.finding_id)}">지난 90일 못 받은 이자 ${man(idles.reduce((s, f) => s + f.amount_krw, 0))} · 근거 보기 ›</button>
-        ${r1.action.type === "reassess" ? `<div class="h-warn">투자성향 진단 유효기간이 지났어요. 다시 진단하면 바로 시작할 수 있어요.</div>` : ""}</div>`;
+</div>`;
     } else if (items.length) {
       hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님, 기한 안에 챙길 것이</p><p class="h-big ink">${items.length}가지 있어요</p></div>`;
     } else if (MK && MK.credit.some(b => b.customer_id === cid && b.kind !== "margin_safe")) {
@@ -270,7 +269,6 @@
   function homeCta(cid) {
     const r1 = mainR1(cid);
     if (foundOf(cid) || !r1) return "";
-    if (r1.action.type === "reassess") return `<div class="cta-bar"><button class="a-cta" data-sheet="reassess">투자성향 다시 진단하기</button></div>`;
     if (r1.action.type === "pb_consult") return `<div class="cta-bar"><button class="a-cta" data-act="pb">담당 PB와 상담하기</button></div>`;
     if (r1.currency === "USD") return `<div class="cta-bar"><button class="a-cta" data-sheet="buy:${esc(r1.finding_id)}">외화 RP에 맡기기</button></div>`;
     if (r1.recommendation.product_id === "AUTO_RP") return `<div class="cta-bar"><button class="a-cta" data-sheet="auto:${esc(r1.finding_id)}">예수금 자동 RP로 깨우기</button></div>`;
@@ -328,12 +326,6 @@
         <label class="s-check"><input type="checkbox" id="c1"> 상품설명서를 확인했어요</label>
         <button class="a-cta" id="go" disabled>본인 인증 후 주문하기</button>
         <p class="s-note center">데모라 실제 주문은 하지 않아요</p>`;
-    } else if (kind === "reassess") {
-      const Q = REASSESS_Q[cx.step];
-      body = `<div class="s-prog"><i style="width:${(cx.step + 1) / REASSESS_Q.length * 100}%"></i></div>
-        <p class="s-sub">투자성향 다시 진단하기 · ${cx.step + 1}/${REASSESS_Q.length}</p><h3>${Q[0]}</h3>
-        <div class="s-opts">${Q[1].map((o, j) => `<button class="s-opt" data-ans="${j}">${o}</button>`).join("")}</div>
-        <p class="s-note">데모용 간이 진단이에요. 실서비스는 회사 진단 절차를 따라요.</p>`;
     } else if (kind === "item") {
       body = itemSheet(f);
     } else if (kind === "done") {
@@ -342,10 +334,6 @@
     return `<div class="sheet-dim" data-close></div><div class="sheet"><div class="grab"></div>${body}</div>`;
   }
 
-  const REASSESS_Q = [["투자해 본 상품은요?", ["예적금만", "RP·채권 정도", "주식·펀드", "파생상품까지"]],
-    ["원금 손실은 어디까지 괜찮으세요?", ["손실은 싫어요", "조금은 괜찮아요", "어느 정도 감수해요", "크게 감수할 수 있어요"]],
-    ["투자하실 기간은요?", ["1년 미만", "1~3년", "3년 이상"]]];
-  const PROFILES = ["안정형", "안정추구형", "위험중립형", "적극투자형", "공격투자형"];
 
   function itemSheet(f) {
     const m = f.meta, dl = daysLeft(f.deadline);
@@ -380,13 +368,6 @@
     root.querySelectorAll("[data-close]").forEach(b => (b.onclick = () => { cx.sheet = null; drawPhone(); }));
     root.querySelectorAll("[data-act=pb]").forEach(b => (b.onclick = () => { cx.sheet = "done:담당 PB에게 상담을 요청했어요"; drawPhone(); }));
     root.querySelectorAll("[data-done]").forEach(b => (b.onclick = () => { cx.sheet = "done:" + b.dataset.done; drawPhone(); }));
-    root.querySelectorAll("[data-ans]").forEach(b => (b.onclick = () => {
-      cx.ans.push(+b.dataset.ans);
-      if (cx.step + 1 < REASSESS_Q.length) { cx.step++; drawPhone(); return; }
-      const prof = PROFILES[Math.min(4, Math.floor(cx.ans.reduce((s, v) => s + v, 0) / 2))];
-      S.reassessed[cid] = prof; save();
-      cx.sheet = `done:투자성향이 ${prof}으로 진단됐어요`; render();
-    }));
     const go = root.querySelector("#go");
     if (go) {
       const checks = [...root.querySelectorAll(".sheet input[type=checkbox]")];
@@ -436,7 +417,7 @@
   let pbm = { tab: "today", q: "", cid: null, fid: null, sheet: false };
 
   function todo(f) {   // PB가 할 일 한 문장
-    if (f.rule === "R1") return f.action.type === "reassess" ? "투자성향 재진단부터 도와 주세요" : "쉬는 예수금으로 이자 받는 방법을 알려 주세요";
+    if (f.rule === "R1") return "쉬는 예수금으로 이자 받는 방법을 알려 주세요";
     return { R2: "연내 마지막 매도일 전에 해외주식 세금을 알려 주세요", R3: `청약 마감(D-${daysLeft(f.deadline)}) 전에 알려 주세요`,
       R4: "만기 뒤 상환금을 어떻게 쓸지 여쭤 보세요", R5: "연금저축 남은 한도를 알려 주세요" }[f.rule];
   }
@@ -703,13 +684,12 @@
     const stock = pos.reduce((s, p) => s + p.value_krw, 0), loan = pos.reduce((s, p) => s + p.credit_loan_krw, 0);
     const alerts = D.outbox.filter(r => r.cid === cid).sort((a, b) => b.at.localeCompare(a.at));
     const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "알림톡"].filter(Boolean);
-    const valid = c.diag_valid || S.reassessed[cid];
 
     $app.innerHTML = `<div class="pbm client">
       <a class="crumb" href="#pbm">‹ PB 고객 관리</a>
       <div class="who-big"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
         <div><h1>${esc(c.name)}님 <small>${cid}</small></h1>
-          <p class="sub">${c.age}세 · ${esc(S.reassessed[cid] || c.risk)} · 투자성향 진단 ${valid ? "유효" : `만료 (${c.diag})`} · ${consent.length ? "광고 동의: " + consent.join("·") : "광고 미동의 (PB 연락만)"} · 담당 ${c.pb}</p></div></div>
+          <p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의: " + consent.join("·") : "광고 미동의 (PB 연락만)"} · 담당 ${c.pb}</p></div></div>
 
       <div class="pbm-stats four">
         <div><span>원화 예수금</span><b>${man(krw.cash)}</b>${krw.auto_rp ? `<small>자동 RP ${man(krw.auto_rp)}</small>` : ""}</div>
@@ -825,7 +805,7 @@
     const f = fs.find(x => x.finding_id === pbm.fid) || r.lead;
     const st = S.pb[c.id];
     const consent = c.consent_push || c.consent_kakao;
-    const facts = [`${c.age}세`, c.risk, c.diag_valid || S.reassessed[c.id] ? "투자성향 진단 유효" : "투자성향 진단 만료", consent ? "광고 수신 동의" : "광고 미동의 · PB 연락만 가능"];
+    const facts = [`${c.age}세`, c.risk, consent ? "광고 수신 동의" : "광고 미동의 · PB 연락만 가능"];
     const pb = PB_BY_FID[f.finding_id];
     return `<button class="back" data-back>← 목록</button>
       <div class="who-big"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
