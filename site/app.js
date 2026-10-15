@@ -977,32 +977,73 @@
       <span class="amt"><b class="${cls}">${amt}</b><small>${lbl}${(r.fs.length + mk.length) > 1 ? ` 외 ${r.fs.length + mk.length - 1}건` : ""}</small></span><span class="go">›</span></a></li>`;
   }
 
-  // ════════════════ PB 워크스테이션: 시장 이슈 (종목 중심) ════════════════
+  // ════════════════ 시장 이슈: ① 오늘 시장 ② 내 고객 보유 종목 움직임 ③ 평가금 변동 큰 고객 ④ 신용 위험 ════════════════
+  let mkv = { open: null, all: false };
   function pageMarket() {
     if (!MK) { $app.innerHTML = `<div class="pg"><h1>시장 이슈</h1><p class="sub">아침 시장 점검을 아직 돌리지 않았어요.</p></div>`; return; }
-    const moves = Object.values(MK.alerts.filter(a => a.kind === "big_move").reduce((o, a) => { (o[a.symbol] ||= { a, list: [] }).list.push(a); return o; }, {}));
+    const sm = MK.summary || {};
+    const pos = MK.positions || [];
+    const bigMove = Object.fromEntries(MK.alerts.filter(a => a.kind === "big_move").map(a => [a.symbol, a]));
+    // 종목별: 보유 고객 수, 내 고객 전체 평가금 변동
+    const bySym = {};
+    pos.forEach(p => { const s = (bySym[p.symbol] ||= { symbol: p.symbol, name: p.name, chg: p.chg_pct, date: p.trade_date, holders: new Set(), delta: 0, value: 0, list: [] });
+      s.holders.add(p.customer_id); s.delta += p.day_delta_krw; s.value += p.value_krw; s.list.push(p); });
+    const syms = Object.values(bySym).sort((a, b) => Math.abs(b.chg) - Math.abs(a.chg));
+    const shown = mkv.all ? syms : syms.filter(s => Math.abs(s.chg) >= 0.03).slice(0, 10);
+    // 고객별: 하루 평가금 변동 합
+    const byCust = {};
+    pos.forEach(p => { const c = (byCust[p.customer_id] ||= { cid: p.customer_id, delta: 0, value: 0, items: [] }); c.delta += p.day_delta_krw; c.value += p.value_krw; c.items.push(p); });
+    const movers = Object.values(byCust).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 10);
     const credit = MK.credit.filter(b => b.kind !== "margin_safe").sort((a, b) => a.room - b.room);
-    const n = k => MK.credit.filter(b => b.kind === k).length;
-    $app.innerHTML = `<div class="pg">
-      <div class="pg-head"><div><h1>시장 이슈</h1><p class="sub">${MK.ref_date} 종가 기준 · 고객 보유 종목의 큰 등락과 신용 위험</p></div></div>
-      <div class="idx-row">${MK.indices.map(i => `<div class="card-s"><span>${esc(i.name)}</span><b>${i.close.toLocaleString("ko-KR")}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></div>`).join("")}</div>
+    const myDelta = pos.reduce((s, p) => s + p.day_delta_krw, 0), myValue = pos.reduce((s, p) => s + p.value_krw, 0);
+    const sign = v => (v < 0 ? "−" : "+") + man(Math.abs(v));
 
-      <h2 class="sec">보유 종목 큰 등락 <small>하루 ±${Math.round(MK.big_move_pct * 100)}% 이상</small></h2>
-      ${moves.map(({ a, list }) => `<section class="panel">
-        <div class="mv-head"><div><b>${esc(a.name)}</b><em class="${a.chg_pct < 0 ? "dn" : "up"}">${pctTxt(a.chg_pct)}</em><small>${a.trade_date}</small></div>${spark(a.spark, a.chg_pct < 0)}</div>
-        <p class="mv-why">${esc(a.reason || "이유 확인 전")}</p>
-        ${(a.sources || []).length ? `<p class="src">${a.sources.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title.split(":")[0])}</a>`).join(" · ")}</p>` : ""}
-        <h3>보유 고객 ${list.length}명</h3>
-        <ul class="rows compact">${list.sort((x, y) => x.day_delta_krw - y.day_delta_krw).map(x => `<li><a href="#client/${x.customer_id}"><span class="ava sm">${esc(x.cname.slice(0, 1))}</span>
-          <span class="who"><b>${esc(x.cname)}</b><small>${x.age}세 · ${x.qty.toLocaleString("ko-KR")}주</small></span><span></span>
-          <span class="amt"><b class="${x.day_delta_krw < 0 ? "dn" : "up"}">${x.day_delta_krw < 0 ? "−" : "+"}${man(Math.abs(x.day_delta_krw))}</b><small>하루 평가금액</small></span><span class="go">›</span></a></li>`).join("")}</ul></section>`).join("") || `<p class="sub">하루 ±${Math.round(MK.big_move_pct * 100)}% 넘게 움직인 보유 종목이 없어요.</p>`}
+    $app.innerHTML = `<div class="pg mk2">
+      <div class="pg-head"><div><h1>시장 이슈</h1><p class="sub">${MK.ref_date} 종가 기준 · 오늘 시장, 내 고객 보유 종목, 평가금이 크게 바뀐 고객 순서로 보세요</p></div></div>
 
-      <h2 class="sec">신용 위험 <small>반대매매가 나기 전에</small></h2>
-      <div class="stage-row">${["margin_call", "margin_warn", "margin_watch", "margin_safe"].map(k => `<div class="card-s ${stageCls(k)}"><span>${STAGE[k][0]}</span><b>${n(k)}명</b><small>${STAGE[k][1]}</small></div>`).join("")}</div>
-      <section class="panel"><ul class="rows compact">${credit.map(b => { const c = CUST[b.customer_id]; return `<li><a href="#client/${b.customer_id}"><span class="ava sm ${b.kind === "margin_call" || b.kind === "margin_warn" ? "warn" : ""}">${esc(c.name.slice(0, 1))}</span>
+      <section class="panel">
+        <div class="bhead"><h2>① 오늘 시장</h2><span class="sub">${esc(sm.checked_by || "")}</span></div>
+        <div class="idx-row">${MK.indices.map(i => `<div class="card-s soft"><span>${esc(i.name)}</span><b>${i.close.toLocaleString("ko-KR")}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></div>`).join("")}</div>
+        ${sm.summary ? `<p class="mk-sum">${esc(sm.summary)}</p><ul class="mk-bul">${(sm.bullets || []).map(b => `<li>${esc(b)}</li>`).join("")}</ul>
+          ${(sm.sources || []).length ? `<p class="src">${sm.sources.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title.split(":")[0])}</a>`).join(" · ")}</p>` : ""}`
+          : `<p class="sub">오늘 시장 요약을 아직 쓰지 않았어요.</p>`}
+      </section>
+
+      <section class="panel">
+        <div class="bhead"><h2>② 내 고객 보유 종목 움직임</h2><span class="sub">고객 ${new Set(pos.map(p => p.customer_id)).size}명 · 평가금 ${man(myValue)} · 하루 <b class="${myDelta < 0 ? "dn" : "up"}">${sign(myDelta)}</b></span></div>
+        <ul class="syms">${shown.map(s => { const a = bigMove[s.symbol], open = mkv.open === s.symbol || (mkv.open === null && a && s === syms.find(x => bigMove[x.symbol]));
+          return `<li class="${a ? "hit" : ""} ${open ? "open" : ""}"><button class="sym-h" data-sym="${s.symbol}">
+            <span class="sym-n"><b>${esc(s.name)}</b>${a ? `<span class="tag s-call">±${Math.round(MK.big_move_pct * 100)}% 넘음</span>` : ""}</span>
+            <em class="${s.chg < 0 ? "dn" : "up"}">${pctTxt(s.chg)}</em>
+            <span class="sym-m">보유 ${s.holders.size}명</span>
+            <span class="sym-d ${s.delta < 0 ? "dn" : "up"}">${sign(s.delta)}</span><span class="chev">${open ? "⌃" : "⌄"}</span></button>
+            ${open ? `<div class="sym-b">${spark((a || {}).spark || s.list[0].spark || [s.chg], s.chg < 0)}
+              ${a && a.reason ? `<h4>왜 움직였나요</h4><p class="mv-why">${esc(a.reason)}</p>${(a.sources || []).length ? `<p class="src">${a.sources.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title.split(":")[0])}</a>`).join(" · ")}</p>` : ""}`
+                : `<p class="sub">하루 ±${Math.round(MK.big_move_pct * 100)}% 미만이라 따로 뉴스를 찾지 않았어요.</p>`}
+              <h4>보유 고객</h4><ul class="rows compact">${s.list.sort((x, y) => x.day_delta_krw - y.day_delta_krw).map(p => { const c = CUST[p.customer_id]; return `<li><a href="#client/${p.customer_id}"><span class="ava sm">${esc(c.name.slice(0, 1))}</span>
+                <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${p.qty.toLocaleString("ko-KR")}주${p.credit_loan_krw ? " · 신용" : ""}</small></span><span></span>
+                <span class="amt"><b class="${p.day_delta_krw < 0 ? "dn" : "up"}">${sign(p.day_delta_krw)}</b><small>평가 ${man(p.value_krw)}</small></span><span class="go">›</span></a></li>`; }).join("")}</ul></div>` : ""}</li>`; }).join("")}</ul>
+        <button class="txt more" id="symAll">${mkv.all ? "크게 움직인 종목만 보기" : `전체 ${syms.length}종목 보기`}</button>
+      </section>
+
+      <section class="panel">
+        <div class="bhead"><h2>③ 평가금이 크게 바뀐 고객</h2><span class="sub">하루 평가금 변동 큰 순 · 상위 10명</span></div>
+        <ul class="rows compact">${movers.map(m => { const c = CUST[m.cid], top = m.items.slice().sort((a, b) => Math.abs(b.day_delta_krw) - Math.abs(a.day_delta_krw))[0];
+          const pct = m.value - m.delta ? m.delta / (m.value - m.delta) : 0;
+          return `<li><a href="#client/${m.cid}"><span class="ava sm ${m.delta < 0 ? "" : ""}">${esc(c.name.slice(0, 1))}</span>
+            <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · 평가 ${man(m.value)}</small><i>${esc(top.name)} ${pctTxt(top.chg_pct)}${m.items.length > 1 ? ` 외 ${m.items.length - 1}종목` : ""}</i></span><span></span>
+            <span class="amt"><b class="${m.delta < 0 ? "dn" : "up"}">${sign(m.delta)}</b><small>보유 주식 ${pctTxt(pct)}</small></span><span class="go">›</span></a></li>`; }).join("")}</ul>
+      </section>
+
+      <section class="panel">
+        <div class="bhead"><h2>④ 신용 위험</h2><span class="sub">반대매매가 나기 전에 · 위험 ${MK.credit.filter(b => b.kind === "margin_call").length} · 경고 ${MK.credit.filter(b => b.kind === "margin_warn").length} · 주의 ${MK.credit.filter(b => b.kind === "margin_watch").length}</span></div>
+        <ul class="rows compact">${credit.map(b => { const c = CUST[b.customer_id]; return `<li><a href="#client/${b.customer_id}"><span class="ava sm ${b.kind === "margin_call" || b.kind === "margin_warn" ? "warn" : ""}">${esc(c.name.slice(0, 1))}</span>
           <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${esc(b.name)}</small><i>담보비율 ${Math.round(b.ratio * 100)}% · 기준가 ${won(b.trigger_price)}</i></span>
           <span class="tag ${stageCls(b.kind)}">${STAGE[b.kind][0]}</span>
-          <span class="amt"><b class="${b.kind === "margin_call" ? "red" : "amber"}">${b.kind === "margin_call" ? man(b.shortfall_krw) : `−${(b.room * 100).toFixed(1)}%`}</b><small>${b.kind === "margin_call" ? "부족 담보" : "반대매매까지"}</small></span><span class="go">›</span></a></li>`; }).join("") || `<li class="empty">위험·경고·주의 고객이 없어요</li>`}</ul></section></div>`;
+          <span class="amt"><b class="${b.kind === "margin_call" ? "red" : "amber"}">${b.kind === "margin_call" ? man(b.shortfall_krw) : `−${(b.room * 100).toFixed(1)}%`}</b><small>${b.kind === "margin_call" ? "부족 담보" : "반대매매까지"}</small></span><span class="go">›</span></a></li>`; }).join("") || `<li class="empty">위험·경고·주의 고객이 없어요</li>`}</ul>
+      </section></div>`;
+    $app.querySelectorAll("[data-sym]").forEach(b => (b.onclick = () => { mkv.open = mkv.open === b.dataset.sym ? "__none" : b.dataset.sym; pageMarket(); }));
+    $app.querySelector("#symAll").onclick = () => { mkv.all = !mkv.all; pageMarket(); };
   }
 
   // ════════════════ 고객 페이지: 오늘 연락할 내용 ════════════════

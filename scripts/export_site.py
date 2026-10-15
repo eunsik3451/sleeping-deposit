@@ -205,10 +205,10 @@ def market_section(cfg, ctx):
     keep = ("customer_id", "symbol", "name", "kind", "ratio", "room", "trigger_price", "close", "credit_loan_krw", "value_krw",
             "shortfall_krw", "to_safe_krw", "big_days", "lookback", "ratio_hist", "trade_date")
     credit = [{k: b.get(k) for k in keep} for b in m.get("credit", [])]
-    return {"credit": credit, "positions": m.get("positions_all", []), "history": m.get("history", {}),
+    return {"summary": notes.get("_market"), "credit": credit, "positions": m.get("positions_all", []), "history": m.get("history", {}),
             "fx_history": m.get("fx_history", []), "ref_date": m["ref_date"], "generated": m["generated"], "indices": m["indices"], "movers": m["movers"],
             "alerts": alerts, "holders": m["holders"], "big_move_pct": cfg["market"]["big_move_pct"],
-            "maintenance_ratio": cfg["market"]["maintenance_ratio"], "notes_checked": {k: v.get("checked_by", "") for k, v in notes.items()}}
+            "maintenance_ratio": cfg["market"]["maintenance_ratio"], "notes_checked": {k: v.get("checked_by", "") for k, v in notes.items() if not k.startswith("_")}}
 
 
 def ai_calls():
