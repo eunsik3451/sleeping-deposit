@@ -121,7 +121,10 @@
   }
 
   // ── 항목 공통 표기 (고객 앱·PB 화면 같이 씀) ──
-  const SHORT = { R1: "1년 RP 이자", R2: "양도세 절세", R3: "청약 차이", R4: "만기금 한 달 이자", R5: "연금 세액공제" };
+  const SHORT = { R1: "1년 RP 이자", R2: "양도세 절세", R3: "청약 차이", R4: "만기 상환 예정", R5: "연금 세액공제" };
+  // 화면에 보이는 금액: 만기는 상환 예정 금액, 나머지는 더 받을 수 있는 돈
+  const amtText = f => f.rule === "R4" ? man(f.meta.expected) : `+${man(amountOf(f))}`;
+  const amtNote = f => f.rule === "R4" ? `그대로 두면 한 달에 약 ${man(f.amount_krw)} 이자를 못 받아요` : "";
   const EVLBL = { els_redemption: "ELS 상환금", bond_maturity: "채권 상환금", dividend: "배당금" };
   const amountOf = f => f.rule === "R1" ? f.annual_projection_krw : f.amount_krw;
   function headline(f) {
@@ -619,7 +622,7 @@
       if (dl < 0 || dl > days) return;
       const key = `${f.deadline}|${f.subtype}|${f.rule === "R3" ? f.meta.stock : f.rule === "R4" ? "" : ""}`;
       (by[key] ||= { date: f.deadline, dl, label: f.rule === "R3" ? `${f.meta.stock} 유상증자 청약 마감` : f.rule === "R4" ? "펀드·ELS 만기" : f.rule === "R2" ? "해외주식 올해 마지막 매도일" : f.rule === "R5" ? "연금저축 올해 납입 마감" : f.subtype_label, cids: new Set(), sum: 0 });
-      by[key].cids.add(c.id); by[key].sum += f.amount_krw;
+      by[key].cids.add(c.id); by[key].sum += f.rule === "R4" ? f.meta.expected : f.amount_krw; by[key].r4 = f.rule === "R4";
     }));
     return Object.values(by).sort((a, b) => a.dl - b.dl);
   }
@@ -662,7 +665,7 @@
 
         <section class="bcard"><div class="bhead"><h2>다가오는 마감 (14일)</h2><a href="#calendar">달력에서 보기 ›</a></div>
           <ul class="cal">${upcoming(14).map(u => `<li><span class="d"><b>${u.date.slice(5).replace("-", "/")}</b><small class="${u.dl <= 3 ? "red" : ""}">D-${u.dl}</small></span>
-            <span class="t"><b>${esc(u.label)}</b><small>고객 ${u.cids.size}명 · 합계 ${man(u.sum)}</small></span></li>`).join("") || `<li class="empty">없어요</li>`}</ul>
+            <span class="t"><b>${esc(u.label)}</b><small>고객 ${u.cids.size}명 · ${u.r4 ? "상환 예정" : "합계"} ${man(u.sum)}</small></span></li>`).join("") || `<li class="empty">없어요</li>`}</ul>
           <p class="sub small">${D.as_of} 기준</p></section>
 
         <section class="bcard"><div class="bhead"><h2>연락 기록</h2><span class="sub">오늘 ${todayLogs.length}건 · 전체 ${S.log.length}건</span></div>
@@ -788,7 +791,8 @@
     $app.innerHTML = `<div class="pg c360">
       <a class="crumb" href="#clients">‹ 고객 목록</a>
       <div class="c360-head"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
-        <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p></div></div>
+        <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p></div>
+</div>
 
       <div class="kpis">
         <div><span>총자산</span><b>${man(total)}</b><small>예수금·RP·달러·주식</small></div>
@@ -810,7 +814,7 @@
                 <span class="amt"><b>${man(p.value_krw)}</b><small class="${p.chg_pct < 0 ? "dn" : "up"}">${pctTxt(p.chg_pct)}</small></span>
                 <span class="amt"><b class="${p.pnl_krw < 0 ? "dn" : "up"}">${p.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(p.pnl_krw))}</b><small>매입 후 손익</small></span></li>`; }).join("")}</ul></section>` : ""}
 
-          ${others.length ? `<section class="panel"><div class="bhead"><h2>함께 챙길 것</h2></div><ul class="items">${others.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 ${f.deadline.slice(5).replace("-", "/")}` : ""}</small></span><em>+${man(amountOf(f))}</em></li>`).join("")}</ul></section>` : ""}
+          ${others.length ? `<section class="panel"><div class="bhead"><h2>함께 챙길 것</h2></div><ul class="items">${others.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 ${f.deadline.slice(5).replace("-", "/")}` : ""}${amtNote(f) ? ` · ${amtNote(f)}` : ""}</small></span><em>${amtText(f)}</em></li>`).join("")}</ul></section>` : ""}
 
           <section class="panel"><div class="bhead"><h2>통화 녹음 분석</h2>${cv.stage === "idle" && !cv.upload ? `<button class="ghost sm" id="openUpload">녹음 올리기</button>` : ""}</div>
             ${cv.stage === "idle" && !cv.upload ? `<p class="sub">녹음을 올리면 받아쓰고 요약·할 일을 정리해요. 분석한 통화는 오른쪽 '최근 통화 요약'에 쌓여요.</p>` : callPanel(cid)}</section>
@@ -960,7 +964,7 @@
     const line = m ? mkHeadline(m) : f ? headline(f) : "";
     const tag = m ? (m.kind === "margin_call" ? ["반대매매 위험", "s-call"] : m.kind === "margin_warn" ? ["반대매매 경고", "s-warn"] : m.kind === "big_move" ? ["급등락", "s-move"] : ["담보 주의", "s-due"])
       : f && f.deadline && daysLeft(f.deadline) <= 7 ? [`마감 D-${daysLeft(f.deadline)}`, "s-due"] : null;
-    let amt = f ? `+${man(amountOf(f))}` : "", lbl = f ? SHORT[f.rule] : "", cls = "";
+    let amt = f ? amtText(f) : "", lbl = f ? SHORT[f.rule] : "", cls = "";
     if (m) {
       if (m.kind === "margin_call") { amt = man(m.shortfall_krw); lbl = "부족 담보"; cls = "red"; }
       else if (m.kind === "big_move") { amt = `${m.day_delta_krw < 0 ? "−" : "+"}${man(Math.abs(m.day_delta_krw))}`; lbl = "하루 평가금액"; cls = m.day_delta_krw < 0 ? "dn" : "up"; }
@@ -1011,7 +1015,7 @@
     const fs = findingsOf(cid);
     fs.filter(f => PB_BY_FID[f.finding_id]).concat(fs.filter(f => !PB_BY_FID[f.finding_id])).forEach(f => out.push({ key: f.finding_id,
       tag: f.deadline ? `마감 D-${daysLeft(f.deadline)}` : SHORT[f.rule], cls: f.deadline && daysLeft(f.deadline) <= 7 ? "s-due" : "s-move",
-      title: headline(f), todo: todo(f), script: f.script, reason: "", sources: [], gauge: null, amount: `+${man(amountOf(f))} ${SHORT[f.rule]}`, contact: !!PB_BY_FID[f.finding_id] }));
+      title: headline(f), todo: todo(f), script: f.script, reason: "", sources: [], gauge: null, amount: `${amtText(f)} ${SHORT[f.rule]}`, note: amtNote(f), contact: !!PB_BY_FID[f.finding_id] }));
     return out;
   }
   function contactCard(cid) {
@@ -1021,7 +1025,7 @@
     return `<section class="panel hl"><div class="bhead"><h2>오늘 연락할 내용</h2><span class="sub">${items.length}가지 · 눌러서 통화 문구 보기</span></div>
       <ul class="ci">${items.map(it => `<li class="${it.key === openKey ? "open" : ""}">
         <button class="ci-head" data-ci="${esc(it.key)}"><span class="tag ${it.cls}">${esc(it.tag)}</span><span class="ci-t"><b>${esc(it.title)}</b><small>${esc(it.todo)}</small></span>${it.amount ? `<em>${esc(it.amount)}</em>` : ""}<span class="chev">${it.key === openKey ? "⌃" : "⌄"}</span></button>
-        ${it.key === openKey ? `<div class="ci-body">
+        ${it.key === openKey ? `<div class="ci-body">${it.note ? `<p class="ci-note">${esc(it.note)}</p>` : ""}
           ${it.gauge ? creditGauge(it.gauge) : ""}
           ${it.reason ? `<h4>${it.why}</h4><p class="mv-why">${esc(it.reason)}</p>${it.sources.length ? `<p class="src">${it.sources.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title.split(":")[0])}</a>`).join(" · ")}</p>` : ""}` : ""}
           <h4>이렇게 말해 보세요</h4><ol class="steps">${scriptSteps(it.script || "").map(([k, t]) => `<li><span>${esc(k)}</span><p>${esc(t)}</p></li>`).join("")}</ol></div>` : ""}</li>`).join("")}</ul></section>`;
@@ -1084,7 +1088,7 @@
   function allEvents() {
     const ev = [];
     D.customers.forEach(c => findingsOf(c.id).forEach(f => f.deadline && f.rule !== "R1" &&
-      ev.push({ date: f.deadline, kind: f.rule, cid: c.id, label: f.rule === "R3" ? f.meta.stock : f.rule === "R4" ? f.meta.product_name : "", amt: amountOf(f), amtLabel: SHORT[f.rule], f })));
+      ev.push({ date: f.deadline, kind: f.rule, cid: c.id, label: f.rule === "R3" ? f.meta.stock : f.rule === "R4" ? f.meta.product_name : "", amt: f.rule === "R4" ? f.meta.expected : amountOf(f), amtLabel: SHORT[f.rule], f })));
     D.customers.forEach(c => callsOf(c.id).forEach(cl => cl.todos.forEach((t, i) => t.due && !todoDone(cl, i) &&
       ev.push({ date: t.due, kind: "todo", cid: c.id, label: t.text, amt: 0 }))));
     return ev;
@@ -1129,7 +1133,7 @@
             <p class="grp-tip">${EV_KIND[gp.kind][1]}${dl > 7 ? ` D-7(${(d => `${d.getMonth() + 1}/${d.getDate()}`)(new Date(new Date(calm.day + "T00:00:00").getTime() - 7 * 864e5))})에 고객 안내 알림이 한 번 더 나가요.` : ""}</p>
             <ul class="rows compact">${gp.items.sort((a, b) => b.amt - a.amt).map(e => { const c = CUST[e.cid]; return `<li><a href="#client/${e.cid}"><span class="ava sm">${esc(c.name.slice(0, 1))}</span>
               <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${e.cid}</small><i>${esc(e.kind === "todo" ? e.label : e.kind === "R4" ? e.label : todo(e.f))}</i></span><span></span>
-              <span class="amt">${e.amt ? `<b>+${man(e.amt)}</b><small>${esc(e.amtLabel)}</small>` : ""}</span><span class="go">›</span></a></li>`; }).join("")}</ul></div>`).join("") || `<p class="sub">이날은 일정이 없어요.</p>`}
+              <span class="amt">${e.amt ? `<b>${e.kind === "R4" ? "" : "+"}${man(e.amt)}</b><small>${esc(e.amtLabel)}</small>` : ""}</span><span class="go">›</span></a></li>`; }).join("")}</ul></div>`).join("") || `<p class="sub">이날은 일정이 없어요.</p>`}
           ${next14.length ? `<h3>앞으로 14일</h3><ul class="nx">${next14.map(d => { const l = byDay[d]; return `<li><button data-day="${d}" class="${d === calm.day ? "on" : ""}"><b>${+d.slice(5, 7)}/${+d.slice(8)}</b><span>${[...new Set(l.map(e => EV_KIND[e.kind][0]))].join(" · ")}</span><em>${new Set(l.map(e => e.cid)).size}명</em></button></li>`; }).join("")}</ul>` : ""}
         </section>
       </div></div>`;
@@ -1194,7 +1198,7 @@
     return `<li class="${r.c.id === pbm.cid ? "on" : ""} ${st ? "done" : ""}" data-cid="${r.c.id}">
       <span class="ava">${esc(r.c.name.slice(0, 1))}</span>
       <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세</small><i>${esc(st ? PB_STATUS[st] : headline(f))}</i></span>
-      <span class="amt"><b>+${man(amountOf(f))}</b><small class="${dl !== null && dl <= 7 ? "due" : ""}">${dl !== null && dl <= 7 ? `D-${dl} · ` : ""}${SHORT[f.rule]}${r.fs.length > 1 ? ` 외 ${r.fs.length - 1}` : ""}</small></span></li>`;
+      <span class="amt"><b>${amtText(f)}</b><small class="${dl !== null && dl <= 7 ? "due" : ""}">${dl !== null && dl <= 7 ? `D-${dl} · ` : ""}${SHORT[f.rule]}${r.fs.length > 1 ? ` 외 ${r.fs.length - 1}` : ""}</small></span></li>`;
   }
 
   function pbDetail(r) {
@@ -1213,7 +1217,7 @@
       <h3>고객이 받을 수 있는 돈</h3>
       <ul class="items">${fs.map(x => `<li class="${x.finding_id === f.finding_id ? "on" : ""}" data-fid="${esc(x.finding_id)}">
         <span><b>${esc(headline(x))}</b><small>${SHORT[x.rule]}${x.deadline ? ` · 마감 D-${daysLeft(x.deadline)}` : ""}</small></span>
-        <em>+${man(amountOf(x))}</em></li>`).join("")}</ul>
+        <em>${amtText(x)}</em></li>`).join("")}</ul>
 
       <h3>이렇게 말해 보세요</h3>
       <ol class="steps">${scriptSteps(f.script).map(([k, t]) => `<li><span>${esc(k)}</span><p>${esc(t)}</p></li>`).join("")}</ol>

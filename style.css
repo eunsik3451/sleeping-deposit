@@ -799,3 +799,4 @@ i.ev { display: inline-block; width: 10px; height: 10px; padding: 0; border-radi
 .cal-dow, .cal-cells { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .cd { min-width: 0; }
 .cd .ev { max-width: 100%; }
+.ci-note { margin: 0 0 6px; font-size: 0.86rem; color: #6B7684; background: #F9FAFB; border-radius: 10px; padding: 8px 10px; }
