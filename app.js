@@ -660,7 +660,7 @@
             <p>${esc(a.reason ? a.reason.split(/(?<=다\.)\s/)[0] : "이유 확인 전")}</p></li>`).join("") || `<li class="empty">크게 움직인 보유 종목이 없어요</li>`}</ul>`
           : `<p class="sub">아침 시장 점검을 아직 돌리지 않았어요.</p>`}</section>
 
-        <section class="bcard"><div class="bhead"><h2>다가오는 마감 (14일)</h2></div>
+        <section class="bcard"><div class="bhead"><h2>다가오는 마감 (14일)</h2><a href="#calendar">달력에서 보기 ›</a></div>
           <ul class="cal">${upcoming(14).map(u => `<li><span class="d"><b>${u.date.slice(5).replace("-", "/")}</b><small class="${u.dl <= 3 ? "red" : ""}">D-${u.dl}</small></span>
             <span class="t"><b>${esc(u.label)}</b><small>고객 ${u.cids.size}명 · 합계 ${man(u.sum)}</small></span></li>`).join("") || `<li class="empty">없어요</li>`}</ul>
           <p class="sub small">${D.as_of} 기준</p></section>
@@ -802,9 +802,8 @@
         <div class="col">
           ${contactCard(cid)}
           ${diagnosisCard(cid)}
-          ${det.trend.start ? `<section class="panel"><div class="bhead"><h2>자산 잔고 추이</h2><span class="sub">최근 6개월 · 예수금과 자동 RP · 만원</span></div>
-            <div class="area-wrap"><div class="area-now"><span>지금</span><b>${(det.trend.cash[det.trend.cash.length - 1] + det.trend.auto[det.trend.auto.length - 1]).toLocaleString("ko-KR")}</b><small>만원</small></div>${areaChart({ ...det.trend, cash: det.trend.cash.map((v, i) => v + det.trend.auto[i]) })}</div>
-            ${pos.length ? `<p class="fine left">주식 ${man(stock)}은 그래프에 없어요 (보유 종목 시세는 최근 20거래일만 받음).</p>` : ""}</section>` : ""}
+          ${det.trend.start ? `<section class="panel"><div class="bhead"><h2>자산 잔고 추이</h2><span class="sub">최근 6개월 · 총자산 · 만원</span></div>
+            <div class="area-now"><span>지금 총자산</span><b>${man(total)}</b></div>${assetChart(cid)}</section>` : ""}
 
           ${pos.length ? `<section class="panel"><div class="bhead"><h2>보유 종목 ${pos.length}개</h2><span class="sub">${MK.ref_date} 종가</span></div>
             <ul class="hold">${pos.sort((a, b) => b.value_krw - a.value_krw).map(p => { const b = credit.find(x => x.symbol === p.symbol);
@@ -1030,7 +1029,7 @@
   }
 
   // ════════════════ 셸: 제목·검색·라우팅 ════════════════
-  const PAGES = { today: "오늘", clients: "고객", client: "고객", market: "시장 이슈", outbox: "알림 발송함", insights: "성과", guide: "서비스 안내", customer: "고객" };
+  const PAGES = { calendar: "일정", today: "오늘", clients: "고객", client: "고객", market: "시장 이슈", outbox: "알림 발송함", insights: "성과", guide: "서비스 안내", customer: "고객" };
   const ALIAS = { brief: "today", pbm: "clients", pb: "clients", overview: "clients", company: "insights", items: "guide" };
   function setupShell() {
     const dl = document.getElementById("custlist");
@@ -1041,6 +1040,103 @@
       if (hit) { location.hash = `#client/${hit.id}`; box.value = ""; box.blur(); } };
     box.onchange = go; box.onkeydown = e => e.key === "Enter" && go();
     document.getElementById("asof").innerHTML = `기준일 <b>${D.as_of}</b>${MK ? `<br>시장 ${MK.ref_date} 종가` : ""}`;
+  }
+
+  // ════════════════ 총자산 추이 (예수금·RP·달러 + 주식, 입출금 표시) ════════════════
+  function assetChart(cid) {
+    const det = D.details[cid], tr = det.trend, n = tr.cash.length;
+    if (!n) return "";
+    const cash = tr.cash.map((v, i) => v + tr.auto[i]), stock = det.stock || new Array(n).fill(0);
+    const total = cash.map((v, i) => v + stock[i]);
+    const W = 680, H = 230, L = 52, R = 10, T = 14, B = 26;
+    const top = (() => { const mx = Math.max(1, ...total) * 1.12, st = niceStep(mx / 4); return Math.ceil(mx / st) * st; })(), step = niceStep(top / 4);
+    const x = i => L + (W - L - R) * i / (n - 1), y = v => T + (H - T - B) * (1 - v / top);
+    const start = new Date(tr.start + "T00:00:00"), dayIdx = d => Math.round((new Date(d + "T00:00:00") - start) / 864e5);
+    let g = "";
+    for (let v = 0; v <= top + 1e-9; v += step) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#EEF1F5"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#8B95A1">${v.toLocaleString("ko-KR")}</text>`;
+    for (let i = 0; i < n; i++) { const d = new Date(start.getTime() + i * 864e5); if (d.getDate() === 1) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" font-size="11" fill="#8B95A1">${d.getMonth() + 1}월</text>`; }
+    const pts = arr => arr.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    const base = `${x(n - 1)},${y(0)} ${x(0)},${y(0)}`;
+    const cashArea = `<polygon fill="#3182F6" fill-opacity=".18" points="${pts(cash)} ${base}"/>`;
+    const stockArea = det.stock ? `<polygon fill="#00B493" fill-opacity=".18" points="${pts(total)} ${cash.map((v, i) => `${x(n - 1 - i).toFixed(1)},${y(cash[n - 1 - i]).toFixed(1)}`).join(" ")}"/>` : "";
+    const marks = (det.flows || []).map(f => { const i = dayIdx(f.d); if (i < 0 || i >= n) return "";
+      const cx = x(i), cy = y(total[i]), up = !f.out, py = up ? cy - 10 : cy - 10;
+      return `<g><title>${f.d} ${f.t} ${man(f.a)}</title><line x1="${cx}" x2="${cx}" y1="${cy}" y2="${py + (up ? 0 : 0)}" stroke="${up ? "#00A87E" : "#F04452"}" stroke-width="1.5"/>
+        <path d="${up ? `M${cx - 5},${py} L${cx + 5},${py} L${cx},${py - 7} Z` : `M${cx - 5},${py - 7} L${cx + 5},${py - 7} L${cx},${py} Z`}" fill="${up ? "#00A87E" : "#F04452"}"/></g>`; }).join("");
+    const hits = total.map((v, i) => { const d = new Date(start.getTime() + i * 864e5);
+      return `<rect x="${(x(i) - (W - L - R) / n / 2).toFixed(1)}" y="${T}" width="${((W - L - R) / n).toFixed(2)}" height="${H - T - B}" fill="transparent"><title>${d.getMonth() + 1}/${d.getDate()} 총자산 ${man(v * 1e4)} · 예수금·RP ${man(cash[i] * 1e4)}${det.stock ? ` · 주식 ${man(stock[i] * 1e4)}` : ""}</title></rect>`; }).join("");
+    const flows = (det.flows || []).slice().reverse();
+    return `<div class="ac-legend"><span><i style="background:#3182F6"></i>예수금·RP·달러</span>${det.stock ? `<span><i style="background:#00B493"></i>주식</span>` : ""}<span><b style="color:#00A87E">▲</b> 입금</span><span><b style="color:#F04452">▼</b> 출금</span><span class="muted">그래프에 마우스를 올리면 날짜별 금액</span></div>
+      <svg viewBox="0 0 ${W} ${H}" class="area" role="img" aria-label="최근 6개월 총자산 추이">${g}${cashArea}${stockArea}
+        <polyline fill="none" stroke="#191F28" stroke-width="2" points="${pts(total)}"/>${marks}${hits}</svg>
+      ${flows.length ? `<h3>최근 입출금</h3><ul class="flows">${flows.slice(0, 6).map(f => `<li><span>${f.d.slice(5).replace("-", "/")}</span><b>${esc(f.t)}</b><em class="${f.out ? "out" : "in"}">${f.out ? "−" : "+"}${man(f.a)}</em></li>`).join("")}</ul>` : `<p class="fine left">최근 6개월 입출금이 없어요.</p>`}
+      ${det.stock ? `<p class="fine left">주식은 지금 보유 수량을 기간 내내 가지고 있었다고 가정해 그날 종가로 계산했어요. 매수·매도 결제는 자산 안에서 옮겨 간 것이라 입출금에 넣지 않았어요.</p>` : ""}`;
+  }
+
+  // ════════════════ 일정: 전체 고객 달력 ════════════════
+  const EV_KIND = {
+    R2: ["해외주식 올해 마지막 매도일", "세금을 줄이려는 고객은 이날까지 매도해야 올해 결제돼요. 매도 권유가 아니라 일정 안내예요.", "s-due"],
+    R3: ["유상증자 청약 마감", "청약하지 않으면 신주를 받지 못해요. 마감 전날까지 일정만 알려 주세요.", "s-move"],
+    R4: ["펀드·ELS 만기", "상환금이 예수금으로 들어와요. 만기 전에 상환금 계획을 여쭤보세요.", "s-call"],
+    R5: ["연금저축 올해 납입 마감", "남은 한도를 채우면 세액공제를 더 받아요. 원금 손실·예금자보호 미적용 안내와 함께.", "s-warn"],
+    todo: ["PB 할 일 (통화 후속)", "통화에서 약속한 일이에요.", "s-todo"],
+  };
+  let calm = { month: null, day: null };
+  function allEvents() {
+    const ev = [];
+    D.customers.forEach(c => findingsOf(c.id).forEach(f => f.deadline && f.rule !== "R1" &&
+      ev.push({ date: f.deadline, kind: f.rule, cid: c.id, label: f.rule === "R3" ? f.meta.stock : f.rule === "R4" ? f.meta.product_name : "", amt: amountOf(f), amtLabel: SHORT[f.rule], f })));
+    D.customers.forEach(c => callsOf(c.id).forEach(cl => cl.todos.forEach((t, i) => t.due && !todoDone(cl, i) &&
+      ev.push({ date: t.due, kind: "todo", cid: c.id, label: t.text, amt: 0 }))));
+    return ev;
+  }
+  function pageCalendar() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const ev = allEvents(), byDay = {};
+    ev.forEach(e => (byDay[e.date] ||= []).push(e));
+    const upcomingDays = Object.keys(byDay).filter(d => d >= ymd(today)).sort();
+    if (!calm.day) calm.day = upcomingDays[0] || ymd(today);
+    const base = calm.month || new Date(+calm.day.slice(0, 4), +calm.day.slice(5, 7) - 1, 1);
+    const y = base.getFullYear(), m = base.getMonth(), first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
+    let cells = "";
+    for (let i = 0; i < first; i++) cells += `<div class="cd empty"></div>`;
+    for (let d = 1; d <= days; d++) {
+      const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`, list = byDay[key] || [];
+      const kinds = {}; list.forEach(e => (kinds[e.kind] ||= new Set()).add(e.cid));
+      const past = key < ymd(today);
+      cells += `<button class="cd ${key === ymd(today) ? "today" : ""} ${key === calm.day ? "sel" : ""} ${past ? "past" : ""}" data-day="${key}">
+        <span class="dn">${d}</span>${Object.entries(kinds).map(([k, s]) => `<span class="ev ${EV_KIND[k][2]}">${({ R2: "양도세", R3: "청약", R4: "만기", R5: "연금", todo: "할 일" })[k]} ${s.size}</span>`).join("")}</button>`;
+    }
+    const sel = byDay[calm.day] || [];
+    const groups = {};
+    sel.forEach(e => { const k = e.kind + "|" + (e.kind === "todo" ? "" : e.label); (groups[k] ||= { kind: e.kind, label: e.label, items: [] }).items.push(e); });
+    const dl = Math.round((new Date(calm.day + "T00:00:00") - today) / 864e5);
+    const next14 = upcomingDays.filter(d => (new Date(d + "T00:00:00") - today) / 864e5 <= 14);
+
+    $app.innerHTML = `<div class="pg">
+      <div class="pg-head"><div><h1>일정</h1><p class="sub">모든 고객의 마감과 PB 할 일을 한 달력에서 봐요. 날짜를 누르면 누가 어떤 일정인지 나와요.</p></div></div>
+      <div class="cal-wrap">
+        <section class="panel calbig">
+          <div class="cal-head"><button class="txt" data-mon="-1">‹</button><b>${y}년 ${m + 1}월</b><button class="txt" data-mon="1">›</button>
+            <button class="ghost sm" data-today>오늘</button></div>
+          <div class="cal-dow"><i>일</i><i>월</i><i>화</i><i>수</i><i>목</i><i>금</i><i>토</i></div>
+          <div class="cal-cells">${cells}</div>
+          <div class="cal-key">${Object.entries(EV_KIND).map(([k, v]) => `<span><i class="ev ${v[2]}"></i>${v[0]}</span>`).join("")}</div>
+        </section>
+        <section class="panel dayp">
+          <p class="sub">${+calm.day.slice(5, 7)}월 ${+calm.day.slice(8)}일 ${"일월화수목금토"[new Date(calm.day + "T00:00:00").getDay()]}요일</p>
+          <h2 class="dday">${dl === 0 ? "오늘" : dl > 0 ? `D-${dl}` : `${-dl}일 지남`} <small>${sel.length ? `${new Set(sel.map(e => e.cid)).size}명 · ${sel.length}건` : "일정 없음"}</small></h2>
+          ${Object.values(groups).map(gp => `<div class="grp"><div class="grp-h"><span class="ev ${EV_KIND[gp.kind][2]}"></span><b>${EV_KIND[gp.kind][0]}${gp.label && gp.kind !== "todo" && gp.kind !== "R4" ? ` · ${esc(gp.label)}` : ""}</b><small>${gp.items.length}명</small></div>
+            <p class="grp-tip">${EV_KIND[gp.kind][1]}${dl > 7 ? ` D-7(${(d => `${d.getMonth() + 1}/${d.getDate()}`)(new Date(new Date(calm.day + "T00:00:00").getTime() - 7 * 864e5))})에 고객 안내 알림이 한 번 더 나가요.` : ""}</p>
+            <ul class="rows compact">${gp.items.sort((a, b) => b.amt - a.amt).map(e => { const c = CUST[e.cid]; return `<li><a href="#client/${e.cid}"><span class="ava sm">${esc(c.name.slice(0, 1))}</span>
+              <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${e.cid}</small><i>${esc(e.kind === "todo" ? e.label : e.kind === "R4" ? e.label : todo(e.f))}</i></span><span></span>
+              <span class="amt">${e.amt ? `<b>+${man(e.amt)}</b><small>${esc(e.amtLabel)}</small>` : ""}</span><span class="go">›</span></a></li>`; }).join("")}</ul></div>`).join("") || `<p class="sub">이날은 일정이 없어요.</p>`}
+          ${next14.length ? `<h3>앞으로 14일</h3><ul class="nx">${next14.map(d => { const l = byDay[d]; return `<li><button data-day="${d}" class="${d === calm.day ? "on" : ""}"><b>${+d.slice(5, 7)}/${+d.slice(8)}</b><span>${[...new Set(l.map(e => EV_KIND[e.kind][0]))].join(" · ")}</span><em>${new Set(l.map(e => e.cid)).size}명</em></button></li>`; }).join("")}</ul>` : ""}
+        </section>
+      </div></div>`;
+    $app.querySelectorAll("[data-day]").forEach(b => (b.onclick = () => { calm.day = b.dataset.day; calm.month = new Date(+calm.day.slice(0, 4), +calm.day.slice(5, 7) - 1, 1); pageCalendar(); }));
+    $app.querySelectorAll("[data-mon]").forEach(b => (b.onclick = () => { calm.month = new Date(y, m + +b.dataset.mon, 1); pageCalendar(); }));
+    $app.querySelector("[data-today]").onclick = () => { calm = { month: null, day: ymd(today) }; pageCalendar(); };
   }
 
   function pagePbHome() {
@@ -1206,7 +1302,7 @@
     document.querySelectorAll("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.page === nav));
     document.getElementById("pgtitle").textContent = PAGES[page] || "오늘";
     ({ today: pageBrief, clients: pageClients, client: () => pageClient(arg), market: pageMarket, outbox: pageOutbox,
-       insights: pageCompany, guide: pageItems, customer: () => pageCustomer(arg, arg2) }[page] || pageBrief)();
+       insights: pageCompany, guide: pageItems, calendar: pageCalendar, customer: () => pageCustomer(arg, arg2) }[page] || pageBrief)();
   }
   setupShell();
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
