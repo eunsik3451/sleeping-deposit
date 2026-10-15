@@ -210,6 +210,21 @@ def market_section(cfg, ctx):
             "maintenance_ratio": cfg["market"]["maintenance_ratio"], "notes_checked": {k: v.get("checked_by", "") for k, v in notes.items()}}
 
 
+def ai_calls():
+    """Claude가 녹취록을 읽고 정리한 통화 분석 (data/calls/<고객>/<폴더>/analysis.json)."""
+    out = {}
+    for a in sorted((ROOT / "data" / "calls").glob("*/*/analysis.json")):
+        d = a.parent
+        meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
+        audio = next((ROOT / "site" / "calls").glob(f"{meta['cid']}-{d.name}.*"), None)
+        out.setdefault(meta["cid"], []).append({
+            "id": f"ai-{meta['cid']}-{d.name}", "at": meta["transcribed_at"], "source": meta["source"], "seconds": meta["seconds"],
+            "audio": f"calls/{audio.name}" if audio else None, "ai": True,
+            "transcript": (d / "transcript.txt").read_text(encoding="utf-8"),
+            "result": json.loads(a.read_text(encoding="utf-8"))})
+    return out
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     cfg = load_config()
@@ -312,6 +327,7 @@ def main():
         "company": {"cash": cash, "auto": auto},
         "trigger_labels": TRIGGER_LABELS,
         "market": market_section(cfg, ctx),
+        "calls": ai_calls(),
     }
     OUT.parent.mkdir(exist_ok=True)
     text = json.dumps(jsonable(site), ensure_ascii=False, separators=(",", ":"))

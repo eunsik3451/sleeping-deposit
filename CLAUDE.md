@@ -649,3 +649,17 @@ v1 명세를 유지한다. 착수 지시가 있을 때만 구현.
 - **녹취록 → 요약·할 일**: `site/callnote.js` 규칙 기반(외부 AI 없음). 주제, 핵심 내용(금액·금리 문장), 고객 요청·질문, PB 약속(→ "~하기" 할 일 + 날짜 해석: 오늘·내일·이번 주/다음 주 ○요일·n월 n일), 고객 약속 확인, 준법 점검(RP·CMA 예금자보호, 금리 변동, 직접 가입, 신용→반대매매, 연금→원금 손실, 단정 표현 금지어), 미흡하면 준법 보완 할 일 추가. PB가 체크한 할 일만 저장
 - 저장: 브라우저 localStorage `calls[고객]`(녹취록·분석·할 일) + 연락 기록. 데모 녹음 `site/demo/call_P003.wav`(윈도우 한국어 TTS로 만든 가상 통화, 대본 call_P003.txt)
 - 실서비스 확장: 사내 음성인식·사내 허용 LLM으로 요약 품질 개선, 녹취 보관·접근 권한은 준법 기준 따름
+
+### 2026-10-15 — 통화 녹음 AI 요약(API 키 없이) + 전체 UI/UX 개편(PB 전용 업무 화면)
+- 외부 AI 호출 금지는 스펙 원칙(키 없음·고객 데이터 보호)이었음. 사용자 결정: **API 키 없이**, 녹음을 주면 Claude가 미리 분석해 올리는 방식
+- **"녹음 분석해줘: 파일, 고객번호" 절차**
+  1. 녹음 파일은 `recordings/`에 (가상 상담 녹음만. 실제 고객 통화 금지)
+  2. `.venv/Scripts/python scripts/call_transcribe.py recordings/<파일> <고객번호>` → faster-whisper medium(CPU int8, 첫 실행 모델 다운로드 약 1.5GB) → `data/calls/<고객>/<날짜시각>/transcript.txt`·meta.json, 녹음 사본 `site/calls/`
+  3. Claude가 녹취록을 읽고 같은 폴더에 `analysis.json` 작성: headline, summary(문단), topics, customer_context, key, requests, promises, checks(ok/t), todos(text·due·dueLabel·from), transcript_fixes(heard→meant). 녹취록에 없는 숫자는 쓰지 않음(추론 금액 금지)
+  4. `.venv/Scripts/python scripts/call_check.py data/calls/<고객>/<폴더>` → 요약·할 일 숫자가 녹취록에 있는지 검사(0건이어야 함)
+  5. `bash scripts/publish.sh "통화 분석 <고객>"` → 고객 페이지 '최근 통화 요약'에 "AI 요약 · PB 확인 전" 배지, 요약 문단·고객 상황·준법 점검·녹음 재생·녹취록, 할 일과 케어 일정에 반영
+- faster-whisper는 PyAV 15.x 필요(19.x는 metadata_errors 인자 오류). 데모 녹음 결과: 날짜·금액 정확, RP→"9p/아어피" 등은 transcript_fixes로 표시
+- **UI/UX 개편 (사용자: 어지럽고 불편, PB만 보는 화면)**: 왼쪽 사이드바 메뉴 오늘(#today)·고객(#clients)·시장 이슈(#market)·알림 발송함(#outbox)·성과(#insights)·서비스 안내(#guide), 상단 고객 검색. 고객용 면책 하단바 제거. 고객 앱 화면은 메뉴에서 빼고 고객 페이지의 '고객 앱 화면 미리보기' 버튼으로
+- 고객 목록 → 누르면 고객 페이지 하나로(이전의 목록+상세 분할 화면 없앰). 오늘 연락 순서: 반대매매 위험 → 경고 → 급등락 → 기존 우선순위. 시장 이슈만 있는 고객도 포함, 브리핑 숫자와 같은 목록
+- 고객 페이지: 총자산 등 4개 숫자 → 오늘 연락할 내용(항목별 펼치면 이유·게이지·통화 문구) → 잠자는 예수금 진단 → **자산 잔고 추이**(예수금+자동 RP) → 보유 종목 → 함께 챙길 것 → 통화 녹음 분석(버튼으로 열기) → 받은 알림(접힘) / 오른쪽: 연락 결과 기록 → 최근 통화 요약 → 해야 할 일 → 케어 일정
+- 시장 이슈: 종목 중심(등락 이유·출처 → 보유 고객), 신용 위험 단계 카드와 목록. 옛 주소(#brief·#pbm·#company·#items)는 새 주소로 넘김
