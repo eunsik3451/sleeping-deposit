@@ -24,13 +24,14 @@ def gate(customer, product_ids: list, products: pd.DataFrame, cfg, as_of) -> dic
     by_id = {r["product_id"]: r for r in product_records(products)}
     allowed = [pid for pid in product_ids if int(by_id[pid]["risk_grade"]) in grades]
 
-    if not profile_valid(customer, cfg, as_of):
+    if cfg["suitability"].get("check_profile_expiry", False) and not profile_valid(customer, cfg, as_of):
         return {"type": "reassess", "allowed": allowed,
                 "evidence": [f"투자성향 진단일 {diag}, 유효기간({valid_days}일) 경과 → 다시 진단 후 실행 가능"]}
     if not allowed:
         return {"type": "pb_consult", "allowed": [],
                 "evidence": [f"투자성향 {customer['risk_profile']}(진단일 {diag})에 맞는 운용 상품 없음 → PB 상담"]}
     grade = int(by_id[allowed[0]]["risk_grade"])
+    when = f"(진단일 {diag}, 유효) " if cfg["suitability"].get("check_profile_expiry", False) else ""
     return {"type": "rp_buy", "allowed": allowed,
-            "evidence": [f"투자성향 {customer['risk_profile']}(진단일 {diag}, 유효) · "
+            "evidence": [f"투자성향 {customer['risk_profile']}{when}· "
                          f"상품 위험등급 {grade}등급({RISK_GRADE_LABEL[grade]}) 허용"]}

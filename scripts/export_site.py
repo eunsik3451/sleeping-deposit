@@ -27,7 +27,7 @@ from notify.policy import ad_title, has_consent  # noqa: E402
 from notify.triggers import ITEM_TRIGGERS, key_of  # noqa: E402
 
 OUT = ROOT / "site" / "data.js"
-PERSONAS = {"P001": "매매대기 + 달러 + 유상증자", "P002": "ELS 상환금 · 연금저축", "P003": "장기방치 · 진단 만료 · 펀드 만기",
+PERSONAS = {"P001": "매매대기 + 달러 + 유상증자", "P002": "ELS 상환금 · 연금저축", "P003": "장기방치 · 펀드 만기",
             "P004": "예수금 자동 RP 이용 중"}
 TRIGGER_LABELS = {"T_EVENT": "입금 다음 날 알림", "T_IDLE_FIRST": "처음 알림", "T_IDLE_UPDATE": "이자 안내(재알림)",
                   "T_REASSESS": "진단 만료 안내", "T_MONTHLY": "월간 리포트", "T_FOUND": "깨운 예수금 이자 알림",
@@ -78,10 +78,7 @@ def previews(f, cust, cfg, gen, as_of):
     else:
         if f.subtype == "event_inflow" and f.meta.get("event"):
             items.append(("입금 다음 날", "T_EVENT", "kakao", "info", None, {"event": {**f.meta["event"], "days_since": 1}}, None))
-        if f.action.type == "reassess":
-            items += [("진단 만료 안내", "T_REASSESS", "push", "info", f, None, None),
-                      ("진단 만료 안내 (알림톡)", "T_REASSESS", "kakao", "info", f, None, None)]
-        else:
+        if True:
             items.append((f"처음 알림 ({cfg['cash']['min_idle_days']}일째 되는 날)", "T_IDLE_FIRST", "push", "info", f, None, None))
             if has_consent(cust, "kakao"):
                 items.append(("이자 안내 (재알림)", "T_IDLE_UPDATE", "kakao", "ad", f, None, None))
@@ -126,8 +123,6 @@ def pb_reasons(f, cfg, hold_reason):
         out.append("큰 상환금 유입")
     if f.action and f.action.type == "pb_consult":
         out.append("맞는 상품 없음")
-    if f.action and f.action.type == "reassess":
-        out.append("진단 만료")
     if hold_reason == "no_consent":
         out.append("광고 미동의")
     return out
@@ -225,13 +220,6 @@ def main():
     gen = TemplateGenerator(cfg, data["products"])
     products = data["products"].set_index("product_id")
 
-    # 진단 만료 고객이 앱에서 재진단을 마친 뒤의 결과 (데모 버튼용)
-    reassess_ids = {f.customer_id for f in res.findings if f.action and f.action.type == "reassess"}
-    cust2 = data["customers"].copy()
-    cust2.loc[cust2.customer_id.isin(reassess_ids), "risk_profile_date"] = A
-    res2 = run(make_context({**data, "customers": cust2}, accounts=ctx.accounts), cfg)
-    after_reassess = {f.finding_id: finding_dict(f) for f in res2.findings
-                      if f.customer_id in reassess_ids and f.rule == "R1"}
 
     # 발송함: 최근 30일 하루 배치 + 참여 시뮬레이션
     start = A - pd.Timedelta(days=29)
@@ -319,7 +307,6 @@ def main():
                      for pid, p in products.iterrows()},
         "customers": customers,
         "details": details,
-        "after_reassess": after_reassess,
         "pb": pb,
         "outbox": outbox,
         "company": {"cash": cash, "auto": auto},

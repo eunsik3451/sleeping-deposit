@@ -93,8 +93,13 @@ def main():
             idx.append({"name": name, **v})
         else:
             print(f"  {name} {ref:%Y-%m-%d} 종가가 아직 없습니다 (화면에 빠짐)")
+    # 미국 지수도 날짜 검사: 미국 종목이 마지막으로 거래된 날과 같은 날 값만 쓴다
+    us_ref = closes[universe[universe.currency == "USD"].symbol].dropna(how="all").index[-1]
     for t, name in INDICES.items():
         s = raw[t].dropna()
+        if len(s) and s.index[-1] != us_ref:
+            print(f"  {name} {us_ref:%Y-%m-%d} 종가가 아직 없습니다 (마지막 {s.index[-1]:%Y-%m-%d}, 화면에 빠짐)")
+            continue
         if len(s) >= 2:
             idx.append({"name": name, "close": round(float(s.iloc[-1]), 2), "chg_pct": float(s.iloc[-1] / s.iloc[-2] - 1),
                         "date": f"{s.index[-1]:%Y-%m-%d}"})

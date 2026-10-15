@@ -90,11 +90,18 @@ def test_c7_usd_idle(cfg):
     assert f.recommendation.alt is None
 
 
-def test_c8_expired_profile_reassess(cfg):
-    f, _ = evaluate(cfg, cash=30 * M, customer={"risk_profile": "안정형", "risk_profile_date": day(400)})
+def test_c8_expired_profile_reassess():
+    # 스펙 C8: 진단 만료 판정을 켜면 reassess. 지금 서비스는 판정을 끄고 운영한다 (사용자 결정 10/15)
+    on = load_config(overrides={**GOLDEN, "suitability": {"check_profile_expiry": True}})
+    f, _ = evaluate(on, cash=30 * M, customer={"risk_profile": "안정형", "risk_profile_date": day(400)})
     assert f is not None and f.amount_krw == 143_013     # 사실 정보는 그대로
     assert f.action.type == "reassess"
     assert any("유효기간" in e for e in f.evidence)
+
+
+def test_expired_profile_not_flagged_by_default(cfg):
+    f, _ = evaluate(cfg, cash=30 * M, customer={"risk_profile": "안정형", "risk_profile_date": day(400)})
+    assert f.action.type == "rp_buy"
 
 
 def test_c9_valid_profile_rp_buy(cfg):
@@ -158,10 +165,10 @@ def test_p002_event_inflow_pb(demo):
     assert f.title == "ELS 상환금 3,000만원이 12일째 쉬고 있어요"
 
 
-def test_p003_long_idle_reassess(demo):
+def test_p003_long_idle(demo):
     _, r = demo
     f = by_key(r, "P003", "KRW")
-    assert f.subtype == "long_idle" and f.action.type == "reassess" and f.pb_flag
+    assert f.subtype == "long_idle" and f.action.type == "rp_buy" and f.pb_flag
     assert f.title == "예수금 8,000만원이 90일째 그대로예요"
 
 
