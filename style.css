@@ -831,3 +831,14 @@ i.ev { display: inline-block; width: 10px; height: 10px; padding: 0; border-radi
 @media (max-width: 900px) { .nav-g { display: none; } }
 .side-nav .logo-img { width: 36px; height: 36px; border-radius: 10px; flex: none; }
 .side-nav .brand b { font-size: 1.12rem; letter-spacing: -0.02em; }
+
+/* 넓은 화면: 폭 제한을 넓히고 고객 페이지 오른쪽 열을 키움 */
+body.ws main { max-width: 1720px; }
+@media (min-width: 1500px) {
+  body.ws .c360-grid { grid-template-columns: minmax(0, 1.6fr) minmax(380px, 1fr); }
+  .brief-grid { grid-template-columns: 1.2fr 1fr; }
+}
+@media (min-width: 1750px) {
+  body.ws .c360-grid { grid-template-columns: minmax(0, 1.45fr) minmax(420px, 1fr); }
+  .rows li a { grid-template-columns: 44px minmax(0, 1fr) auto 180px 16px; }
+}

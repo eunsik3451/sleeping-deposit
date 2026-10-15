@@ -457,7 +457,7 @@
   }
   const pctTxt = v => `${v > 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1)}%`;
   function mkHeadline(a) {
-    if (a.kind === "margin_call") return `${a.name} 담보비율 ${Math.round(a.ratio * 100)}% · 반대매매 위험`;
+    if (a.kind === "margin_call") return `${a.name} 담보비율 ${ratioTxt(a.ratio)} · 반대매매 위험`;
     if (a.kind === "margin_warn" || a.kind === "margin_watch") return `${a.name} 반대매매까지 −${(a.room * 100).toFixed(1)}% · ${STAGE[a.kind][0]}`;
     return `${a.name} ${pctTxt(a.chg_pct)} (${a.trade_date.slice(5).replace("-", "/")})`;
   }
@@ -494,7 +494,7 @@
     const kv = a.kind === "big_move"
       ? [["종가", `${a.currency === "USD" ? "$" + a.close.toLocaleString("en-US") : won(a.close)} (${pctTxt(a.chg_pct)})`], ["보유", `${a.qty.toLocaleString("ko-KR")}주 · 평가 ${man(a.value_krw)}`],
          ["하루 평가금액 변동", `${down ? "−" : "+"}${man(Math.abs(a.day_delta_krw))}`], ["매입 후 손익", `${a.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(a.pnl_krw))}`]]
-      : [["담보비율", `${Math.round(a.ratio * 100)}% (유지 ${Math.round(MK.maintenance_ratio * 100)}%)`], ["반대매매 기준가", `${won(a.trigger_price)} (지금 ${won(a.close)})`],
+      : [["담보비율", `${ratioTxt(a.ratio)} (유지 ${Math.round(MK.maintenance_ratio * 100)}%)`], ["반대매매 기준가", `${won(a.trigger_price)} (지금 ${won(a.close)})`],
          ["신용 대출금 / 담보 평가금액", `${man(a.credit_loan_krw)} / ${man(a.value_krw)}`],
          ...(a.kind === "margin_call" ? [["부족 금액", `약 ${man(a.shortfall_krw)}`]] : []), ["주의 단계 밖으로 돌리려면", `약 ${man(a.to_safe_krw)} 추가`], ["종가 등락", pctTxt(a.chg_pct)]];
     return `<button class="back" data-back>← 목록</button>
@@ -520,6 +520,7 @@
   }
 
   // ── 신용 위험도: 반대매매 전에 알 수 있게 ──
+  const ratioTxt = r => { const m = MK ? MK.maintenance_ratio : 1.4; const v = r * 100; return Math.abs(r - m) < 0.01 ? `${v.toFixed(1)}%` : `${Math.round(v)}%`; };
   const STAGE = { margin_call: ["위험", "반대매매 기준 미달"], margin_warn: ["경고", "하락 여력 10% 미만"],
     margin_watch: ["주의", "하락 여력 20% 미만"], margin_safe: ["안전", "하락 여력 20% 이상"] };
   const stageCls = k => ({ margin_call: "s-call", margin_warn: "s-warn", margin_watch: "s-watch", margin_safe: "s-safe" }[k]);
@@ -563,7 +564,7 @@
       <div class="ac-credit"><div class="ac-top"><b>${esc(b.name)}</b><span class="cg-tag ${stageCls(b.kind)}">${STAGE[b.kind][0]}</span></div>
       <p class="ac-line">${b.kind === "margin_call" ? `담보가 약 ${man(b.shortfall_krw)} 부족해서 반대매매될 수 있어요` : `주가가 <b>${(b.room * 100).toFixed(1)}%</b> 더 내리면 반대매매될 수 있어요`}</p>
       <div class="cg-track mini ${stageCls(b.kind)}"><i class="z1"></i><i class="z2"></i><i class="z3"></i><span class="cg-dot" style="left:${Math.min(1, Math.max(0, b.room) / 0.3) * 100}%"></span></div>
-      <p class="ac-sub">담보비율 ${Math.round(b.ratio * 100)}% · 기준가 ${won(b.trigger_price)} · ${MK.ref_date.slice(5).replace("-", "/")} 종가</p></div>`).join("")}</div>`;
+      <p class="ac-sub">담보비율 ${ratioTxt(b.ratio)} · 기준가 ${won(b.trigger_price)} · ${MK.ref_date.slice(5).replace("-", "/")} 종가</p></div>`).join("")}</div>`;
   }
 
   // ════════════════ 연락 기록 (이 브라우저에 날짜별로 누적) ════════════════
@@ -603,7 +604,7 @@
   function priorityList() {
     const out = [];
     if (MK) MK.alerts.forEach(a => {
-      if (a.kind === "margin_call") out.push({ cid: a.customer_id, w: 0, why: `${a.name} 담보 ${Math.round(a.ratio * 100)}% · 약 ${man(a.shortfall_krw)} 부족`, tag: "반대매매 위험", cls: "s-call" });
+      if (a.kind === "margin_call") out.push({ cid: a.customer_id, w: 0, why: `${a.name} 담보 ${ratioTxt(a.ratio)} · 약 ${man(a.shortfall_krw)} 부족`, tag: "반대매매 위험", cls: "s-call" });
       if (a.kind === "margin_warn") out.push({ cid: a.customer_id, w: 1, why: `${a.name} 반대매매까지 −${(a.room * 100).toFixed(1)}%`, tag: "반대매매 경고", cls: "s-warn" });
       if (a.kind === "big_move") out.push({ cid: a.customer_id, w: 3, amt: Math.abs(a.day_delta_krw), why: `${a.name} ${pctTxt(a.chg_pct)} · 평가 ${a.day_delta_krw < 0 ? "−" : "+"}${man(Math.abs(a.day_delta_krw))}`, tag: "보유 종목 급등락", cls: "s-move" });
     });
@@ -635,7 +636,6 @@
     const risk = MK ? MK.credit.filter(b => b.kind === "margin_call" || b.kind === "margin_warn").length : 0;
     const movers = MK ? new Set(MK.alerts.filter(a => a.kind === "big_move").map(a => a.customer_id)).size : 0;
     const due = upcoming(7).reduce((s, u) => s + u.cids.size, 0);
-    const todayLogs = S.log.filter(l => isToday(l.at));
     const issues = MK ? Object.values(MK.alerts.filter(a => a.kind === "big_move").reduce((o, a) => {
       (o[a.symbol] ||= { a, n: new Set() }).n.add(a.customer_id); return o; }, {})) : [];
 
@@ -655,7 +655,7 @@
         <section class="bcard"><div class="bhead"><h2>먼저 연락할 고객</h2><a href="#clients">전체 보기 ›</a></div>
           <ul class="pri">${top.map((x, i) => `<li><a href="#client/${x.cid}"><em>${i + 1}</em>
             <span class="who"><b>${esc(CUST[x.cid].name)}</b><small>${CUST[x.cid].age}세</small><i>${esc(x.why)}</i></span>
-            <span class="tag ${x.cls}">${esc(x.tag)}</span>${S.log.some(l => l.cid === x.cid && isToday(l.at)) ? `<span class="done-mark">✓</span>` : ""}</a></li>`).join("") || `<li class="empty">없어요</li>`}</ul></section>
+            <span class="tag ${x.cls}">${esc(x.tag)}</span></a></li>`).join("") || `<li class="empty">없어요</li>`}</ul></section>
 
         <section class="bcard"><div class="bhead"><h2>어제 시장</h2>${MK ? `<span class="sub">${MK.ref_date} 종가</span>` : ""}</div>
           ${MK ? `<div class="idx-grid">${MK.indices.map(i => `<div><span>${esc(i.name)}</span><b>${i.close.toLocaleString("ko-KR")}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em>${i.date !== MK.ref_date ? `<small class="stale">${i.date.slice(5).replace("-", "/")} 기준</small>` : ""}</div>`).join("")}</div>
@@ -669,13 +669,13 @@
             <span class="t"><b>${esc(u.label)}</b><small>고객 ${u.cids.size}명 · ${u.r4 ? "상환 예정" : "합계"} ${man(u.sum)}</small></span></li>`).join("") || `<li class="empty">없어요</li>`}</ul>
           <p class="sub small">${D.as_of} 기준</p></section>
 
-        <section class="bcard"><div class="bhead"><h2>연락 기록</h2><span class="sub">오늘 ${todayLogs.length}건 · 전체 ${S.log.length}건</span></div>
-          ${logList(S.log.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 6), true)}
-          <div class="row-btns"><button class="ghost sm" id="exp">기록 내보내기</button><label class="ghost sm">기록 가져오기<input type="file" id="imp" accept="application/json" hidden></label></div>
-          <p class="fine">기록은 이 브라우저에 날짜별로 쌓여요. 다른 기기로 옮길 때는 내보내기·가져오기를 쓰세요.</p></section>
+        <section class="bcard"><div class="bhead"><h2>관리 필요</h2><a href="#clients" data-care>전체 보기 ›</a></div>
+          <p class="sub small">예수금 1,000만원 이상이 90일 넘게 거의 그대로인 고객 (금액 큰 순)</p>
+          <ul class="pri">${careRows().slice(0, 5).map((r, i) => `<li><a href="#client/${r.c.id}"><em>${i + 1}</em>
+            <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세</small><i>예수금 ${man(r.care.cash)} · ${r.care.days} 그대로</i></span>
+            <span class="tag s-care">관리 필요</span></a></li>`).join("") || `<li class="empty">없어요</li>`}</ul></section>
       </div></div>`;
-    $app.querySelector("#exp").onclick = exportLogs;
-    $app.querySelector("#imp").onchange = e => e.target.files[0] && importLogs(e.target.files[0]);
+    const care = $app.querySelector("[data-care]"); if (care) care.onclick = () => { cl.tab = "care"; };
   }
 
   // ════════════════ 고객 한 명 전체 보기 (PB용) ════════════════
@@ -811,7 +811,7 @@
 
           ${pos.length ? `<section class="panel"><div class="bhead"><h2>보유 종목 ${pos.length}개</h2><span class="sub">${MK.ref_date} 종가</span></div>
             <ul class="hold">${pos.sort((a, b) => b.value_krw - a.value_krw).map(p => { const b = credit.find(x => x.symbol === p.symbol);
-              return `<li><span class="who"><b>${esc(p.name)}</b><small>${p.qty.toLocaleString("ko-KR")}주</small>${b ? `<span class="cg-tag ${stageCls(b.kind)}">신용 · ${STAGE[b.kind][0]}${b.kind !== "margin_safe" ? ` −${(Math.max(0, b.room) * 100).toFixed(1)}%` : ""}</span>` : ""}</span>
+              return `<li><span class="who"><b>${esc(p.name)}</b><small>${p.qty.toLocaleString("ko-KR")}주</small>${b ? `<span class="cg-tag ${stageCls(b.kind)}">신용 · ${STAGE[b.kind][0]}${b.kind === "margin_call" ? ` · ${man(b.shortfall_krw)} 부족` : b.kind !== "margin_safe" ? ` · 반대매매까지 −${(b.room * 100).toFixed(1)}%` : ""}</span>` : ""}</span>
                 <span class="amt"><b>${man(p.value_krw)}</b><small class="${p.chg_pct < 0 ? "dn" : "up"}">${pctTxt(p.chg_pct)}</small></span>
                 <span class="amt"><b class="${p.pnl_krw < 0 ? "dn" : "up"}">${p.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(p.pnl_krw))}</b><small>매입 후 손익</small></span></li>`; }).join("")}</ul></section>` : ""}
 
@@ -825,11 +825,6 @@
         </div>
 
         <div class="col side">
-          <section class="panel"><div class="bhead"><h2>연락 결과 기록</h2></div>
-            <div class="logform"><textarea id="memo" rows="2" placeholder="통화 메모 (선택)"></textarea>
-              <div class="btn-grid">${["called", "no_answer", "joined", "later"].map(k => `<button class="${k === "called" ? "cta" : "ghost"} sm" data-log="${k}">${LOG_RESULT[k]}</button>`).join("")}</div></div>
-            ${logs.length ? `<details class="mini-hist"><summary>연락 기록 ${logs.length}건</summary>${logList(logs, false)}</details>` : ""}</section>
-
           <section class="panel"><div class="bhead"><h2>최근 통화 요약</h2>${last ? `<span class="pill-tag ${last.ai ? "ai" : ""}">${last.ai ? "AI 요약 · PB 확인 전" : "PB 확인 완료"}</span>` : ""}</div>
             ${last ? callSummary(last, calls) : `<p class="sub">아직 분석한 통화가 없어요.</p>`}</section>
 
@@ -901,8 +896,7 @@
       const id = Date.now().toString(36);
       (S.calls[cid] ||= []).push({ id, at: new Date().toISOString(), source: cv.source, seconds: cv.seconds, transcript: cv.transcript, result: cv.result,
         todos: cv.todos.filter(t => t.keep).map(({ keep, ...t }) => ({ ...t, done: false })) });
-      S.log.push({ id: "c" + id, cid, at: new Date().toISOString(), result: "called", topic: cv.result.headline, memo: cv.result.key.slice(0, 2).join(" "), call: id });
-      S.pb[cid] = "called"; save();
+      save();
       toast("상담 기록과 할 일에 저장했어요"); setStage(cid, { stage: "idle", result: null, todos: [], transcript: "", upload: false });
     };
     $app.querySelectorAll("[data-done]").forEach(ch => (ch.onchange = () => {
@@ -947,9 +941,9 @@
     let k = 0;
     while (k < n && Math.abs(cash[n - 1 - k] - last) <= last * CARE.flat) k++;
     if (k < CARE.days) return null;
-    const lastLog = logsOf(cid)[0], lastCall = callsOf(cid)[0];
-    const lastAt = [lastLog && lastLog.at, lastCall && lastCall.at].filter(Boolean).sort().pop();
-    if (lastAt && (Date.now() - new Date(lastAt)) / 864e5 < CARE.quiet) return null;   // 연락·계획 기록이 있으면 90일 동안 안 뜸
+    const lastCall = callsOf(cid)[0];
+    const lastAt = lastCall && lastCall.at;
+    if (lastAt && (Date.now() - new Date(lastAt)) / 864e5 < CARE.quiet) return null;   // 통화 분석이 있으면 90일 동안 안 뜸
     return { days: k >= n ? `${n}일 넘게` : `${k}일째`, cash: last * 1e4, lastAt };
   }
   function todayRows() { return clientBase().filter(r => urgency(r.c.id) === "today").sort((a, b) => rankOf(a) - rankOf(b)); }
@@ -970,7 +964,7 @@
     const rows = lists[cl.tab].filter(r => !q || (r.c.id + r.c.name).includes(q));
     const desc = { today: "반대매매 위험·경고, 보유 종목 ±10%, 마감 D-3 이내, 큰 상환금 입금 다음 날 — 오늘 꼭 연락할 고객이에요.",
       week: "마감 D-7 이내, 담보 주의, 상환금이 들어와 쉬고 있는 고객 — 이번 주 안에 챙기면 돼요.",
-      care: `예수금 1,000만원 이상이 ${CARE.days}일 넘게 거의 그대로이고 PB 연락도 없는 고객이에요. 상품 권유보다 자금 계획을 먼저 여쭤보고 기록해 두면 ${CARE.quiet}일 동안 다시 뜨지 않아요.`,
+      care: `예수금 1,000만원 이상이 ${CARE.days}일 넘게 거의 그대로인 고객이에요. 상품 권유보다 자금 계획을 먼저 여쭤보세요.`,
       all: "챙길 것이 있는 고객 전체예요." }[cl.tab];
     $app.innerHTML = `<div class="pg">
       <div class="pg-head"><div><h1>고객</h1><p class="sub">누구에게, 왜 연락해야 하는지 한 줄로 보고 눌러서 자세히 확인하세요.</p></div></div>
@@ -993,11 +987,11 @@
   function clientRow(r) {
     if (r.care) {
       return `<li><a href="#client/${r.c.id}"><span class="ava">${esc(r.c.name.slice(0, 1))}</span>
-        <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세 · ${r.c.id}</small><i>예수금이 ${r.care.days} 거의 그대로 · ${r.care.lastAt ? "마지막 연락 " + r.care.lastAt.slice(0, 10) : "PB 연락 기록 없음"}</i></span>
+        <span class="who"><b>${esc(r.c.name)}</b><small>${r.c.age}세 · ${r.c.id}</small><i>예수금이 ${r.care.days} 거의 그대로</i></span>
         <span class="tag s-care">관리 필요</span><span class="amt"><b>${man(r.care.cash)}</b><small>예수금</small></span><span class="go">›</span></a></li>`;
     }
     const mk = MK ? MK.alerts.filter(a => a.customer_id === r.c.id) : [];
-    const m = mk[0], f = r.lead, st = S.pb[r.c.id] || S.pb["m:" + r.c.id];
+    const m = mk[0], f = r.lead, st = null;
     const line = m ? mkHeadline(m) : f ? headline(f) : "";
     const tag = m ? (m.kind === "margin_call" ? ["반대매매 위험", "s-call"] : m.kind === "margin_warn" ? ["반대매매 경고", "s-warn"] : m.kind === "big_move" ? ["급등락", "s-move"] : ["담보 주의", "s-due"])
       : f && f.deadline && daysLeft(f.deadline) <= 7 ? [`마감 D-${daysLeft(f.deadline)}`, "s-due"]
@@ -1076,7 +1070,7 @@
       <section class="panel">
         <div class="bhead"><h2>④ 신용 위험</h2><span class="sub">반대매매가 나기 전에 · 위험 ${MK.credit.filter(b => b.kind === "margin_call").length} · 경고 ${MK.credit.filter(b => b.kind === "margin_warn").length} · 주의 ${MK.credit.filter(b => b.kind === "margin_watch").length}</span></div>
         <ul class="rows compact">${credit.map(b => { const c = CUST[b.customer_id]; return `<li><a href="#client/${b.customer_id}"><span class="ava sm ${b.kind === "margin_call" || b.kind === "margin_warn" ? "warn" : ""}">${esc(c.name.slice(0, 1))}</span>
-          <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${esc(b.name)}</small><i>담보비율 ${Math.round(b.ratio * 100)}% · 기준가 ${won(b.trigger_price)}</i></span>
+          <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${esc(b.name)}</small><i>담보비율 ${ratioTxt(b.ratio)} · 기준가 ${won(b.trigger_price)}</i></span>
           <span class="tag ${stageCls(b.kind)}">${STAGE[b.kind][0]}</span>
           <span class="amt"><b class="${b.kind === "margin_call" ? "red" : "amber"}">${b.kind === "margin_call" ? man(b.shortfall_krw) : `−${(b.room * 100).toFixed(1)}%`}</b><small>${b.kind === "margin_call" ? "부족 담보" : "반대매매까지"}</small></span><span class="go">›</span></a></li>`; }).join("") || `<li class="empty">위험·경고·주의 고객이 없어요</li>`}</ul>
       </section></div>`;
@@ -1091,8 +1085,8 @@
     if (ci) {
       const c = CUST[cid];
       out.push({ key: "care", tag: "관리 필요", cls: "s-care", title: `예수금 ${man(ci.cash)}이 ${ci.days} 거의 그대로예요`,
-        todo: "상품 권유보다 자금 계획을 먼저 여쭤보고 기록해 주세요", reason: "", sources: [], gauge: null,
-        script: `[인사] 안녕하세요, ${c.name}님. 유진투자증권 담당 PB입니다. 오랜만에 계좌 안부 여쭤보려고 연락드렸습니다.\n[근거] 계좌에 예수금 ${man(ci.cash)}이 ${ci.days} 거의 그대로 있어서요.\n[확인] 혹시 이 자금은 쓰실 계획이 정해져 있으신가요? 언제쯤 쓰실 예정이신지 여쭤봐도 될까요?\n[제안] 쓰실 때까지 기다리시는 동안 수시로 넣고 뺄 수 있는 곳에 두면 이자를 받을 수 있는데, 원하시면 안내드리겠습니다.\n[안내] 말씀해 주신 계획은 기록해 두고, 그 전까지는 따로 연락드리지 않겠습니다.` });
+        todo: "상품 권유보다 자금 계획을 먼저 여쭤봐 주세요", reason: "", sources: [], gauge: null,
+        script: `[인사] 안녕하세요, ${c.name}님. 유진투자증권 담당 PB입니다. 오랜만에 계좌 안부 여쭤보려고 연락드렸습니다.\n[근거] 계좌에 예수금 ${man(ci.cash)}이 ${ci.days} 거의 그대로 있어서요.\n[확인] 혹시 이 자금은 쓰실 계획이 정해져 있으신가요? 언제쯤 쓰실 예정이신지 여쭤봐도 될까요?\n[제안] 쓰실 때까지 기다리시는 동안 수시로 넣고 뺄 수 있는 곳에 두면 이자를 받을 수 있는데, 원하시면 안내드리겠습니다.\n[안내] 말씀해 주신 계획에 맞춰 필요할 때 다시 연락드리겠습니다.` });
     }
     (MK ? MK.alerts.filter(a => a.customer_id === cid) : []).forEach(a => out.push({ key: "m-" + a.symbol + a.kind, tag: MK_KIND[a.kind].split(" · ")[0],
       cls: a.kind === "margin_call" ? "s-call" : a.kind === "margin_warn" ? "s-warn" : a.kind === "big_move" ? "s-move" : "s-due",
