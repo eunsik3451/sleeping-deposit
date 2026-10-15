@@ -76,7 +76,7 @@ def test_save_then_load_roundtrip(tmp_path, data):
     for name in SCHEMA:
         save_table(data[name], name, tmp_path, {})
     loaded = load_all(tmp_path, {})
-    assert len(loaded["customers"]) == 300
+    assert len(loaded["customers"]) == len(data["customers"])
     assert loaded["customers"]["auto_rp_enabled"].dtype == bool
     assert loaded["action_log"]["finding_id"].eq("").all()
     assert len(loaded["cash_balances_daily"]) == len(data["cash_balances_daily"])

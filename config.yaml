@@ -73,5 +73,5 @@ priority:
 
 demo:
   seed: 42
-  n_customers: 300
+  n_customers: 302              # 데모 고객 4명 + 테스트 고객 2명(조은식·김지혁) + 일반 296명
   history_days: 180

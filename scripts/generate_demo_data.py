@@ -212,6 +212,12 @@ def personas(as_of):
     # P004: 60일 전 예수금 자동 RP 신청 (2,000,000원 남겨둠)
     p004 = Account(25 * M)
 
+    # 테스트 고객 (사용자·팀원 이름, 데이터는 가상): 녹음 요약·카톡 발송 테스트용
+    # T001 조은식: ELS 상환금 3,000만원 12일째 + 연금저축 남은 한도 400만원
+    t001 = Account(1 * M).add(80, "withdrawal", 0.3 * M).add(12, "els_redemption", 30 * M)
+    # T002 김지혁: 예수금 4,000만원 45일째 + 채권형 펀드 만기 D-10 (상환 3,000만원)
+    t002 = Account(0.5 * M).add(44, "deposit", 40 * M)
+
     return [
         (cust("P001", "정하준", 34, "공격투자형", ago(100), True, True, False),
          [("KRW", p001_krw, None, 0), ("USD", p001_usd, None, 0)], "active_trader+fx_idle"),
@@ -221,6 +227,10 @@ def personas(as_of):
          [("KRW", p003, None, 0)], "long_idle"),
         (cust("P004", "윤재민", 45, "안정추구형", ago(150), True, False, False, auto=True, keep=2 * M),
          [("KRW", p004, 60, 2 * M)], "auto_rp"),
+        (cust("T001", "조은식", 35, "위험중립형", ago(120), True, True, False),
+         [("KRW", t001, None, 0)], "event_inflow"),
+        (cust("T002", "김지혁", 35, "안정추구형", ago(90), True, True, False),
+         [("KRW", t002, None, 0)], "long_idle"),
     ]
 
 
@@ -260,14 +270,17 @@ def extra_tables(customers: pd.DataFrame, segments: dict, as_of, seed) -> dict:
     tax.append({"customer_id": "P004", "year": year, "realized_gain_krw": 1 * M,
                 "unrealized_loss_krw": 0, "unrealized_gain_krw": 5 * M})            # → 330,000원
     pens.append({"customer_id": "P002", "year": year, "paid_ytd_krw": 2 * M})       # → 528,000원
+    pens.append({"customer_id": "T001", "year": year, "paid_ytd_krw": 2 * M})       # 남은 한도 400만원 → 528,000원
     hold.append({"customer_id": "P001", "symbol": DEMO_RIGHTS["symbol"], "name": DEMO_RIGHTS["name"],
                  "qty": 2000, "current_price": DEMO_RIGHTS["market_price"]})        # 500주 × 2,500원 → 1,250,000원
     mat = [{"customer_id": "P003", "holding_id": "H-P003-1", "product_name": "가상 채권형펀드 3호", "kind": "펀드",
-            "maturity_date": as_of + pd.Timedelta(days=10), "expected_amount_krw": 50 * M}]   # → 88,356원
+            "maturity_date": as_of + pd.Timedelta(days=10), "expected_amount_krw": 50 * M},   # → 88,356원
+           {"customer_id": "T002", "holding_id": "H-T002-1", "product_name": "가상 채권형펀드 7호", "kind": "펀드",
+            "maturity_date": as_of + pd.Timedelta(days=10), "expected_amount_krw": 30 * M}]
 
     for _, c in customers.iterrows():
         cid = c.customer_id
-        if cid.startswith("P"):
+        if cid.startswith(("P", "T")):
             continue
         seg, age = segments[cid], year - int(c.birth_year)
         if rng.random() < (0.30 if seg in ("fx_idle", "active_trader") else 0.06):
@@ -313,7 +326,7 @@ def stock_holdings(customers: pd.DataFrame, as_of, seed) -> pd.DataFrame:
         ("P004", "000660", 15 * M, 0), ("P004", "NVDA", 10 * M, 0),
     ]
     for c in customers.itertuples():
-        if c.customer_id.startswith("P") or rng.random() > 0.45:
+        if c.customer_id.startswith(("P", "T")) or rng.random() > 0.45:
             continue
         age = as_of.year - int(c.birth_year)
         pool = KR_LARGE * 3 + KR_VOLATILE * (2 if age < 50 else 1) + US * (2 if age < 45 else 1)
