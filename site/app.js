@@ -673,70 +673,213 @@
     $app.querySelector("#imp").onchange = e => e.target.files[0] && importLogs(e.target.files[0]);
   }
 
-  // ════════════════ 고객 한 명 전체 보기 ════════════════
+  // ════════════════ 고객 한 명 전체 보기 (PB용) ════════════════
+  // 왼쪽: 진단·잔고 추이·챙길 것·보유 종목·통화 녹음 분석 / 오른쪽: 최근 통화 요약·할 일·케어 일정
+  if (!S.calls || typeof S.calls !== "object") S.calls = {};
+  let cv = { cid: null, month: null, showWhy: false, stage: "idle", progress: "", transcript: "", source: "", seconds: 0, result: null, todos: [] };
+
+  const callsOf = cid => (S.calls[cid] || []).slice().sort((a, b) => b.at.localeCompare(a.at));
+  const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  function careEvents(cid) {   // 케어 일정: 마감(빨강) + 할 일(파랑)
+    const ev = [];
+    findingsOf(cid).forEach(f => f.deadline && ev.push({ date: f.deadline, kind: "due", text: headline(f).replace(/ · D-\d+$/, "").replace(/ D-\d+$/, "") }));
+    callsOf(cid).forEach(c => c.todos.forEach(t => !t.done && t.due && ev.push({ date: t.due, kind: "todo", text: t.text })));
+    return ev.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  function calendar(cid) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const base = cv.month || new Date(today.getFullYear(), today.getMonth(), 1);
+    const y = base.getFullYear(), m = base.getMonth(), first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
+    const ev = careEvents(cid), mark = {};
+    ev.forEach(e => { if (e.date.startsWith(`${y}-${String(m + 1).padStart(2, "0")}`)) (mark[+e.date.slice(8)] ||= new Set()).add(e.kind); });
+    let cells = "";
+    for (let i = 0; i < first; i++) cells += "<span></span>";
+    for (let d = 1; d <= days; d++) {
+      const k = mark[d], isToday = y === today.getFullYear() && m === today.getMonth() && d === today.getDate();
+      cells += `<span class="${isToday ? "today" : ""} ${k ? (k.has("due") ? "m-due" : "m-todo") : ""}">${d}</span>`;
+    }
+    const upcoming = ev.filter(e => e.date >= ymd(today)).slice(0, 5);
+    return `<div class="cal-head"><button class="txt" data-mon="-1">‹</button><b>${y}년 ${m + 1}월</b><button class="txt" data-mon="1">›</button></div>
+      <div class="cal-grid"><i>일</i><i>월</i><i>화</i><i>수</i><i>목</i><i>금</i><i>토</i>${cells}</div>
+      <p class="cal-sub">다가오는 일정</p>
+      <ul class="cal-list">${upcoming.map(e => `<li><span class="dot ${e.kind}"></span><b>${+e.date.slice(5, 7)}월 ${+e.date.slice(8)}일</b><span>${esc(e.text)}</span>${e.kind === "due" ? `<em>D-${daysLeft(e.date)}</em>` : ""}</li>`).join("") || `<li class="empty">예정된 일정이 없어요</li>`}</ul>`;
+  }
+
+  function areaChart(tr) {
+    const v = tr.cash, n = v.length; if (!n) return "";
+    const W = 640, H = 200, L = 46, B = 24, T = 10, max = Math.max(1, ...v) * 1.15;
+    const step = niceStep(max / 4), top = Math.ceil(max / step) * step;
+    const x = i => L + (W - L - 8) * i / (n - 1), y = val => T + (H - T - B) * (1 - val / top);
+    let g = "";
+    for (let t = 0; t <= top + 1e-9; t += step) g += `<line x1="${L}" x2="${W - 8}" y1="${y(t)}" y2="${y(t)}" stroke="#EEF1F5"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end" font-size="11" fill="#8B95A1">${t.toLocaleString("ko-KR")}</text>`;
+    const start = new Date(tr.start + "T00:00:00");
+    for (let i = 0; i < n; i++) { const d = new Date(start.getTime() + i * 864e5); if (d.getDate() === 1) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" font-size="11" fill="#8B95A1">${d.getMonth() + 1}/1</text>`; }
+    const pts = v.map((p, i) => `${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+    return `<svg viewBox="0 0 ${W} ${H}" class="area" role="img" aria-label="최근 6개월 예수금 추이">
+      <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3182F6" stop-opacity=".22"/><stop offset="1" stop-color="#3182F6" stop-opacity="0"/></linearGradient></defs>
+      ${g}<polygon fill="url(#ag)" points="${pts} ${x(n - 1)},${y(0)} ${x(0)},${y(0)}"/><polyline fill="none" stroke="#3182F6" stroke-width="2.4" points="${pts}"/>
+      <circle cx="${x(n - 1)}" cy="${y(v[n - 1])}" r="4.5" fill="#3182F6"/></svg>`;
+  }
+
+  function diagnosisCard(cid) {
+    const fs = findingsOf(cid), r1 = fs.find(f => f.rule === "R1" && f.currency === "KRW") || fs.find(f => f.rule === "R1"), found = foundOf(cid);
+    if (found) return `<section class="dcard ok"><div class="dhead"><span class="dico">₩</span><h2>예수금 자동 RP 이용 중</h2></div>
+      <div class="dstats"><div><span>지금 RP에 있는 돈</span><b>${man(found.invested_krw)}</b></div><div><span>깨운 뒤 받은 이자</span><b class="okc">${won(found.found_krw)}</b><small>${found.days}일</small></div><div><span>이대로 1년이면</span><b>약 ${man(found.annual_krw)}</b></div></div></section>`;
+    if (!r1) return "";
+    const usdF = r1.currency === "USD";
+    return `<section class="dcard"><div class="dhead"><span class="dico">₩</span><h2>잠자는 예수금 진단</h2><span class="dtag">${esc(r1.subtype_label)}</span></div>
+      <div class="dstats">
+        <div><span>${usdF ? "달러 예수금" : "예수금"}</span><b>${usdF ? usd(r1.meta.cash_today) : man(r1.meta.cash_today)}</b><small>쉬는 돈 ${man(r1.meta.idle_krw)}</small></div>
+        <div><span>쉬고 있는 기간</span><b>${r1.meta.streak}<em>일째</em></b><small>500만원 이상이 이어진 날</small></div>
+        <div><span>RP 활용 시 예상 이자 차이</span><b class="hot">연 약 ${man(r1.annual_projection_krw)}</b><small>세전 · 지난 90일 못 받은 이자 ${man(r1.amount_krw)}</small></div>
+      </div>
+      ${cv.showWhy ? `<ul class="why-list">${r1.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
+      <div class="dfoot"><span>금리와 보유기간에 따라 달라질 수 있습니다. 가입은 고객이 앱에서 직접 합니다.</span>
+        <div><button class="ghost sm" data-why>${cv.showWhy ? "근거 접기" : "산출 근거 보기"}</button><a class="cta sm" href="#customer/${cid}/home">고객 앱 화면 보기</a></div></div></section>`;
+  }
+
+  function callPanel(cid) {
+    const st = cv.stage;
+    if (st === "idle") return `<div class="cin">
+        <label class="drop"><input type="file" id="audio" accept="audio/*" hidden><b>통화 녹음 파일 올리기</b><span>mp3·wav·m4a · 녹음은 이 브라우저 안에서만 처리돼요</span></label>
+        <div class="cin-alt">${cid === "P003" ? `<button class="ghost sm" id="demoAudio">데모 녹음으로 해보기 (1분 40초)</button>` : ""}<button class="ghost sm" id="pasteBtn">녹취록 텍스트 붙여넣기</button></div>
+        <p class="fine">처음 한 번은 음성인식 모델(약 200MB)을 내려받아요. 이후에는 바로 시작해요.</p></div>`;
+    if (st === "working") return `<div class="cin working"><div class="spin"></div><b>${esc(cv.progress)}</b><p class="fine">녹음 파일은 외부로 전송되지 않아요.</p></div>`;
+    if (st === "edit") return `<div class="cin"><p class="sub">${cv.source ? esc(cv.source) + " · " : ""}녹취록을 확인하고 잘못 들린 부분(특히 날짜·금액)을 고친 뒤 분석하세요.</p>
+        <textarea id="tx" rows="10">${esc(cv.transcript)}</textarea>
+        <div class="row-btns"><button class="cta sm" id="runAnalyze">요약·할 일 정리</button><button class="ghost sm" id="cancelCall">취소</button></div></div>`;
+    const r = cv.result;
+    return `<div class="cres">
+      <p class="cres-h">${esc(r.headline)}</p>
+      <div class="cres-grid">
+        <div><h4>핵심 내용</h4><ul>${r.key.map(k => `<li>${esc(k)}</li>`).join("") || "<li>-</li>"}</ul></div>
+        <div><h4>고객 요청·질문</h4><ul>${r.requests.map(k => `<li>${esc(k)}</li>`).join("") || "<li>-</li>"}</ul></div>
+        <div><h4>PB가 약속한 것</h4><ul>${r.promises.map(k => `<li>${esc(k)}</li>`).join("") || "<li>-</li>"}</ul></div>
+        <div><h4>준법 점검</h4><ul class="chk">${r.checks.map(c => `<li class="${c.ok ? "ok" : "bad"}">${c.ok ? "✓" : "!"} ${esc(c.t)}</li>`).join("") || "<li>해당 항목 없음</li>"}</ul></div>
+      </div>
+      <h4>해야 할 일 <small>체크를 풀면 저장되지 않아요</small></h4>
+      <ul class="todo-edit">${cv.todos.map((t, i) => `<li><label><input type="checkbox" data-keep="${i}" ${t.keep ? "checked" : ""}> <span>${esc(t.text)}</span></label><em>${esc(t.dueLabel)}</em><small>${esc(t.from)}</small></li>`).join("") || "<li class='empty'>정리된 할 일이 없어요</li>"}</ul>
+      <div class="row-btns"><button class="cta sm" id="saveCall">PB 확인 완료 · 상담 기록에 저장</button><button class="ghost sm" id="backEdit">녹취록 다시 고치기</button></div>
+      <p class="fine">자동 요약은 참고용이에요. PB가 내용을 확인한 뒤 저장하고, 고객에게 보낼 때도 PB가 다시 확인해요.</p></div>`;
+  }
+
   function pageClient(cid) {
     const c = CUST[cid];
     if (!c) { location.hash = "#pbm"; return; }
+    if (cv.cid !== cid) cv = { cid, month: null, showWhy: false, stage: "idle", progress: "", transcript: "", source: "", seconds: 0, result: null, todos: [] };
     const fs = findingsOf(cid), det = D.details[cid];
-    const krw = c.balance.KRW || { cash: 0, auto_rp: 0 }, usdB = c.balance.USD;
+    const krw = c.balance.KRW || { cash: 0 }, usdB = c.balance.USD;
     const pos = MK ? MK.positions.filter(p => p.customer_id === cid) : [];
     const credit = MK ? MK.credit.filter(b => b.customer_id === cid) : [];
-    const stock = pos.reduce((s, p) => s + p.value_krw, 0), loan = pos.reduce((s, p) => s + p.credit_loan_krw, 0);
+    const stock = pos.reduce((s, p) => s + p.value_krw, 0);
     const alerts = D.outbox.filter(r => r.cid === cid).sort((a, b) => b.at.localeCompare(a.at));
+    const calls = callsOf(cid), last = calls[0], logs = logsOf(cid);
+    const openTodos = calls.flatMap(cl => cl.todos.map((t, i) => ({ ...t, call: cl.id, i }))).filter(t => !t.done).sort((a, b) => (a.due || "9").localeCompare(b.due || "9"));
     const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "알림톡"].filter(Boolean);
 
-    $app.innerHTML = `<div class="pbm client">
+    $app.innerHTML = `<div class="pbm c360">
       <a class="crumb" href="#pbm">‹ PB 고객 관리</a>
-      <div class="who-big"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
-        <div><h1>${esc(c.name)}님 <small>${cid}</small></h1>
-          <p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의: " + consent.join("·") : "광고 미동의 (PB 연락만)"} · 담당 ${c.pb}</p></div></div>
-
-      <div class="pbm-stats four">
-        <div><span>원화 예수금</span><b>${man(krw.cash)}</b>${krw.auto_rp ? `<small>자동 RP ${man(krw.auto_rp)}</small>` : ""}</div>
-        <div><span>달러 예수금</span><b>${usdB ? usd(usdB.cash) : "–"}</b>${usdB ? `<small>약 ${man(usdB.cash * usdB.rate)}</small>` : ""}</div>
-        <div><span>주식 평가금액</span><b>${pos.length ? man(stock) : "–"}</b>${MK && pos.length ? `<small>${MK.ref_date.slice(5).replace("-", "/")} 종가</small>` : ""}</div>
-        <div><span>신용 대출금</span><b class="${credit.some(b => b.kind !== "margin_safe") ? "red" : ""}">${loan ? man(loan) : "없음"}</b></div>
-      </div>
-
-      <div class="client-grid">
+      <div class="c360-head"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
+        <div><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의: " + consent.join("·") : "광고 미동의 (PB 연락만)"} · 담당 ${c.pb}</p></div>
+        <div class="c360-tot"><div><span>원화 예수금</span><b>${man(krw.cash)}</b></div>${usdB ? `<div><span>달러</span><b>${usd(usdB.cash)}</b></div>` : ""}<div><span>주식</span><b>${pos.length ? man(stock) : "–"}</b></div></div></div>
+      <h2 class="c360-title">오늘 놓치기 쉬운 자산을 확인해 보세요</h2>
+      <div class="c360-grid">
         <div class="col">
-          <section class="bcard"><div class="bhead"><h2>챙길 것 ${fs.length}가지</h2><a href="#customer/${cid}/home">고객 앱 화면 ›</a></div>
-            ${fs.length ? `<ul class="items">${fs.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 D-${daysLeft(f.deadline)}` : ""}${PB_BY_FID[f.finding_id] ? " · 연락 대상" : ""}</small></span><em>+${man(amountOf(f))}</em></li>`).join("")}</ul>`
-              : `<p class="sub">지금 챙길 것이 없어요.</p>`}
-            ${foundOf(cid) ? `<p class="okline">예수금 자동 RP 이용 중 · 깨운 뒤 받은 이자 ${won(foundOf(cid).found_krw)}</p>` : ""}</section>
+          ${diagnosisCard(cid)}
+          ${det.trend.start ? `<section class="bcard"><div class="bhead"><h2>고객님의 예수금 추이</h2><span class="sub">최근 6개월 · 만원</span></div>
+            <div class="area-wrap"><div class="area-now"><span>예수금(만원)</span><b>${det.trend.cash[det.trend.cash.length - 1].toLocaleString("ko-KR")}</b></div>${areaChart(det.trend)}</div></section>` : ""}
 
-          <section class="bcard"><div class="bhead"><h2>보유 종목 ${pos.length}개</h2>${MK ? `<span class="sub">${MK.ref_date} 종가</span>` : ""}</div>
-            ${pos.length ? `<ul class="hold">${pos.sort((a, b) => b.value_krw - a.value_krw).map(p => {
-              const b = credit.find(x => x.symbol === p.symbol);
+          <section class="bcard"><div class="bhead"><h2>통화 녹음 분석</h2><span class="sub">녹음 → 녹취록 → 요약·할 일</span></div>${callPanel(cid)}</section>
+
+          ${fs.length ? `<section class="bcard"><div class="bhead"><h2>함께 챙길 것 ${fs.length}가지</h2></div><ul class="items">${fs.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 D-${daysLeft(f.deadline)}` : ""}</small></span><em>+${man(amountOf(f))}</em></li>`).join("")}</ul></section>` : ""}
+
+          ${pos.length ? `<section class="bcard"><div class="bhead"><h2>보유 종목 ${pos.length}개</h2><span class="sub">${MK.ref_date} 종가</span></div>
+            <ul class="hold">${pos.sort((a, b) => b.value_krw - a.value_krw).map(p => { const b = credit.find(x => x.symbol === p.symbol);
               return `<li><span class="who"><b>${esc(p.name)}</b><small>${p.qty.toLocaleString("ko-KR")}주</small>${b ? `<span class="cg-tag ${stageCls(b.kind)}">신용 · ${STAGE[b.kind][0]}${b.kind !== "margin_safe" ? ` −${(Math.max(0, b.room) * 100).toFixed(1)}%` : ""}</span>` : ""}</span>
                 <span class="amt"><b>${man(p.value_krw)}</b><small class="${p.chg_pct < 0 ? "dn" : "up"}">${pctTxt(p.chg_pct)}</small></span>
-                <span class="amt"><b class="${p.pnl_krw < 0 ? "dn" : "up"}">${p.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(p.pnl_krw))}</b><small>매입 후 손익</small></span></li>`; }).join("")}</ul>`
-              : `<p class="sub">보유 종목이 없어요 (가상 데이터).</p>`}
-            ${credit.filter(b => b.kind !== "margin_safe").map(b => `<h3>${esc(b.name)} 신용 · 반대매매까지</h3>${creditGauge(b)}`).join("")}</section>
-
-          ${det.trend.start ? `<section class="bcard"><div class="bhead"><h2>최근 6개월 예수금</h2></div>${lineChart(det.trend)}</section>` : ""}
-        </div>
-
-        <div class="col">
-          <section class="bcard"><div class="bhead"><h2>연락 기록</h2><span class="sub">${logsOf(cid).length}건</span></div>
-            <div class="logform">
-              <textarea id="memo" rows="3" placeholder="통화 내용이나 다음에 할 일을 적어 두세요"></textarea>
-              <div class="seg small">${["called", "no_answer", "joined", "later", "memo"].map(k => `<button data-log="${k}">${LOG_RESULT[k]}</button>`).join("")}</div>
-            </div>
-            ${logList(logsOf(cid), false)}</section>
+                <span class="amt"><b class="${p.pnl_krw < 0 ? "dn" : "up"}">${p.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(p.pnl_krw))}</b><small>매입 후 손익</small></span></li>`; }).join("")}</ul>
+            ${credit.filter(b => b.kind !== "margin_safe").map(b => `<h3>${esc(b.name)} 신용 · 반대매매까지</h3>${creditGauge(b)}`).join("")}</section>` : ""}
 
           <section class="bcard"><div class="bhead"><h2>이 고객에게 간 알림</h2><span class="sub">최근 30일 · ${alerts.length}건</span></div>
-            ${alerts.length ? `<ul class="alog">${alerts.slice(0, 12).map(r => `<li><details><summary><span><b>${esc(r.title)}</b><small>${r.at} · ${CH[r.channel]} · ${MT[r.msg_type]}${r.hold ? " · " + esc(holdLabel(r.hold)) : ""}</small></span><em>${ST[r.status] || r.status}</em></summary><p>${esc(r.body)}</p></details></li>`).join("")}</ul>`
-              : `<p class="sub">보낸 알림이 없어요.</p>`}</section>
+            ${alerts.length ? `<ul class="alog">${alerts.slice(0, 10).map(r => `<li><details><summary><span><b>${esc(r.title)}</b><small>${r.at} · ${CH[r.channel]} · ${MT[r.msg_type]}${r.hold ? " · " + esc(holdLabel(r.hold)) : ""}</small></span><em>${ST[r.status] || r.status}</em></summary><p>${esc(r.body)}</p></details></li>`).join("")}</ul>` : `<p class="sub">보낸 알림이 없어요.</p>`}</section>
+        </div>
+
+        <div class="col side">
+          <section class="bcard"><div class="bhead"><h2>최근 통화 요약</h2>${last ? `<span class="pill-tag">PB 확인 완료</span>` : ""}</div>
+            ${last ? `<p class="sub">${fmtAt(last.at)} · ${esc(last.source)}</p>
+              <p class="sum-box">${esc(last.result.headline)}</p>
+              <dl class="kv2">${(() => { const rq = last.result.requests.find(r => /(주세요|싶어요|싶습니다|부탁|하려고)/.test(r)) || last.result.requests[0]; return rq ? `<dt>고객 요청</dt><dd>${esc(rq)}</dd>` : ""; })()}${last.result.promises[0] ? `<dt>PB 후속 약속</dt><dd>${esc(last.result.promises[0])}</dd>` : ""}</dl>
+              <details><summary>날짜별 상담 기록 보기 (${calls.length + logs.filter(l => !l.call).length}건)</summary>
+                <ul class="hist">${calls.map(cl => `<li><b>${fmtAt(cl.at).slice(5, 10)}</b><span>${esc(cl.result.headline)}</span></li>`).join("")}${logs.filter(l => !l.call).map(l => `<li><b>${fmtAt(l.at).slice(5, 10)}</b><span>${LOG_RESULT[l.result]}${l.memo ? " · " + esc(l.memo) : ""}</span></li>`).join("")}</ul></details>`
+              : `<p class="sub">아직 분석한 통화가 없어요. 왼쪽 '통화 녹음 분석'에 녹음을 올려 보세요.</p>`}
+            <div class="logform"><textarea id="memo" rows="2" placeholder="짧은 메모 (녹음 없이 기록할 때)"></textarea>
+              <div class="seg small">${["called", "no_answer", "joined", "later", "memo"].map(k => `<button data-log="${k}">${LOG_RESULT[k]}</button>`).join("")}</div></div></section>
+
+          <section class="bcard"><div class="bhead"><h2>해야 할 일</h2><span class="sub">${openTodos.length}건</span></div>
+            <ul class="todo todo-list">${openTodos.map(t => `<li><label><input type="checkbox" data-done="${t.call}|${t.i}"> <span>${esc(t.text)}</span></label><em class="${t.due && t.due <= ymd(new Date()) ? "red" : ""}">${esc(t.dueLabel)}</em></li>`).join("") || `<li class="empty">남은 할 일이 없어요</li>`}</ul></section>
+
+          <section class="bcard"><div class="bhead"><h2>다가오는 케어 일정</h2></div>${calendar(cid)}</section>
         </div>
       </div></div>`;
+    bindClient(cid);
+  }
 
+  function setStage(cid, patch) { Object.assign(cv, patch); if (cv.cid === cid && location.hash.startsWith("#client/" + cid)) pageClient(cid); }
+
+  async function runSTT(cid, input, label) {
+    if (!window.STT) { toast("음성인식 모듈을 불러오지 못했어요. 녹취록 텍스트 붙여넣기를 써 주세요"); return; }
+    setStage(cid, { stage: "working", progress: "음성인식 준비 중…", source: label });
+    try {
+      const r = await window.STT.transcribe(input, p => {
+        const msg = p.stage === "download" ? `음성인식 모델 내려받는 중 ${Math.round(p.ratio * 100)}% (처음 한 번만)`
+          : p.stage === "decode" ? "녹음 파일 읽는 중…" : `받아쓰는 중 ${p.done + 1}/${p.total} 구간 (${Math.round(p.seconds)}초 녹음)`;
+        setStage(cid, { progress: msg });
+      });
+      setStage(cid, { stage: "edit", transcript: window.CallNote.normalize(r.text), seconds: r.seconds });
+    } catch (e) {
+      console.error(e);
+      setStage(cid, { stage: "idle" }); toast("녹음을 받아쓰지 못했어요. 다른 파일이나 텍스트 붙여넣기를 써 주세요");
+    }
+  }
+
+  function bindClient(cid) {
+    const q = s => $app.querySelector(s);
+    $app.querySelectorAll("[data-mon]").forEach(b => (b.onclick = () => {
+      const t = new Date(); const base = cv.month || new Date(t.getFullYear(), t.getMonth(), 1);
+      cv.month = new Date(base.getFullYear(), base.getMonth() + +b.dataset.mon, 1); pageClient(cid);
+    }));
+    const why = q("[data-why]"); if (why) why.onclick = () => { cv.showWhy = !cv.showWhy; pageClient(cid); };
+    const audio = q("#audio"); if (audio) audio.onchange = e => { const f = e.target.files[0]; if (f) runSTT(cid, f, f.name); };
+    const demo = q("#demoAudio"); if (demo) demo.onclick = () => runSTT(cid, "demo/call_P003.wav", "데모 녹음 (가상 통화)");
+    const paste = q("#pasteBtn"); if (paste) paste.onclick = () => setStage(cid, { stage: "edit", transcript: "", source: "녹취록 붙여넣기" });
+    const cancel = q("#cancelCall"); if (cancel) cancel.onclick = () => setStage(cid, { stage: "idle" });
+    const run = q("#runAnalyze"); if (run) run.onclick = () => {
+      const text = q("#tx").value.trim();
+      if (text.length < 20) return toast("녹취록이 너무 짧아요");
+      const result = window.CallNote.analyze(text, { today: new Date() });
+      setStage(cid, { stage: "result", transcript: text, result, todos: result.todos.map(t => ({ ...t, keep: true })) });
+    };
+    $app.querySelectorAll("[data-keep]").forEach(ch => (ch.onchange = () => { cv.todos[+ch.dataset.keep].keep = ch.checked; }));
+    const back = q("#backEdit"); if (back) back.onclick = () => setStage(cid, { stage: "edit" });
+    const saveB = q("#saveCall"); if (saveB) saveB.onclick = () => {
+      const id = Date.now().toString(36);
+      (S.calls[cid] ||= []).push({ id, at: new Date().toISOString(), source: cv.source, seconds: cv.seconds, transcript: cv.transcript, result: cv.result,
+        todos: cv.todos.filter(t => t.keep).map(({ keep, ...t }) => ({ ...t, done: false })) });
+      S.log.push({ id: "c" + id, cid, at: new Date().toISOString(), result: "called", topic: cv.result.headline, memo: cv.result.key.slice(0, 2).join(" "), call: id });
+      S.pb[cid] = "called"; save();
+      toast("상담 기록과 할 일에 저장했어요"); setStage(cid, { stage: "idle", result: null, todos: [], transcript: "" });
+    };
+    $app.querySelectorAll("[data-done]").forEach(ch => (ch.onchange = () => {
+      const [callId, i] = ch.dataset.done.split("|"); const cl = (S.calls[cid] || []).find(x => x.id === callId);
+      if (cl) { cl.todos[+i].done = true; save(); toast("할 일을 완료했어요"); pageClient(cid); }
+    }));
     $app.querySelectorAll("[data-log]").forEach(b => (b.onclick = () => {
-      const memo = $app.querySelector("#memo").value;
+      const memo = q("#memo").value;
       if (b.dataset.log === "memo" && !memo.trim()) return toast("메모 내용을 적어 주세요");
-      const topic = fs[0] ? headline(fs[0]) : "";
-      addLog(cid, b.dataset.log, topic, memo);
-      if (b.dataset.log !== "memo") S.pb[cid] = b.dataset.log, save();
+      addLog(cid, b.dataset.log, findingsOf(cid)[0] ? headline(findingsOf(cid)[0]) : "", memo);
+      if (b.dataset.log !== "memo") { S.pb[cid] = b.dataset.log; save(); }
       toast(`${LOG_RESULT[b.dataset.log]}으로 기록했어요`); pageClient(cid);
     }));
   }
