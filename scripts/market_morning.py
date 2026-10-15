@@ -110,7 +110,10 @@ def main():
            "indices": idx, "movers": movers.head(12).to_dict("records"), "alerts": alerts, "credit": credit,
            "positions_all": pos[["customer_id", "symbol", "name", "currency", "qty", "close", "chg_pct", "value_krw",
                                  "day_delta_krw", "pnl_krw", "credit_loan_krw", "trade_date"]].to_dict("records"),
-           "holders": int(pos.customer_id.nunique()), "positions": int(len(pos))}
+           "holders": int(pos.customer_id.nunique()), "positions": int(len(pos)),
+           "history": {sym: [[f"{d:%Y-%m-%d}", round(float(v), 2)] for d, v in closes[sym].dropna().items()]
+                       for sym in sorted(set(pos.symbol))},
+           "fx_history": [[f"{d:%Y-%m-%d}", round(float(v), 2)] for d, v in fx.items()]}
     MARKET.mkdir(parents=True, exist_ok=True)
     path = MARKET / f"{ref:%Y-%m-%d}.json"
     path.write_text(json.dumps(out, ensure_ascii=False, indent=1, default=float), encoding="utf-8")

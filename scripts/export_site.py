@@ -205,7 +205,8 @@ def market_section(cfg, ctx):
     keep = ("customer_id", "symbol", "name", "kind", "ratio", "room", "trigger_price", "close", "credit_loan_krw", "value_krw",
             "shortfall_krw", "to_safe_krw", "big_days", "lookback", "ratio_hist", "trade_date")
     credit = [{k: b.get(k) for k in keep} for b in m.get("credit", [])]
-    return {"credit": credit, "positions": m.get("positions_all", []), "ref_date": m["ref_date"], "generated": m["generated"], "indices": m["indices"], "movers": m["movers"],
+    return {"credit": credit, "positions": m.get("positions_all", []), "history": m.get("history", {}),
+            "fx_history": m.get("fx_history", []), "ref_date": m["ref_date"], "generated": m["generated"], "indices": m["indices"], "movers": m["movers"],
             "alerts": alerts, "holders": m["holders"], "big_move_pct": cfg["market"]["big_move_pct"],
             "maintenance_ratio": cfg["market"]["maintenance_ratio"], "notes_checked": {k: v.get("checked_by", "") for k, v in notes.items()}}
 
@@ -222,6 +223,39 @@ def ai_calls():
             "audio": f"calls/{audio.name}" if audio else None, "ai": True,
             "transcript": (d / "transcript.txt").read_text(encoding="utf-8"),
             "result": json.loads(a.read_text(encoding="utf-8"))})
+    return out
+
+
+IN_FLOWS = {"deposit": "입금", "dividend": "배당금 입금", "els_redemption": "ELS 상환금 입금", "bond_maturity": "채권 상환금 입금",
+            "withdrawal": "출금"}
+
+
+def stock_series(cid, dates, market):
+    """기간 내내 지금 수량을 보유했다고 가정한 주식 평가금액(원). 휴장일은 직전 종가."""
+    if not market or "history" not in market:
+        return None
+    pos = [p for p in market.get("positions", []) if p["customer_id"] == cid]
+    if not pos:
+        return None
+    fx = pd.Series({pd.Timestamp(d): v for d, v in market["fx_history"]}).reindex(dates, method="ffill").bfill()
+    total = pd.Series(0.0, index=dates)
+    for p in pos:
+        h = market["history"].get(p["symbol"])
+        if not h:
+            continue
+        px = pd.Series({pd.Timestamp(d): v for d, v in h}).reindex(dates, method="ffill").bfill()
+        total += p["qty"] * px * (fx if p["currency"] == "USD" else 1.0)
+    return total
+
+
+def flow_list(cid, data, rates, start, end):
+    f = data["cash_flows"]
+    f = f[(f.customer_id == cid) & f.flow_type.isin(IN_FLOWS) & (f.date >= start) & (f.date <= end)]
+    out = []
+    for r in f.itertuples():
+        rate = rates.get((r.date, r.currency), 1.0) if r.currency != "KRW" else 1.0
+        out.append({"d": f"{r.date:%Y-%m-%d}", "t": IN_FLOWS[r.flow_type], "out": r.flow_type == "withdrawal",
+                    "a": round(float(r.amount) * rate)})
     return out
 
 
@@ -243,6 +277,8 @@ def main():
     pbq = ob[ob.channel == "pb_queue"].sort_values("scheduled_at")
     queued = pbq.assign(key=pbq.finding_id.map(key_of)).groupby("key").tail(1).set_index("key")
 
+    market = market_section(cfg, ctx)
+    fxr = {(r.date, r.currency): float(r.rate) for r in data["fx_rates"].itertuples()}
     month_start = A.replace(day=1)
     prev_end = month_start - pd.Timedelta(days=1)
     customers, details = [], {}
@@ -281,6 +317,9 @@ def main():
         details[cid] = {
             "findings": [{**finding_dict(f), "script": pb_script(f, c, cfg, gen, A)["body"]} for f in fs],
             "previews": pv,
+            "stock": (lambda s: [round(x / 1e4) for x in s] if s is not None else None)(
+                stock_series(cid, pd.DatetimeIndex(trend.date), market) if len(trend) else None),
+            "flows": flow_list(cid, data, fxr, trend.date.iloc[0], A) if len(trend) else [],
             "trend": {"start": f"{trend.date.iloc[0]:%Y-%m-%d}" if len(trend) else None,
                       "cash": [round(x / 1e4) for x in trend.cash_krw], "idle": [round(x / 1e4) for x in trend.idle_krw],
                       "auto": [round(x / 1e4) for x in trend.auto_rp_krw]},
@@ -326,7 +365,7 @@ def main():
         "outbox": outbox,
         "company": {"cash": cash, "auto": auto},
         "trigger_labels": TRIGGER_LABELS,
-        "market": market_section(cfg, ctx),
+        "market": market,
         "calls": ai_calls(),
     }
     OUT.parent.mkdir(exist_ok=True)
