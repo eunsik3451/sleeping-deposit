@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="사이로그">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4C8DFF"/>
+      <stop offset="1" stop-color="#1B64DA"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#g)"/>
+  <!-- PB와 고객을 잇는 선 -->
+  <path d="M18 27 C 26 15, 38 39, 46 27" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <!-- 두 사람(점) -->
+  <circle cx="18" cy="27" r="6.5" fill="#fff"/>
+  <circle cx="46" cy="27" r="6.5" fill="#fff"/>
+  <circle cx="46" cy="27" r="2.6" fill="#1B64DA"/>
+  <!-- 기록(로그) 줄 -->
+  <rect x="17" y="43" width="30" height="3.6" rx="1.8" fill="#fff" fill-opacity=".95"/>
+  <rect x="17" y="49.5" width="19" height="3.6" rx="1.8" fill="#fff" fill-opacity=".6"/>
+</svg>
