@@ -132,6 +132,10 @@ def pb_reasons(f, cfg, hold_reason):
 FORBIDDEN_MARKET = ("매수하세요", "매도하세요", "사세요", "파세요", "오를 것", "반등할", "추천", "확실히", "보장")
 
 
+def ratio_txt(r, maint):
+    return f"{r * 100:.1f}%" if abs(r - maint) < 0.01 else f"{r * 100:.0f}%"
+
+
 def margin_why(a):
     """반대매매 건: 하루 등락 뉴스 대신 최근 20거래일 누적 하락과 담보비율 변화로 설명한다."""
     sp, rh = a.get("spark") or [], a.get("ratio_hist") or []
@@ -162,7 +166,7 @@ def market_script(a, cust, note, cfg):
                   "[안내] 매매 여부는 고객님 판단이며 주문은 앱에서 직접 하실 수 있습니다. 앞으로의 주가 방향은 단정해서 말씀드릴 수 없다는 점 양해 부탁드립니다."]
     elif a["kind"] == "margin_call":
         lines[0] += f"신용으로 보유하신 {stock}의 담보가 부족해져 급히 연락드렸습니다."
-        lines += [f"[사실] {when} 종가 기준 담보비율이 {a['ratio'] * 100:.0f}%로 유지비율 {maint * 100:.0f}%보다 낮아졌습니다. "
+        lines += [f"[사실] {when} 종가 기준 담보비율이 {ratio_txt(a['ratio'], maint)}로 유지비율 {maint * 100:.0f}%보다 낮아졌습니다. "
                   f"신용 대출금은 {man(a['credit_loan_krw'])}, 담보 평가금액은 {man(a['value_krw'])}입니다.",
                   f"[안내] 부족한 금액은 약 {man(a['shortfall_krw'])}이고, 주의 단계 밖으로 돌리려면 약 {man(a['to_safe_krw'])}이 필요합니다. 정해진 기한까지 현금을 넣거나 일부 상환하지 않으시면 보유 주식이 반대매매(강제 매도)될 수 있습니다.",
                   f"[이유] {reason}",
@@ -170,7 +174,7 @@ def market_script(a, cust, note, cfg):
     else:
         price = f"${a['trigger_price']:,.2f}" if a["currency"] == "USD" else f"{a['trigger_price']:,.0f}원"
         lines[0] += f"신용으로 보유하신 {stock}의 담보비율이 낮아져 반대매매가 생기기 전에 미리 알려드리려고 연락드렸습니다."
-        lines += [f"[사실] {when} 종가 기준 담보비율이 {a['ratio'] * 100:.0f}%로, 유지비율 {maint * 100:.0f}%까지 여유가 줄었습니다. "
+        lines += [f"[사실] {when} 종가 기준 담보비율이 {ratio_txt(a['ratio'], maint)}로, 유지비율 {maint * 100:.0f}%까지 여유가 줄었습니다. "
                   f"주가가 약 {a['room'] * 100:.1f}% 더 내려 {price} 아래가 되면 담보가 부족해질 수 있습니다."
                   + (f" 최근 {a['lookback']}거래일 중 하루에 이만큼 내린 날이 {a['big_days']}일 있었습니다." if a["big_days"] else ""),
                   f"[안내] 주의 단계 밖으로 돌리려면 약 {man(a['to_safe_krw'])}을 더 넣거나 그만큼 신용을 줄이시면 됩니다.",
