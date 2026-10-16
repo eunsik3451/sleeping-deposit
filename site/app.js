@@ -1113,7 +1113,7 @@
       why: a.kind === "big_move" ? "왜 움직였나요" : "왜 담보가 줄었나요" }));
     const fs = findingsOf(cid);
     fs.filter(f => PB_BY_FID[f.finding_id]).concat(fs.filter(f => !PB_BY_FID[f.finding_id])).forEach(f => out.push({ key: f.finding_id,
-      tag: f.deadline ? `마감 D-${daysLeft(f.deadline)}` : SHORT[f.rule], cls: f.deadline && daysLeft(f.deadline) <= 7 ? "s-due" : "s-move",
+      tag: f.deadline ? `마감 D-${daysLeft(f.deadline)}` : SHORT[f.rule], cls: f.deadline ? "s-due" : "s-idle",
       title: headline(f), todo: todo(f), script: f.script, reason: "", sources: [], gauge: null, amount: `${amtText(f)} ${SHORT[f.rule]}`, note: amtNote(f), contact: !!PB_BY_FID[f.finding_id] }));
     return out;
   }
@@ -1422,13 +1422,39 @@
     const days = Math.max(0, Math.round((new Date(todayKey() + "T00:00:00") - new Date(best.date + "T00:00:00")) / 864e5));
     return { ...best, days, level: days >= CARE.quiet ? "bad" : days >= 30 ? "mid" : "ok" };
   }
-  function contactStrip(cid) {
+  // 프로필 머리 오른쪽: 연락 일수를 크게
+  function contactBadge(cid) {
     const lc = lastContact(cid), today = lc && lc.mine && lc.days === 0;
-    const txt = !lc ? "연락 기록 없음" : lc.days === 0 ? `오늘 ${lc.kind}` : `${lc.days}일째 연락 없음`;
-    const note = !lc ? "" : lc.days === 0 ? "" : `마지막 ${lc.kind} ${lc.date.slice(5).replace("-", "/")}${lc.level === "bad" ? ` · ${CARE.quiet}일 넘음` : ""}`;
-    return `<section class="cstrip ${lc ? "lv-" + lc.level : "lv-bad"}"><div class="cs-main"><span class="cs-dot"></span><b>${txt}</b><small>${note}</small></div>
-      <div class="cs-acts">${today ? `<button class="txt" data-contact="undo">되돌리기</button>` : `<button class="ghost sm" data-contact="통화">통화 완료</button><button class="ghost sm" data-contact="미팅">미팅 완료</button>`}</div></section>`;
+    const big = !lc ? "기록 없음" : lc.days === 0 ? "오늘" : `${lc.days}일째`;
+    const sub = !lc ? "연락 기록이 없어요" : lc.days === 0 ? `${lc.kind} 완료` : `연락 없음 · 마지막 ${lc.kind} ${lc.date.slice(5).replace("-", "/")}`;
+    return `<div class="cbadge lv-${lc ? lc.level : "bad"}"><div class="cb-num"><b>${big}</b><small>${esc(sub)}</small></div>
+      <div class="cb-acts">${today ? `<button class="txt" data-contact="undo">되돌리기</button>` : `<button class="ghost sm" data-contact="통화">통화 완료</button><button class="ghost sm" data-contact="미팅">미팅 완료</button>`}</div></div>`;
   }
+  // 핵심 숫자: 총자산 · 예수금(쉬는 돈) · 주식(하루 변동) · 신용 · 더 받을 수 있는 돈
+  function clientKpis(cid, { total, krw, usdB, pos, stock, loan, credit }) {
+    const r1 = findingsOf(cid).find(f => f.rule === "R1" && f.currency === "KRW");
+    const day = pos.reduce((s, p) => s + p.day_delta_krw, 0);
+    const extra = findingsOf(cid).filter(f => f.rule !== "R4").reduce((s, f) => s + amountOf(f), 0);
+    const worst = credit.filter(b => b.kind !== "margin_safe").sort((a, b) => a.room - b.room)[0];
+    const k = [["총자산", man(total), ""],
+      ["원화 예수금", man(krw.cash), r1 ? `<em class="warn">쉬는 돈 ${man(r1.meta.idle_krw)} · ${r1.meta.streak}일째</em>` : foundOf(cid) ? "예수금 자동 RP 이용 중" : ""]];
+    if (usdB) k.push(["달러", usd(usdB.cash), ""]);
+    k.push(["주식", pos.length ? man(stock) : "–", pos.length ? `어제 <span class="${day < 0 ? "dn" : "up"}">${day < 0 ? "−" : "+"}${man(Math.abs(day))}</span>` : ""]);
+    if (loan) k.push(["신용", man(loan), worst ? `<em class="bad">${esc(STAGE[worst.kind][0])} · ${esc(worst.name)}</em>` : "안전"]);
+    if (extra) k.push(["더 받을 수 있는 돈", `+${man(extra)}`, "1년 RP 이자·세금 등"]);
+    return k.map(([t, v, s]) => `<div><span>${t}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`).join("");
+  }
+  // 꼭 알아야 할 것: 위험·마감·쉬는 돈(엔진 순서) → 고객과 약속한 일 → 지난 통화 → 주의할 점. 최대 5개
+  function mustKnow(cid, items, openTodos, last, consent) {
+    const out = items.slice(0, 3).map(it => ({ tag: it.tag, cls: it.cls, t: it.title, d: it.todo }));
+    openTodos.slice(0, 1).forEach(t => out.push({ tag: t.due ? `약속 D-${Math.max(0, daysLeft(t.due))}` : "약속", cls: "s-due", t: t.text, d: "지난 통화에서 고객과 약속한 일" }));
+    if (last) { const r = last.ai ? last.result : last; const h = r.headline || r.summary || "";
+      if (h) out.push({ tag: "지난 통화", cls: "s-info", t: String(h).split(/(?<=다\.)\s/)[0], d: String(last.ai ? (r.call_date || last.at) : last.at).slice(0, 10) }); }
+    if (!consent.length) out.push({ tag: "주의", cls: "s-info", t: "광고 수신 동의가 없어요", d: "상품 안내는 문자·알림 대신 전화로만" });
+    if (!out.length) return "";
+    return `<section class="must"><h2>그 밖에 알아야 할 것</h2><ol>${out.slice(0, 5).map(o => `<li><span class="tag ${o.cls}">${esc(o.tag)}</span><div><b>${esc(o.t)}</b><small>${esc(o.d)}</small></div></li>`).join("")}</ol></section>`;
+  }
+
   const PB_LIST = [...new Set(D.customers.map(c => c.pb))].sort();
 
   // 할 일 묶음: 지금 바로(시장·반대매매) / 오늘 중 / 이번 주 / 시간 날 때(관리 필요)
@@ -1528,23 +1554,30 @@
   }
 
   // ════════════════ 고객 관리 ════════════════
-  let cm = { tab: "all", q: "" };
+  let cm = { tab: "all", q: "", sort: "urgent" };
   function pageClientsMgmt() {
-    const mine = D.customers.filter(c => inView(c.id)).map(c => ({ c, g: taskGroup(c.id), item: contactItems(c.id)[0], n: contactItems(c.id).length }));
+    const mine = D.customers.filter(c => inView(c.id)).map(c => ({ c, g: taskGroup(c.id), item: contactItems(c.id)[0], n: contactItems(c.id).length, lc: lastContact(c.id) }));
+    const lcDays = x => x.lc ? x.lc.days : 9999, cashOf = x => (x.c.balance.KRW || { cash: 0 }).cash;
+    const SORTS = { urgent: (a, b) => (a.g ? GROUPS.findIndex(g => g[0] === a.g) : 9) - (b.g ? GROUPS.findIndex(g => g[0] === b.g) : 9) || a.c.name.localeCompare(b.c.name),
+      contact: (a, b) => lcDays(b) - lcDays(a) || cashOf(b) - cashOf(a), cash: (a, b) => cashOf(b) - cashOf(a) };
     const lists = { all: mine, todo: mine.filter(x => x.g), care: mine.filter(x => x.g === "later") };
     const q = cm.q, rows = lists[cm.tab].filter(x => !q || (x.c.id + x.c.name).includes(q))
-      .sort((a, b) => (a.g ? GROUPS.findIndex(g => g[0] === a.g) : 9) - (b.g ? GROUPS.findIndex(g => g[0] === b.g) : 9) || a.c.name.localeCompare(b.c.name));
+      .sort(SORTS[cm.sort]);
     $app.innerHTML = `<div class="pg">
       <div class="pg-head"><div><h1>고객 관리</h1><p class="sub">${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 고객 ${mine.length}명</p></div></div>
       <div class="toolbar"><div class="seg">${[["all", "전체", lists.all.length], ["todo", "챙길 것 있음", lists.todo.length], ["care", "예수금이 오래 그대로", lists.care.length]]
         .map(([k, t, n]) => `<button class="${cm.tab === k ? "on" : ""}" data-tab="${k}">${t} <em>${n}</em></button>`).join("")}</div>
+        <select class="pill sortsel" id="cmsort" aria-label="정렬">${[["urgent", "급한 순"], ["contact", "연락 오래된 순"], ["cash", "예수금 많은 순"]]
+          .map(([k, t]) => `<option value="${k}" ${cm.sort === k ? "selected" : ""}>${t}</option>`).join("")}</select>
         <input class="pill" type="search" id="cmq" placeholder="이름이나 고객번호" value="${esc(q)}"></div>
-      <ul class="rows">${rows.map(x => { const c = x.c, b = c.balance.KRW || { cash: 0 };
+      <ul class="rows cm-rows">${rows.map(x => { const c = x.c, b = c.balance.KRW || { cash: 0 };
         return `<li><a href="#client/${c.id}"><span class="ava">${esc(c.name.slice(0, 1))}</span>
           <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${c.id} · ${esc(c.risk)}</small><i>${esc(x.item ? x.item.title : "챙길 것 없음")}</i></span>
           ${x.g ? `<span class="tag ${tagCls(x.g)}">${GROUPS.find(g => g[0] === x.g)[1]}</span>` : "<span></span>"}
+          <span class="lcd lv-${x.lc ? x.lc.level : "bad"}"><b>${x.lc ? (x.lc.days ? x.lc.days + "일" : "오늘") : "–"}</b><small>${x.lc && !x.lc.days ? "연락함" : "연락 없음"}</small></span>
           <span class="amt"><b>${man(b.cash)}</b><small>원화 예수금</small></span><span class="go">›</span></a></li>`; }).join("") || `<li class="empty">해당하는 고객이 없어요</li>`}</ul></div>`;
     $app.querySelectorAll("[data-tab]").forEach(b => (b.onclick = () => { cm.tab = b.dataset.tab; pageClientsMgmt(); }));
+    $app.querySelector("#cmsort").onchange = e => { cm.sort = e.target.value; pageClientsMgmt(); };
     const inp = $app.querySelector("#cmq");
     inp.oninput = () => { cm.q = inp.value.trim(); pageClientsMgmt(); const n = $app.querySelector("#cmq"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
   }
@@ -1586,15 +1619,18 @@
 
     $app.innerHTML = `<div class="pg c360">
       <a class="crumb" href="#clients">‹ 고객 관리</a>
-      <div class="c360-head"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
-        <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p></div>
-        <div class="c360-tot"><div><span>총자산</span><b>${man(total)}</b></div><div><span>원화 예수금</span><b>${man(krw.cash)}</b></div>${usdB ? `<div><span>달러</span><b>${usd(usdB.cash)}</b></div>` : ""}<div><span>주식</span><b>${pos.length ? man(stock) : "–"}</b></div>${loan ? `<div><span>신용</span><b class="red">${man(loan)}</b></div>` : ""}</div></div>
-      ${contactStrip(cid)}
+      <section class="c360-top">
+        <div class="c360-head"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
+          <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p></div>
+          ${contactBadge(cid)}</div>
+        <div class="ckpis">${clientKpis(cid, { total, krw, usdB, pos, stock, loan, credit })}</div>
+      </section>
       ${lead ? `<section class="actbar ${g ? "g-" + g : ""}">
         <div class="ab-main"><span class="tag ${tagCls(g)}">${g ? GROUPS.find(x => x[0] === g)[1] : "참고"}</span><div><b>${esc(lead.title)}</b><small>${esc(lead.todo)}</small></div></div>
         <dl class="klines inline">${lines.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         <div class="ab-acts">${st ? `<span class="sub">${st === "done" ? "오늘 완료" : "내일 다시"}</span><button class="txt" data-tst="undo">되돌리기</button>`
           : `<button class="cta sm" data-callnow>전화 걸기</button><button class="ghost sm" data-tst="done">완료</button><button class="txt" data-tst="later">내일로</button>`}</div></section>` : ""}
+      ${mustKnow(cid, lead ? items.slice(1) : items, openTodos, last, consent)}
       <nav class="ctabs">${TABS.map(([k, t]) => `<button class="${cv.tab === k ? "on" : ""}" data-ctab="${k}">${t}</button>`).join("")}</nav>
       ${body}</div>`;
     bindClient(cid);
