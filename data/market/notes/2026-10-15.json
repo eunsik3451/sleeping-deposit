@@ -1,46 +1,427 @@
 {
  "_market": {
-  "summary": "국내 증시가 폭락했습니다. 코스피는 7.57% 내린 5,554.22로 6,000선이 무너졌고 코스닥도 7.65% 빠졌습니다. 미국 물가 충격에 따른 금리 인상 우려, AI 투자 수익성 의구심이 반도체 대형주 투매로 이어졌습니다.",
+  "summary": "15일 국내 증시는 코스피·코스닥이 모두 7%대 폭락하며 서킷브레이커까지 걸린 '검은 목요일'이었습니다. 미국 물가가 예상보다 높게 나와 금리 인상 우려가 커졌고, AI 투자 수익성 논란까지 겹치면서 외국인이 반도체 대형주를 집중적으로 팔았습니다. 같은 날 밤 뉴욕증시는 국채금리가 내려 3대 지수가 모두 올랐지만, 반도체지수는 7거래일 연속 떨어졌습니다.",
   "bullets": [
-   "국내: 코스피 5,554.22(−7.57%), 코스닥 760.82(−7.65%). 장 초반 매도 사이드카 발동, 7거래일 연속 하락",
-   "반도체: 삼성전자 9%대·SK하이닉스 11%대 급락. CXMT D램 추격 우려와 HBM4 장비 입고 연기 가능성(일부 보도)도 거론",
-   "미국(15일 현지): S&P 500 +0.33%, 나스닥 +0.08%로 전날 급락 뒤 소폭 반등"
+   "국내: 코스피 5,554.22(−7.57%)로 4월 이후 최저, 7거래일 연속 하락. 외국인 3조6천억원대 순매도",
+   "미국(15일 현지): 다우 +1.08%, S&P 500 +0.33%, 나스닥 +0.08%. 기술주에서 헬스케어·방어주로 돈이 옮겨감",
+   "공통 악재: 미국 9월 CPI 3.7%·PPI 전월 대비 1.3% 급등 → 연말 금리 인상 확률 67%로 상승, AI 기업 자금조달 우려"
   ],
   "sources": [
    {
-    "title": "서울신문: 삼성전자·SK하이닉스 동반 급락… 코스피 6000선 붕괴",
-    "url": "https://www.seoul.co.kr/news/economy/securities/2026/10/15/20261015500043"
+    "title": "뉴스1: '밑 빠진' 코스피 5554 마감…외인 3.6조 '팔자' 삼전닉스 9~11%↓",
+    "url": "https://www.news1.kr/finance/market-exr/6321448"
    },
    {
-    "title": "파이낸셜뉴스: 코스피 10월 하락률 20% 육박",
-    "url": "https://fnnews.com/news/202610151124262246"
+    "title": "Reuters(Free Malaysia Today 전재): S&P 500 ends higher as traders shift from AI to healthcare",
+    "url": "https://www.freemalaysiatoday.com/category/business/2026/10/16/s-p-500-ends-higher-as-traders-shift-from-ai-to-healthcare"
    },
    {
-    "title": "MTN: 美 물가 충격에 코스피 급락",
-    "url": "https://news.mtn.co.kr/article/2026101509351416865"
+    "title": "CNBC: Nvidia, AMD, Dell sink in global tech rout on AI funding worries",
+    "url": "https://www.cnbc.com/2026/10/15/sk-hynix-samsung-softbank-stocks-asia-tech-rout-ai-funding-worries.html"
    }
   ],
-  "checked_by": "Claude 웹 검색 (2026-10-16)"
+  "kr": {
+   "summary": "코스피는 454.59포인트(7.57%) 내린 5,554.22, 코스닥은 7.65% 내린 760.82에 마감했습니다. 두 시장 모두 장중 8% 넘게 밀리며 서킷브레이커가 발동됐고, 하루 새 코스피 시가총액 약 376조원이 사라졌습니다.",
+   "bullets": [
+    "코스피는 장중 5,450.81(−9.29%)까지 떨어졌습니다. 코스닥(12시 23분)에 이어 코스피(12시 38분)도 서킷브레이커가 걸려 20분간 매매가 멈췄고, 두 시장 동시 발동은 7월 29일 이후 처음입니다.",
+    "외국인은 유가증권시장에서 3조6천억원대를 순매도해 8거래일째 팔았습니다. 삼성전자(약 1조4,500억원)와 SK하이닉스(약 1조1,100억원)에 매도가 몰렸고, 개인과 기관이 받아냈지만 역부족이었습니다.",
+    "반도체가 하락을 이끌었습니다. 삼성전자 −9.48%, SK하이닉스 −11.06%, 삼성전기 −15.36%, 코스닥 장비주 원익IPS −15.47%, 2차전지 에코프로비엠 −9.10%였습니다.",
+    "반면 삼성바이오로직스(+5.50%), 유한양행(+5.09%), 셀트리온(+1.28%) 등 바이오·방어주는 올랐습니다. 금리와 AI 업황에 민감한 종목에서 빠진 돈이 실적이 잘 보이는 종목으로 옮겨갔다는 분석입니다.",
+    "변동성지수(VKOSPI)는 23.31% 뛴 55.38로 마감해 불안 심리가 크게 높아졌습니다.",
+    "전망은 엇갈립니다. 삼성증권은 이익 전망이 크게 꺾이지 않으면 5,000선이 지지선이 될 수 있다고 봤고, 키움증권은 외국인 매도가 잦아들 때까지 비중 확대를 자제하라고 조언했습니다."
+   ],
+   "sources": [
+    {
+     "title": "뉴스1: '밑 빠진' 코스피 5554 마감…외인 3.6조 '팔자' 삼전닉스 9~11%↓ [시황종합]",
+     "url": "https://www.news1.kr/finance/market-exr/6321448"
+    },
+    {
+     "title": "파이낸셜뉴스: '검은 목요일'… 코스피 7% 이상 빠졌다",
+     "url": "https://www.fnnews.com/news/202610151818169515"
+    },
+    {
+     "title": "뉴스핌: [마감시황] '검은 목요일' 코스피·코스닥 7%대 급락",
+     "url": "https://www.newspim.com/news/view/20261015001061"
+    },
+    {
+     "title": "뉴스핌: 코스피 5500까지 폭락…전문가들도 \"하단 예측 어려워\"",
+     "url": "https://www.newspim.com/news/view/20261015001234"
+    },
+    {
+     "title": "연합뉴스(파이낸셜뉴스 전재): 코스피 급락에 '변동성지수' 57선 넘어",
+     "url": "https://fnnews.com/news/202610151632039385"
+    },
+    {
+     "title": "핀포인트뉴스: 10월 15일 매매동향…외국인 3조6350억원 순매도",
+     "url": "https://www.pinpointnews.co.kr/news/articleView.html?idxno=495719"
+    },
+    {
+     "title": "Reuters(US News 전재): South Korea's KOSPI Closes at 6-Month Low as Chipmakers Slump on AI Worries",
+     "url": "https://money.usnews.com/investing/news/articles/2026-10-15/south-koreas-kospi-triggers-circuit-breaker-in-tech-led-selloff"
+    },
+    {
+     "title": "Bloomberg: Kospi Drops 8% as Samsung, SK Hynix Shares Plunge on AI and Rate Fears",
+     "url": "https://www.bloomberg.com/news/articles/2026-10-15/chip-stocks-deepen-losses-as-concerns-mount-over-rates-ai-debt"
+    },
+    {
+     "title": "The Korea Herald: Kospi slides over 7% as chip stocks sink",
+     "url": "https://www.koreaherald.com/article/10904070"
+    },
+    {
+     "title": "세계일보: 주가 급락 속에 환율 1,350원대로 상승…9거래일만에 최고",
+     "url": "https://www.segye.com/newsView/20261015518795"
+    }
+   ]
+  },
+  "us": {
+   "summary": "뉴욕증시는 현지시간 15일 9월 생산자물가(PPI) 급등과 AI 기업 부채 우려로 장 초반 밀렸다가, 국채금리가 크게 내리면서 3대 지수가 모두 올라 마감했습니다. 다우는 1% 넘게 올랐지만 반도체 약세에 나스닥은 강보합에 그쳤습니다.",
+   "bullets": [
+    "다우 52,177.69(+1.08%), S&P 500 7,744.06(+0.33%), 나스닥 26,713.03(+0.08%). S&P 500은 3거래일 연속 하락을 끊었습니다.",
+    "9월 PPI가 전월보다 1.3% 올라 약 4년 반 만에 가장 크게 뛰었습니다. CME 페드워치 기준 12월까지 금리 인상 확률은 62%에서 67%로 높아졌습니다.",
+    "그런데도 채권 매수가 몰려 10년물 국채금리는 10bp 넘게 내린 5.089%를 기록했고, 달러인덱스도 18개월 만의 고점에서 0.45% 내린 101.99였습니다.",
+    "업종별로는 11개 중 8개가 올랐고 헬스케어(+1.84%)와 소재(+1.71%)가 강했습니다. 일라이릴리 3%대, 유나이티드헬스 2.8% 상승.",
+    "필라델피아 반도체지수는 0.88% 내려 7거래일 연속 하락했습니다. TSMC가 최대 이익을 냈지만 2027년 전망을 신중하게 내놨고, AI 부채 우려에 델(−6.9%)·HPE(−7.1%)가 급락했습니다.",
+    "비트코인은 장중 7만9,950달러까지 밀려 한 달 만에 8만 달러를 밑돌았다가 8만2,000달러 선을 회복했습니다."
+   ],
+   "sources": [
+    {
+     "title": "Reuters(Free Malaysia Today 전재): S&P 500 ends higher as traders shift from AI to healthcare",
+     "url": "https://www.freemalaysiatoday.com/category/business/2026/10/16/s-p-500-ends-higher-as-traders-shift-from-ai-to-healthcare"
+    },
+    {
+     "title": "Reuters(Yahoo Finance 전재): Dollar retreats from 18-month high as Treasury yields dip",
+     "url": "https://finance.yahoo.com/markets/currencies/articles/dollar-retreats-18-month-high-043209540.html"
+    },
+    {
+     "title": "AP(WTOP): How major US stock indexes fared Thursday 10/15/2026",
+     "url": "https://wtop.com/news/2026/10/how-major-us-stock-indexes-fared-thursday-10-15-2026"
+    },
+    {
+     "title": "CNBC: U.S. Treasury yields: investors send yields lower after Sept. PPI",
+     "url": "https://www.cnbc.com/2026/10/15/us-treasury-yields-investors-economic-data-.html"
+    },
+    {
+     "title": "CNBC: Nvidia, AMD, Dell sink in global tech rout on AI funding worries",
+     "url": "https://www.cnbc.com/2026/10/15/sk-hynix-samsung-softbank-stocks-asia-tech-rout-ai-funding-worries.html"
+    },
+    {
+     "title": "Yahoo Finance: Stock market today: Dow jumps, S&P 500, Nasdaq gain as AI jitters fade",
+     "url": "https://finance.yahoo.com/markets/live/stock-market-today-dow-sp-500-rise-nasdaq-trims-losses-as-treasury-yields-sink-153611834.html"
+    },
+    {
+     "title": "CoinDesk: Bitcoin bounces back to $82,000 after first fall below $80,000 in one month",
+     "url": "https://www.coindesk.com/business/2026/10/15/live-updates-bitcoin-back-under-usd81-000-as-ai-selloff-worsens"
+    },
+    {
+     "title": "뉴스핌: 뉴욕증시, 헬스케어 강세 속 반등…다우 1.08%↑",
+     "url": "https://www.newspim.com/news/view/20261016000030"
+    },
+    {
+     "title": "Bloomberg(Rigzone 전재): Oil Prices Diverge as Supply Risks Mount",
+     "url": "https://www.rigzone.com/news/wire/oil_prices_diverge_as_supply_risks_mount-15-oct-2026-184860-article/"
+    }
+   ]
+  },
+  "macro": [
+   "물가: 미국 9월 CPI 3.7%(예상 3.6%), 근원 CPI도 예상보다 높았고, 15일 발표된 PPI는 전월 대비 1.3% 급등했습니다.",
+   "환율: 원·달러 환율은 6.3원 오른 1,344.6원에 마감했습니다(장중 1,353.0원, 9거래일 만의 최고).",
+   "금리: 위험회피 심리에 국고채 3년물 3.867%(−1.6bp), 10년물 4.193%(−6.8bp)로 내렸고, 미국 10년물도 5.089%로 10bp 넘게 하락했습니다.",
+   "유가: WTI는 미국 원유 재고 감소에 3% 오른 97.97달러, 브렌트유는 0.1% 내린 105.92달러에 마감했습니다."
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
  },
  "000660": {
   "name": "SK하이닉스",
   "trade_date": "2026-10-15",
-  "chg_pct": -11.06,
-  "reason": "10월 15일 코스피가 7%대 폭락한 가운데 반도체 대형주가 함께 무너지며 1,262,000원(-11.1%)에 마감했습니다. 보도에 따르면 미국 소비자물가 충격으로 금리 인상 우려가 커지고 AI 설비투자 수익성 의구심, 중국 CXMT의 D램 추격 우려가 겹쳤으며, 일부 보도는 SK하이닉스 HBM4 장비 입고 연기 가능성도 악재로 꼽았습니다. 장 초반 매도 사이드카가 발동됐고 삼성전자도 9%대 내렸습니다.",
+  "chg_pct": -0.1106,
+  "reason": "SK하이닉스는 15일 11.06% 내린 126만2,000원에 마감했습니다. 이날 외국인 순매도만 1조1,112억원이었고, 6일부터 7거래일 연속 떨어지며 이 기간 주가가 31% 빠져 시가총액이 7월 말 이후 처음으로 1,000조원 아래로 내려갔습니다. 미국 9월 CPI가 예상보다 높게 나와 금리 인상 우려가 커진 데다 AI 투자 자금조달 우려와 중국 CXMT의 메모리 추격 우려가 겹쳤고, 전날 밤 미국에서 SK하이닉스 ADR(−6.06%)과 필라델피아 반도체지수(−4.3%)가 급락한 것도 부담이었습니다.",
   "sources": [
+   {
+    "title": "강원도민일보: 외인 '삼전·닉스' 2조5000억원대 던졌다…주가 10% 안팎 급락",
+    "url": "https://www.kado.net/news/curationView.html?idxno=2078347"
+   },
+   {
+    "title": "MBC: 코스피 7% 급락하며 5,554에 마감‥SK하이닉스 11% 폭락에 시총 '1천 조' 아래로",
+    "url": "https://imnews.imbc.com/news/2026/econo/article/6858203_36932.html"
+   },
    {
     "title": "서울신문: 삼성전자·SK하이닉스 동반 급락… 코스피 6000선 붕괴",
     "url": "https://www.seoul.co.kr/news/economy/securities/2026/10/15/20261015500043"
-   },
-   {
-    "title": "MTN: 美 물가 충격에 코스피 5%대 급락…SK하닉 9%↓",
-    "url": "https://news.mtn.co.kr/article/2026101509351416865"
-   },
-   {
-    "title": "트레이딩키: 코스피 급락 5가지 이유",
-    "url": "https://tradingkey.com/kr/analysis/stocks/us-stocks/262218136-kospi-skhynix-samsung-ai-skhy-hbm-dram-tradingkey"
    }
   ],
-  "checked_by": "Claude 웹 검색 (2026-10-16)"
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "005930": {
+  "name": "삼성전자",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0948,
+  "reason": "삼성전자는 15일 9.48% 내린 21만원에 마감해 7월 28일 이후 가장 크게 떨어졌습니다. 미국 9월 CPI(3.7%)가 예상치를 웃돈 데다 미국 AI 클라우드 업체 코어위브의 회사채 금리가 15%까지 치솟으며 AI 데이터센터 투자 여력에 대한 우려가 커졌다는 분석이 나왔습니다. 중국 CXMT가 연내 서버용 DDR5를 내놓겠다고 밝힌 것도 메모리 공급 과잉 우려를 키웠고, 보도에 따르면 외국인은 이날 삼성전자만 1조4,573억원어치를 순매도했습니다.",
+  "sources": [
+   {
+    "title": "강원도민일보: 외인 '삼전·닉스' 2조5000억원대 던졌다…주가 10% 안팎 급락",
+    "url": "https://www.kado.net/news/curationView.html?idxno=2078347"
+   },
+   {
+    "title": "인베스트조선: 분기 영업익 세계 1위 삼성전자, 주가는 왜 또 폭락한 건데?",
+    "url": "https://www.investchosun.com/site/data/html_dir/2026/10/15/2026101580087.html"
+   },
+   {
+    "title": "머니투데이: 삼전닉스 뒤흔든 CXMT도 'AI 거품론' 충격…시총 1위 반납",
+    "url": "https://www.mt.co.kr/world/2026/10/15/2026101519132924564"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "277810": {
+  "name": "레인보우로보틱스",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0944,
+  "reason": "레인보우로보틱스는 15일 9.44% 내린 34만5,500원에 마감했습니다. 미국 기술주 약세 여파로 로보티즈(−12%대)·두산로보틱스(−7%대) 등 국내 로봇주가 장중 일제히 급락했다는 보도가 나왔습니다. 회사 자체의 악재는 확인되지 않았고, 코스닥 폭락과 로봇 업종 동반 약세에 휩쓸린 것으로 보입니다.",
+  "sources": [
+   {
+    "title": "CBC뉴스: 로봇주 동반 급락…레인보우로보틱스·두산로보틱스·로보티즈 흔들",
+    "url": "https://www.cbci.co.kr/news/articleView.html?idxno=615733"
+   },
+   {
+    "title": "뉴스핌: [마감시황] '검은 목요일' 코스피·코스닥 7%대 급락",
+    "url": "https://www.newspim.com/news/view/20261015001061"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "247540": {
+  "name": "에코프로비엠",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.091,
+  "reason": "에코프로비엠은 15일 9.10% 내린 10만5,900원에 마감했습니다. 코스닥이 7.65% 급락해 서킷브레이커가 걸린 가운데 에코프로(−8.18%), 삼성SDI(−8.63%) 등 2차전지주가 함께 밀렸습니다. 개별 악재는 보도되지 않았고, 13일에도 장중 9% 가까이 빠지는 등 지수가 급락할 때마다 낙폭이 커지는 모습입니다.",
+  "sources": [
+   {
+    "title": "CBC뉴스: 에코프로비엠 주가 8%대 뚝…10만6400원으로 밀려",
+    "url": "https://www.cbci.co.kr/news/articleView.html?idxno=615713"
+   },
+   {
+    "title": "뉴스핌: [마감시황] '검은 목요일' 코스피·코스닥 7%대 급락",
+    "url": "https://www.newspim.com/news/view/20261015001061"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "034020": {
+  "name": "두산에너빌리티",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0879,
+  "reason": "두산에너빌리티는 15일 8.79% 내린 6만3,300원에 마감했습니다. 미국 물가 충격과 외국인 대량 매도로 코스피가 7% 넘게 떨어진 '검은 목요일'의 충격을 피하지 못했고, 한전기술·우리기술 등 원전 관련주도 함께 약세였습니다. 회사 자체의 악재성 공시나 뉴스는 확인되지 않았습니다.",
+  "sources": [
+   {
+    "title": "CBC뉴스: 두산에너빌리티, '검은 목요일'에 급락 면치못했다",
+    "url": "https://www.cbci.co.kr/news/articleView.html?idxno=615817"
+   },
+   {
+    "title": "CBC뉴스: 두산에너빌리티·한전기술·우리기술 주가 동반 하락",
+    "url": "https://www.cbci.co.kr/news/articleView.html?idxno=615765"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "006400": {
+  "name": "삼성SDI",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0863,
+  "reason": "삼성SDI는 15일 8.63% 내린 54만원에 마감했습니다. 보도에 따르면 급락을 직접 설명할 공시나 악재는 없었고, 최근 공시도 IR 개최 안내 정도였습니다. 지수 폭락 속에 LG에너지솔루션(−4.62%)·에코프로비엠(−9.10%) 등 2차전지주가 함께 내린 영향으로 보입니다.",
+  "sources": [
+   {
+    "title": "재경일보: [마감분석] 삼성SDI 8%대 급락 마감 54만원선 후퇴",
+    "url": "https://news.jkn.co.kr/post/1025000"
+   },
+   {
+    "title": "뉴스핌: [마감시황] '검은 목요일' 코스피·코스닥 7%대 급락",
+    "url": "https://www.newspim.com/news/view/20261015001061"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "086520": {
+  "name": "에코프로",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0818,
+  "reason": "에코프로는 15일 8.18% 내린 8만800원에 마감했습니다. 코스닥이 7.65% 급락한 가운데 자회사 에코프로비엠(−9.10%)과 함께 2차전지주 전반이 약세였습니다. 회사 자체의 악재는 보도되지 않아 시장 급락과 업종 동반 하락의 영향으로 보입니다.",
+  "sources": [
+   {
+    "title": "뉴스핌: [마감시황] '검은 목요일' 코스피·코스닥 7%대 급락",
+    "url": "https://www.newspim.com/news/view/20261015001061"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "042660": {
+  "name": "한화오션",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0742,
+  "reason": "한화오션은 15일 7.42% 내린 6만2,400원에 마감했습니다. 보도에 따르면 뚜렷한 개별 악재 공시는 없었고, HD현대중공업(−4.47%) 등 조선주가 함께 밀린 만큼 시장 급락에 따른 매도와 차익 실현 물량이 겹친 것으로 풀이됩니다.",
+  "sources": [
+   {
+    "title": "재경일보: 한화오션 7.42% 하락 마감 6만2400원선 후퇴",
+    "url": "https://news.jkn.co.kr/post/1025023"
+   },
+   {
+    "title": "재경일보: [특징주] 한화오션, 뚜렷한 악재 없이 장중 7%대 하락세",
+    "url": "https://news.jkn.co.kr/post/1024131"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "112040": {
+  "name": "위메이드",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0701,
+  "reason": "위메이드는 15일 7.01% 내린 1만3,920원에 마감했습니다. 회사 자체의 악재는 보도되지 않았고, 코스닥이 7.65% 급락하며 서킷브레이커가 걸린 시장 전반의 매도세에 휩쓸린 것으로 보입니다.",
+  "sources": [
+   {
+    "title": "뉴스핌: [마감시황] '검은 목요일' 코스피·코스닥 7%대 급락",
+    "url": "https://www.newspim.com/news/view/20261015001061"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "005380": {
+  "name": "현대차",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0574,
+  "reason": "현대차는 15일 5.74% 내린 29만5,500원에 마감해 30만원선이 무너졌습니다. 시장 급락에 더해, 노조 파업에 따른 생산 차질로 3분기 실적이 기대에 못 미칠 것이라며 증권사들이 목표주가를 잇달아 낮춘 점도 부담이었다는 보도가 나왔습니다. 증권가는 4분기 생산 정상화와 신차 효과로 실적이 반등할 것으로 보고 있습니다.",
+  "sources": [
+   {
+    "title": "CBC뉴스: 현대차 주가 급락, 29만5500원…증권사 목표가 하향, 4분기 반등 주목",
+    "url": "https://www.cbci.co.kr/news/articleView.html?idxno=615760"
+   },
+   {
+    "title": "뉴스핌: [마감시황] '검은 목요일' 코스피·코스닥 7%대 급락",
+    "url": "https://www.newspim.com/news/view/20261015001061"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "207940": {
+  "name": "삼성바이오로직스",
+  "trade_date": "2026-10-15",
+  "chg_pct": 0.055,
+  "reason": "삼성바이오로직스는 15일 5.50% 오른 124만7,000원에 마감해 폭락장 속 시가총액 상위 종목 가운데 홀로 올랐습니다. 금리와 AI 업황에 민감한 반도체주에서 빠진 자금이 실적이 잘 보이는 대형 바이오·방어주로 옮겨갔다는 분석이 나왔고, 한국투자증권이 3분기 실적이 기대에 부합할 것이라며 목표주가 195만원을 유지한 점, 13일 폴리펩타이드그룹 공개매수 응모율이 87.88%로 최소 조건을 넘은 점도 우호적이었습니다. 다만 26일부터 예고된 노조 파업은 변수로 꼽힙니다.",
+  "sources": [
+   {
+    "title": "재경일보: 삼성바이오로직스 5.5% 급등 124만7000원 마감",
+    "url": "https://news.jkn.co.kr/post/1024995"
+   },
+   {
+    "title": "국제뉴스: 삼성바이오로직스 주가 상승 \"3분기 실적 시장 기대 부합\"",
+    "url": "https://www.gukjenews.com/news/articleView.html?idxno=3722422"
+   },
+   {
+    "title": "잡포스트: 삼성바이오로직스 상승…폴리펩타이드 공개매수 진전",
+    "url": "https://www.job-post.co.kr/news/articleView.html?idxno=232516"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "IONQ": {
+  "name": "아이온큐",
+  "trade_date": "2026-10-15",
+  "chg_pct": 0.0933,
+  "reason": "아이온큐는 9.33% 오른 34.35달러에 마감했습니다. 보도에 따르면 14일 단일 기관투자자 대상 20억 달러 규모 유상증자를 결정해 지분 희석 우려로 급락했다가, 15일에는 그 충격에서 벗어나 양자컴퓨팅주와 함께 반등했습니다. 반등의 직접적인 계기가 된 별도 재료는 보도되지 않았습니다.",
+  "sources": [
+   {
+    "title": "24/7 Wall St.: Quantum Computing Stocks Rebound After Dilution Scare",
+    "url": "https://247wallst.com/investing/2026/10/15/quantum-computing-stocks-rebound-after-dilution-scare-ionq-and-rigetti-climb-3-d-wave-advances-2/"
+   },
+   {
+    "title": "Yahoo Finance: Stock market today: Dow jumps, S&P 500, Nasdaq gain as AI jitters fade",
+    "url": "https://finance.yahoo.com/markets/live/stock-market-today-dow-sp-500-rise-nasdaq-trims-losses-as-treasury-yields-sink-153611834.html"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "RGTI": {
+  "name": "리게티 컴퓨팅",
+  "trade_date": "2026-10-15",
+  "chg_pct": 0.0813,
+  "reason": "리게티컴퓨팅은 8.13% 오른 12.63달러에 마감했습니다. 아이온큐의 20억 달러 유상증자로 양자컴퓨팅주 전반이 희석 우려에 급락했다가, 15일에는 아이온큐·디웨이브와 함께 낙폭을 만회했습니다. 리게티 자체의 개별 재료는 확인되지 않았습니다.",
+  "sources": [
+   {
+    "title": "24/7 Wall St.: Quantum Computing Stocks Rebound After Dilution Scare",
+    "url": "https://247wallst.com/investing/2026/10/15/quantum-computing-stocks-rebound-after-dilution-scare-ionq-and-rigetti-climb-3-d-wave-advances-2/"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "COIN": {
+  "name": "코인베이스",
+  "trade_date": "2026-10-15",
+  "chg_pct": 0.0632,
+  "reason": "코인베이스는 6.32% 오른 183.81달러에 마감했습니다. 전날 4.9% 하락에 따른 반발 매수가 들어왔고, 장중 8만 달러를 밑돌았던 비트코인이 증시 반등과 금리 하락에 8만2,000달러 선을 되찾으면서 암호화폐 관련주가 함께 올랐습니다. 구체적인 개별 재료는 확인되지 않았습니다.",
+  "sources": [
+   {
+    "title": "AskTraders: Coinbase Global Shares Jump More Than 6% After Yesterday's Fall",
+    "url": "https://www.asktraders.com/analysis/coinbase-global-shares-jump-more-than-6-after-yesterdays-fall/"
+   },
+   {
+    "title": "CoinDesk: Bitcoin bounces back to $82,000 after first fall below $80,000 in one month",
+    "url": "https://www.coindesk.com/business/2026/10/15/live-updates-bitcoin-back-under-usd81-000-as-ai-selloff-worsens"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "MSTR": {
+  "name": "스트래티지",
+  "trade_date": "2026-10-15",
+  "chg_pct": 0.0562,
+  "reason": "스트래티지는 5.62% 오른 151.29달러에 마감했습니다. 비트코인이 장중 7만9,950달러까지 밀렸다가 8만2,000달러 선을 회복하면서 코인베이스와 함께 강세를 보였습니다. 상승을 직접 이끈 회사 자체의 재료는 확인되지 않았습니다.",
+  "sources": [
+   {
+    "title": "CoinDesk: Bitcoin bounces back to $82,000 after first fall below $80,000 in one month",
+    "url": "https://www.coindesk.com/business/2026/10/15/live-updates-bitcoin-back-under-usd81-000-as-ai-selloff-worsens"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "NVDA": {
+  "name": "엔비디아",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0184,
+  "reason": "엔비디아는 1.84% 내린 217.23달러에 마감했습니다. 로이터에 따르면 TSMC가 6분기 연속 최대 이익을 냈지만 2027년 전망을 신중하게 내놓았고, AI 인프라 투자 자금조달 부담에 대한 우려도 반도체주 전반을 눌렀습니다.",
+  "sources": [
+   {
+    "title": "Reuters(Free Malaysia Today 전재): S&P 500 ends higher as traders shift from AI to healthcare",
+    "url": "https://www.freemalaysiatoday.com/category/business/2026/10/16/s-p-500-ends-higher-as-traders-shift-from-ai-to-healthcare"
+   },
+   {
+    "title": "CNBC: Nvidia, AMD, Dell sink in global tech rout on AI funding worries",
+    "url": "https://www.cnbc.com/2026/10/15/sk-hynix-samsung-softbank-stocks-asia-tech-rout-ai-funding-worries.html"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "AMD": {
+  "name": "AMD",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.015,
+  "reason": "AMD는 1.50% 내린 562.23달러에 마감했습니다. CNBC는 금리 인상 우려와 AI 투자 자금조달 부담, 경쟁 심화로 글로벌 AI·반도체주 매도가 이어졌다고 전했고, AMD는 전날에도 5.7% 떨어졌습니다.",
+  "sources": [
+   {
+    "title": "CNBC: Nvidia, AMD, Dell sink in global tech rout on AI funding worries",
+    "url": "https://www.cnbc.com/2026/10/15/sk-hynix-samsung-softbank-stocks-asia-tech-rout-ai-funding-worries.html"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
+ },
+ "SOXL": {
+  "name": "반도체 3배 레버리지 ETF(SOXL)",
+  "trade_date": "2026-10-15",
+  "chg_pct": -0.0289,
+  "reason": "SOXL은 2.89% 내린 107.35달러에 마감했습니다. 기초지수인 필라델피아 반도체지수가 0.88% 내려 7거래일 연속 하락한 영향입니다.",
+  "sources": [
+   {
+    "title": "Reuters(Free Malaysia Today 전재): S&P 500 ends higher as traders shift from AI to healthcare",
+    "url": "https://www.freemalaysiatoday.com/category/business/2026/10/16/s-p-500-ends-higher-as-traders-shift-from-ai-to-healthcare"
+   }
+  ],
+  "checked_by": "Claude 웹 검색 (2026-10-16) · 국내 언론·로이터·블룸버그·AP·CNBC"
  }
 }

@@ -1014,6 +1014,7 @@
 
   // ════════════════ 시장 이슈: ① 오늘 시장 ② 내 고객 보유 종목 움직임 ③ 평가금 변동 큰 고객 ④ 신용 위험 ════════════════
   let mkv = { open: null, all: false };
+  const srcLinks = list => (list || []).length ? `<p class="src">${list.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title.split(":")[0])}</a>`).join(" · ")}</p>` : "";
   function pageMarket() {
     if (!MK) { $app.innerHTML = `<div class="pg"><h1>시장 이슈</h1><p class="sub">아침 시장 점검을 아직 돌리지 않았어요.</p></div>`; return; }
     const sm = MK.summary || {};
@@ -1040,20 +1041,22 @@
         <div class="bhead"><h2>① 오늘 시장</h2><span class="sub">${esc(sm.checked_by || "")}</span></div>
         <div class="idx-row">${MK.indices.map(i => `<div class="card-s soft"><span>${esc(i.name)}</span><b>${i.close.toLocaleString("ko-KR")}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></div>`).join("")}</div>
         ${sm.summary ? `<p class="mk-sum">${esc(sm.summary)}</p><ul class="mk-bul">${(sm.bullets || []).map(b => `<li>${esc(b)}</li>`).join("")}</ul>
-          ${(sm.sources || []).length ? `<p class="src">${sm.sources.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title.split(":")[0])}</a>`).join(" · ")}</p>` : ""}`
-          : `<p class="sub">오늘 시장 요약을 아직 쓰지 않았어요.</p>`}
+          ${srcLinks(sm.sources)}` : `<p class="sub">오늘 시장 요약을 아직 쓰지 않았어요.</p>`}
+        ${sm.kr || sm.us ? `<div class="mk-two">${[["국내", sm.kr], ["미국", sm.us]].filter(([, x]) => x).map(([t, x]) => `<div class="mk-col">
+          <h3>${t}</h3><p>${esc(x.summary)}</p><ul class="mk-bul">${(x.bullets || []).map(b => `<li>${esc(b)}</li>`).join("")}</ul>${srcLinks(x.sources)}</div>`).join("")}</div>` : ""}
+        ${(sm.macro || []).length ? `<div class="mk-macro"><h3>환율·금리·원자재</h3><ul class="mk-bul">${sm.macro.map(b => `<li>${esc(b)}</li>`).join("")}</ul></div>` : ""}
       </section>
 
       <section class="panel">
         <div class="bhead"><h2>② 내 고객 보유 종목 움직임</h2><span class="sub">고객 ${new Set(pos.map(p => p.customer_id)).size}명 · 평가금 ${man(myValue)} · 하루 <b class="${myDelta < 0 ? "dn" : "up"}">${sign(myDelta)}</b></span></div>
-        <ul class="syms">${shown.map(s => { const a = bigMove[s.symbol], open = mkv.open === s.symbol || (mkv.open === null && a && s === syms.find(x => bigMove[x.symbol]));
+        <ul class="syms">${shown.map(s => { const a = bigMove[s.symbol], why = (a && a.reason) ? a : (MK.stock_notes || {})[s.symbol], open = mkv.open === s.symbol || (mkv.open === null && a && s === syms.find(x => bigMove[x.symbol]));
           return `<li class="${a ? "hit" : ""} ${open ? "open" : ""}"><button class="sym-h" data-sym="${s.symbol}">
             <span class="sym-n"><b>${esc(s.name)}</b>${a ? `<span class="tag s-call">±${Math.round(MK.big_move_pct * 100)}% 넘음</span>` : ""}</span>
             <em class="${s.chg < 0 ? "dn" : "up"}">${pctTxt(s.chg)}</em>
             <span class="sym-m">보유 ${s.holders.size}명</span>
             <span class="sym-d ${s.delta < 0 ? "dn" : "up"}">${sign(s.delta)}</span><span class="chev">${open ? "⌃" : "⌄"}</span></button>
             ${open ? `<div class="sym-b">${spark((a || {}).spark || s.list[0].spark || [s.chg], s.chg < 0)}
-              ${a && a.reason ? `<h4>왜 움직였나요</h4><p class="mv-why">${esc(a.reason)}</p>${(a.sources || []).length ? `<p class="src">${a.sources.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title.split(":")[0])}</a>`).join(" · ")}</p>` : ""}`
+              ${why ? `<h4>왜 움직였나요</h4><p class="mv-why">${esc(why.reason)}</p>${(why.sources || []).length ? `<p class="src">${why.sources.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title.split(":")[0])}</a>`).join(" · ")}</p>` : ""}`
                 : `<p class="sub">하루 ±${Math.round(MK.big_move_pct * 100)}% 미만이라 따로 뉴스를 찾지 않았어요.</p>`}
               <h4>보유 고객</h4><ul class="rows compact">${s.list.sort((x, y) => x.day_delta_krw - y.day_delta_krw).map(p => { const c = CUST[p.customer_id]; return `<li><a href="#client/${p.customer_id}"><span class="ava sm">${esc(c.name.slice(0, 1))}</span>
                 <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${p.qty.toLocaleString("ko-KR")}주${p.credit_loan_krw ? " · 신용" : ""}</small></span><span></span>

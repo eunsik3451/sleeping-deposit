@@ -225,6 +225,8 @@ def market_section(cfg, ctx):
     return {"summary": notes.get("_market"), "credit": credit, "positions": m.get("positions_all", []), "history": m.get("history", {}),
             "fx_history": m.get("fx_history", []), "ref_date": m["ref_date"], "generated": m["generated"], "indices": m["indices"], "movers": m["movers"],
             "alerts": alerts, "holders": m["holders"], "big_move_pct": cfg["market"]["big_move_pct"],
+            "stock_notes": {k: {"reason": v.get("reason", ""), "sources": v.get("sources", [])}
+                            for k, v in notes.items() if not k.startswith("_") and v.get("reason")},
             "maintenance_ratio": cfg["market"]["maintenance_ratio"], "notes_checked": {k: v.get("checked_by", "") for k, v in notes.items() if not k.startswith("_")}}
 
 

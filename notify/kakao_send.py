@@ -11,6 +11,11 @@
     python notify/kakao_send.py send-me --cid T001 --label 이자   # 텍스트 (200자 넘으면 템플릿 kakao_short 짧은 버전)
     python notify/kakao_send.py send-me --id M20261005-T001-T_EVENT-kakao
 
+    # 친구(팀원)에게: 받는 사람 connect → 은식님 login·token 다시(친구목록 동의) → friends --map → send-friend
+    python notify/kakao_send.py connect "<팀원이 보낸 주소창 URL>"
+    python notify/kakao_send.py friends --map T002 --name 김지혁
+    python notify/kakao_send.py send-friend --cid T002 --label 이자
+
     # (보조) 이미지 카드 — 카톡 말풍선에서 글자가 작아 읽기 어려워 기본으로 쓰지 않는다
     python notify/kakao_send.py card --cid T001 --label 이자 → publish.sh → send-me ... --card
 """
@@ -27,6 +32,7 @@ import requests
 ROOT = Path(__file__).resolve().parent.parent
 KDIR = ROOT / ".kakao"
 TOKEN_FILE = KDIR / "token_me.json"
+FRIENDS_FILE = KDIR / "friends.json"   # 고객번호 → 카톡 친구 uuid (테스트 고객 = 팀원)
 SITE_URL = "https://eunsik3451.github.io/sleeping-deposit/"
 REDIRECT_URI = SITE_URL + "kakao-callback.html"
 CARD_DIR = ROOT / "site" / "kakao"
@@ -252,9 +258,9 @@ def cmd_login(cfg, _args):
         "client_id": cfg["KAKAO_REST_API_KEY"],
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
-        "scope": "talk_message",
+        "scope": "talk_message,friends",
     })
-    print("아래 주소를 브라우저에서 열고 동의하세요. ('카카오톡 메시지 전송' 체크 필수)")
+    print("아래 주소를 브라우저에서 열고 동의하세요. ('카카오톡 메시지 전송'·'친구목록' 체크 필수)")
     print("페이지가 404로 보여도 괜찮아요 — 주소창 URL 전체를 복사해 token 명령에 넘기면 됩니다.\n")
     print(f"https://kauth.kakao.com/oauth/authorize?{q}")
 
@@ -268,6 +274,41 @@ def cmd_token(cfg, args):
     KDIR.mkdir(exist_ok=True)
     saved = save_token(tok)
     print(f"토큰 저장 완료 ({TOKEN_FILE.relative_to(ROOT)}), 권한: {saved.get('scope', '?')}")
+
+
+def cmd_connect(cfg, args):
+    """받는 사람(팀원)의 앱 연결: 그 사람이 로그인한 주소로 토큰을 한 번 받고 버린다 (토큰은 저장하지 않음)."""
+    raw = args.code.strip()
+    code = parse_qs(urlparse(raw).query).get("code", [None])[0] if raw.startswith("http") else raw
+    if not code:
+        sys.exit("주소에 code 가 없어요.")
+    tok = token_request(cfg, {"grant_type": "authorization_code", "redirect_uri": REDIRECT_URI, "code": code})
+    r = requests.get("https://kapi.kakao.com/v2/user/scopes", headers={"Authorization": f"Bearer {tok['access_token']}"}, timeout=10)
+    agreed = {s["id"]: s["agreed"] for s in r.json().get("scopes", [])}
+    print(f"앱 연결 완료. 동의: 메시지 전송 {'O' if agreed.get('talk_message') else 'X'}, 친구목록 {'O' if agreed.get('friends') else 'X'}")
+    if not agreed.get("friends"):
+        print("친구목록 동의가 없으면 친구 목록에 안 나와요. 로그인 링크로 다시 동의해 주세요.")
+
+
+def cmd_friends(cfg, args):
+    """앱에 연결된 카톡 친구 목록. --map T002 --name 김지혁 이면 고객번호 ↔ 친구 uuid 저장."""
+    r = requests.get("https://kapi.kakao.com/v1/api/talk/friends", headers={"Authorization": f"Bearer {access_token(cfg)}"},
+                     params={"limit": 100}, timeout=10)
+    if r.status_code != 200:
+        sys.exit(f"친구 목록 실패 {r.status_code}: {r.text}\n(은식님 토큰에 친구목록 동의가 없으면 login → token 을 다시 하세요)")
+    friends = r.json().get("elements", [])
+    for f in friends:
+        print(f"- {f.get('profile_nickname')}  메시지 {'차단' if f.get('allowed_msg') is False else '가능'}")
+    if not friends:
+        print("앱에 연결된 친구가 없어요. 받는 사람이 초대 수락 + 로그인 동의를 했는지, 카톡 친구인지 확인하세요.")
+    if args.map:
+        hit = [f for f in friends if f.get("profile_nickname") == args.name]
+        if len(hit) != 1:
+            sys.exit(f"'{args.name}' 친구를 하나로 찾지 못했어요 ({len(hit)}명).")
+        mp = json.loads(FRIENDS_FILE.read_text(encoding="utf-8")) if FRIENDS_FILE.exists() else {}
+        mp[args.map] = {"uuid": hit[0]["uuid"], "name": args.name}
+        FRIENDS_FILE.write_text(json.dumps(mp, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"{args.map} → {args.name} 저장")
 
 
 def cmd_card(_cfg, args):
@@ -331,16 +372,21 @@ def cmd_send_me(cfg, args):
         text, kind = message_text(msg)
         template = {"object_type": "text", "text": text, "link": link, "button_title": "앱에서 확인하기"}
         print(f"[{msg['ref']}] {kind} {len(text)}자\n{text}\n버튼 → {link['web_url']}\n")
+    data = {"template_object": json.dumps(template, ensure_ascii=False)}
+    if args.cmd == "send-friend":   # 고객번호에 연결된 친구(팀원)에게. 메시지는 은식님과의 1:1 대화방에 간다
+        mp = json.loads(FRIENDS_FILE.read_text(encoding="utf-8")) if FRIENDS_FILE.exists() else {}
+        if msg["cid"] not in mp:
+            sys.exit(f"{msg['cid']} 에 연결된 친구가 없어요. 먼저: friends --map {msg['cid']} --name <카톡 이름>")
+        url = "https://kapi.kakao.com/v1/api/talk/friends/message/default/send"
+        data["receiver_uuids"] = json.dumps([mp[msg["cid"]]["uuid"]])
+        where = f"{mp[msg['cid']]['name']}님과의 대화방"
+    else:
+        url, where = "https://kapi.kakao.com/v2/api/talk/memo/default/send", "'나와의 채팅'"
     if args.dry_run:
         return
-    r = requests.post(
-        "https://kapi.kakao.com/v2/api/talk/memo/default/send",
-        headers={"Authorization": f"Bearer {access_token(cfg)}"},
-        data={"template_object": json.dumps(template, ensure_ascii=False)},
-        timeout=10,
-    )
-    if r.status_code == 200 and r.json().get("result_code") == 0:
-        print("보냈어요. 카카오톡 '나와의 채팅'을 확인하세요.")
+    r = requests.post(url, headers={"Authorization": f"Bearer {access_token(cfg)}"}, data=data, timeout=10)
+    if r.status_code == 200 and (r.json().get("result_code") == 0 or r.json().get("successful_receiver_uuids")):
+        print(f"보냈어요. 카카오톡 {where}을 확인하세요.")
     else:
         sys.exit(f"발송 실패 {r.status_code}: {r.text}")
 
@@ -353,18 +399,24 @@ def main():
     sub.add_parser("login")
     t = sub.add_parser("token")
     t.add_argument("code", help="리다이렉트된 주소창 URL 전체 또는 code 값")
-    for name in ("card", "hero", "send-me"):
+    t = sub.add_parser("connect", help="받는 사람(팀원)이 로그인한 주소로 앱 연결만 (토큰 저장 안 함)")
+    t.add_argument("code")
+    t = sub.add_parser("friends", help="앱에 연결된 카톡 친구 목록")
+    t.add_argument("--map", help="이 고객번호에 친구를 연결 (예: T002)")
+    t.add_argument("--name", help="카톡 이름 (예: 김지혁)")
+    for name in ("card", "hero", "send-me", "send-friend"):
         s = sub.add_parser(name)
         s.add_argument("--id", help="발송함 메시지 id")
         s.add_argument("--cid", default="T001", help="고객번호 (--id 없을 때, 기본 T001)")
         s.add_argument("--label", default="", help="오늘 카톡 미리보기 이름 일부 (예: 이자, 입금, 연금)")
-        if name == "send-me":
+        if name in ("send-me", "send-friend"):
             s.add_argument("--card", action="store_true", help="이미지 카드로 보내기 (200자 넘는 알림)")
             s.add_argument("--rich", action="store_true", help="알림톡처럼: 피드형(보낸 곳·항목 표·큰 숫자 이미지)")
             s.add_argument("--dry-run", action="store_true", help="보내지 않고 내용만 출력")
     args = p.parse_args()
     cfg = load_config()
-    {"login": cmd_login, "token": cmd_token, "card": cmd_card, "hero": cmd_hero, "send-me": cmd_send_me}[args.cmd](cfg, args)
+    {"login": cmd_login, "token": cmd_token, "connect": cmd_connect, "friends": cmd_friends, "card": cmd_card,
+     "hero": cmd_hero, "send-me": cmd_send_me, "send-friend": cmd_send_me}[args.cmd](cfg, args)
 
 
 if __name__ == "__main__":
