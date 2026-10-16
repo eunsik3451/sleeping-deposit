@@ -1004,3 +1004,12 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .c360-top .c360-head { margin-bottom: 0; }
 .toolbar .sortsel { flex: 0 0 auto; width: auto; min-width: 150px; }
 .ckpis .dn { color: #2B6BEA; } .ckpis .up { color: #E42939; }
+
+/* 카톡 보내기 (내 PC에서만) */
+.kpanel { margin-bottom: 16px; }
+.klist { list-style: none; margin: 8px 0 0; padding: 0; }
+.klist li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #F2F4F6; }
+.klist li > span:first-child { min-width: 0; }
+.klist b { display: block; font-size: 0.95rem; }
+.klist small { color: var(--t-faint); font-size: 0.8rem; }
+.kbtns { display: flex; gap: 6px; flex-shrink: 0; }
