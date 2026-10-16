@@ -14,3 +14,8 @@ docs/
 
 # 카카오 키·토큰
 .kakao/
+
+# 통화 녹음 원본·사본은 PC에만 (파일 이름에 개인정보가 들어갈 수 있음). 데모 TTS 녹음만 예외로 이미 올라가 있음
+recordings/
+site/calls/T*
+data/calls/*/*/*.m4a
