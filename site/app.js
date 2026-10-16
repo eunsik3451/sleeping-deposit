@@ -1545,12 +1545,25 @@
           <div class="bhead"><h2>할 일 한눈에</h2></div>
           <ul class="glist">${GROUPS.map(([k, t, d]) => `<li><a href="#tasks"><span class="dot g-${k}"></span><span><b>${t}</b><small>${d}</small></span><em>${cnt(k)}명</em></a></li>`).join("")}</ul>
         </section>
-        ${MK ? `<section class="panel mk-one"><div class="bhead"><h2>${mkDay()} 시장 <small class="sub">${mkDate()}</small></h2><a href="#market">시장 이슈 ›</a></div>
-          <p class="mk-line">${ko ? `코스피 <b class="${ko.chg_pct < 0 ? "dn" : "up"}">${pctTxt(ko.chg_pct)}</b> · ` : ""}${esc(sm && (sm.headline || (sm.summary ? sm.summary.split(/(?<=다\.)\s/)[0] : "")) || "시장 요약 전")}</p>
-          <p class="sub">내 고객 ${affected}명이 영향을 받았어요 (큰 등락·담보 부족)</p></section>` : ""}
-        <section class="panel"><div class="bhead"><h2>다가오는 마감</h2><a href="#calendar">일정 ›</a></div>
+        ${MK ? homeMarket(sm, affected) : ""}
+        <section class="panel span2"><div class="bhead"><h2>다가오는 마감</h2><a href="#calendar">일정 ›</a></div>
           <ul class="cal">${due.map(u => `<li><span class="d"><b>${u.date.slice(5).replace("-", "/")}</b><small class="${u.dl <= 3 ? "red" : ""}">D-${u.dl}</small></span><span class="t"><b>${esc(u.label)}</b><small>고객 ${u.cids.size}명</small></span></li>`).join("") || `<li class="empty">14일 안에 마감이 없어요</li>`}</ul></section>
       </div></div>`;
+  }
+  // 메인 '어제 시장': 지수(국내·미국) → 금리·환율 등 → 왜 움직였나 → 국내·미국 강한/약한 업종 → 내 고객 영향
+  function homeMarket(sm, affected) {
+    const idx = MK.indices.map(i => `<div class="ix"><small>${esc(i.name)}</small><b>${i.close.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></div>`).join("");
+    const secs = (arr, cls) => (arr || []).slice(0, 2).map(x => `<li><span class="${cls}">${cls === "up" ? "▲" : "▼"}</span><div><b>${esc(x.sector)}</b><small>${esc(x.move)}</small></div></li>`).join("");
+    const side = (t, x) => x ? `<div class="hm-col"><h3>${t}</h3><p class="hm-line">${esc(x.line || "")}</p><ul class="hm-sec">${secs(x.down, "dn")}${secs(x.up, "up")}</ul></div>` : "";
+    return `<section class="panel span2 hm"><div class="bhead"><h2>${mkDay()} 시장 <small class="sub">${mkDate()}</small></h2><a href="#market">시장 이슈 자세히 ›</a></div>
+      ${sm && sm.headline ? `<p class="hm-head">${esc(sm.headline)}</p>` : `<p class="sub">시장 요약 전이에요</p>`}
+      <div class="ixs">${idx}</div>
+      ${sm && sm.chips ? `<div class="hm-chips">${sm.chips.map(c => `<span>${esc(c)}</span>`).join("")}</div>` : ""}
+      ${sm ? `<div class="hm-grid">
+        ${sm.why ? `<div class="hm-col"><h3>왜 움직였나</h3><ul class="hm-why">${sm.why.map(w => `<li><b>${esc(w.t)}</b><small>${esc(w.d)}</small></li>`).join("")}</ul></div>` : ""}
+        ${side("국내", sm.kr)}${side("미국", sm.us)}</div>
+        ${sm.kr && sm.kr.outlook ? `<p class="hm-out"><b>전망</b> ${esc(sm.kr.outlook)}</p>` : ""}` : ""}
+      <a class="hm-me" href="#market">내 고객 <b>${affected}명</b>이 영향을 받았어요 (보유 종목 큰 등락·담보 부족) ›</a></section>`;
   }
   const tagCls = g => ({ now: "s-call", today: "s-due", week: "s-plain", later: "s-plain" }[g]);
 
