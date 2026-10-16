@@ -11,23 +11,22 @@
 </head>
 <body class="ws">
 <aside class="side-nav">
-  <a class="brand" href="#today"><img class="logo-img" src="logo.svg" alt="" width="36" height="36"><span><b>사이로그</b><small>PB와 고객 사이</small></span></a>
+  <a class="brand" href="#home"><img class="logo-img" src="logo.svg" alt="" width="36" height="36"><span><b>사이로그</b><small>PB와 고객 사이</small></span></a>
   <nav id="tabs">
-    <p class="nav-g">PB 업무</p>
-    <a href="#today" data-page="today"><i>☀</i>오늘</a>
-    <a href="#clients" data-page="clients"><i>●</i>고객</a>
+    <a href="#home" data-page="home"><i>⌂</i>메인</a>
+    <a href="#tasks" data-page="tasks"><i>✓</i>오늘 할 일</a>
+    <a href="#clients" data-page="clients"><i>●</i>고객 관리</a>
     <a href="#calendar" data-page="calendar"><i>▦</i>일정</a>
     <a href="#market" data-page="market"><i>↕</i>시장 이슈</a>
-    <p class="nav-g">고객 알림</p>
-    <a href="#outbox" data-page="outbox"><i>✉</i>보낸 알림</a>
-    <p class="nav-g">운영</p>
-    <a href="#insights" data-page="insights"><i>▤</i>성과</a>
-    <a href="#guide" data-page="guide"><i>?</i>기준 안내</a>
+    <p class="nav-g">관리자</p>
+    <a href="#outbox" data-page="outbox" class="sm"><i>✉</i>보낸 알림</a>
+    <a href="#insights" data-page="insights" class="sm"><i>▤</i>성과</a>
+    <a href="#guide" data-page="guide" class="sm"><i>?</i>기준 안내</a>
   </nav>
   <div class="side-foot"><p id="asof"></p><p>팀 사이로그 · 유진투자증권 AX 공모전 프로토타입<br>고객·종목명은 가상 데이터</p></div>
 </aside>
 <div class="ws-main">
-  <header class="topbar"><h2 id="pgtitle">오늘</h2>
+  <header class="topbar"><h2 id="pgtitle">메인</h2><select id="pbsel" aria-label="담당 PB"></select>
     <input id="jump" list="custlist" type="search" placeholder="고객 찾기 (이름·고객번호)" autocomplete="off"><datalist id="custlist"></datalist></header>
   <main id="app"></main>
 </div>
