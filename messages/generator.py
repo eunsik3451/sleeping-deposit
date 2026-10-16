@@ -36,6 +36,14 @@ class MessageGenerator(ABC):
         """(title, body)"""
 
 
+def _dedupe_period(body, values) -> str:
+    """'45일째 그대로예요. 돈이 쉰 45일 동안 놓친…'처럼 같은 날수가 겹치면 뒤쪽을 '그동안'으로."""
+    period = values.get("missed_period", "")
+    if period == f"돈이 쉰 {values.get('days')}일 동안" and f"{values['days']}일째" in body.split(period)[0]:
+        return body.replace(period, "그동안")
+    return body
+
+
 class TemplateGenerator(MessageGenerator):
     def __init__(self, cfg, products: pd.DataFrame, templates: dict = None, template_dir=TEMPLATE_DIR):
         self.cfg = cfg
@@ -148,6 +156,7 @@ class TemplateGenerator(MessageGenerator):
                 continue
             try:
                 title, body = tmpl["title"].format_map(values), tmpl["body"].format_map(values)
+                body = _dedupe_period(body, values)
             except KeyError as e:
                 tried.append(f"{label}: 값 없음 {e}")
                 continue
