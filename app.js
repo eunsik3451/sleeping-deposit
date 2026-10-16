@@ -1594,25 +1594,27 @@
     const SORTS = { urgent: (a, b) => (a.g ? GROUPS.findIndex(g => g[0] === a.g) : 9) - (b.g ? GROUPS.findIndex(g => g[0] === b.g) : 9) || a.c.name.localeCompare(b.c.name),
       contact: (a, b) => lcDays(b) - lcDays(a) || cashOf(b) - cashOf(a), cash: (a, b) => cashOf(b) - cashOf(a) };
     const lists = { all: mine, todo: mine.filter(x => x.g), care: mine.filter(x => x.g === "later") };
-    const q = cm.q, rows = lists[cm.tab].filter(x => !q || (x.c.id + x.c.name).includes(q))
-      .sort(SORTS[cm.sort]);
+    // 검색어가 바뀌면 목록만 다시 그린다 (입력칸을 다시 만들면 한글 조합이 끊겨 'ㅈㅗㅇ'처럼 풀어짐)
+    const rowsHtml = () => lists[cm.tab].filter(x => !cm.q || (x.c.id + x.c.name).includes(cm.q)).sort(SORTS[cm.sort])
+      .map(x => rowItem(x, x.c, x.c.balance.KRW || { cash: 0 })).join("") || `<li class="empty">해당하는 고객이 없어요</li>`;
     $app.innerHTML = `<div class="pg">
       <div class="pg-head"><div><h1>고객 관리</h1><p class="sub">${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 고객 ${mine.length}명</p></div></div>
       <div class="toolbar"><div class="seg">${[["all", "전체", lists.all.length], ["todo", "챙길 것 있음", lists.todo.length], ["care", "예수금이 오래 그대로", lists.care.length]]
         .map(([k, t, n]) => `<button class="${cm.tab === k ? "on" : ""}" data-tab="${k}">${t} <em>${n}</em></button>`).join("")}</div>
         <select class="pill sortsel" id="cmsort" aria-label="정렬">${[["urgent", "급한 순"], ["contact", "연락 오래된 순"], ["cash", "예수금 많은 순"]]
           .map(([k, t]) => `<option value="${k}" ${cm.sort === k ? "selected" : ""}>${t}</option>`).join("")}</select>
-        <input class="pill" type="search" id="cmq" placeholder="이름이나 고객번호" value="${esc(q)}"></div>
-      <ul class="rows cm-rows">${rows.map(x => { const c = x.c, b = c.balance.KRW || { cash: 0 };
+        <input class="pill" type="search" id="cmq" placeholder="이름이나 고객번호" value="${esc(cm.q)}"></div>
+      <ul class="rows cm-rows">${rowsHtml()}</ul></div>`;
+    function rowItem(x, c, b) {
         return `<li><a href="#client/${c.id}"><span class="ava">${esc(c.name.slice(0, 1))}</span>
           <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${c.id} · ${esc(c.risk)}</small><i>${esc(x.item ? x.item.title : "챙길 것 없음")}</i></span>
           ${x.g ? `<span class="tag ${tagCls(x.g)}">${GROUPS.find(g => g[0] === x.g)[1]}</span>` : "<span></span>"}
           <span class="lcd lv-${x.lc ? x.lc.level : "bad"}"><b>${x.lc ? (x.lc.days ? x.lc.days + "일" : "오늘") : "–"}</b><small>${x.lc && !x.lc.days ? "연락함" : "연락 없음"}</small></span>
-          <span class="amt"><b>${man(b.cash)}</b><small>원화 예수금</small></span><span class="go">›</span></a></li>`; }).join("") || `<li class="empty">해당하는 고객이 없어요</li>`}</ul></div>`;
+          <span class="amt"><b>${man(b.cash)}</b><small>원화 예수금</small></span><span class="go">›</span></a></li>`; }
     $app.querySelectorAll("[data-tab]").forEach(b => (b.onclick = () => { cm.tab = b.dataset.tab; pageClientsMgmt(); }));
     $app.querySelector("#cmsort").onchange = e => { cm.sort = e.target.value; pageClientsMgmt(); };
     const inp = $app.querySelector("#cmq");
-    inp.oninput = () => { cm.q = inp.value.trim(); pageClientsMgmt(); const n = $app.querySelector("#cmq"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
+    inp.oninput = () => { cm.q = inp.value.trim(); $app.querySelector(".cm-rows").innerHTML = rowsHtml(); };
   }
 
   // ════════════════ 고객 페이지 (할 일 띠 + 탭) ════════════════
