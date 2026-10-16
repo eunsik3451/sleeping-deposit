@@ -24,7 +24,9 @@
   const dash = x => x ? man(x) : "–";
   const badge = (t, k = "") => `<span class="badge ${k}">${esc(t)}</span>`;
   const daysLeft = d => Math.round((new Date(d + "T00:00:00") - AS_OF) / 864e5);
-  const CH = { push: "앱 푸시", kakao: "알림톡", pb_queue: "PB 통화", monthly_report: "월간 리포트" };
+  const CH = { push: "앱 푸시", kakao: "카카오톡", pb_queue: "PB 통화", monthly_report: "월간 리포트" };
+  // 카카오 정책: 알림톡은 정보성 전용, 광고성은 브랜드 메시지(옛 친구톡)로 보낸다
+  const chName = r => r.channel === "kakao" ? (r.msg_type === "ad" ? "브랜드 메시지" : "알림톡") : CH[r.channel];
   const MT = { info: "정보성", ad: "광고성" };
   const ST = { queued: "발송 대기", held: "보류", sent_sim: "발송(시뮬)", opened_sim: "열람(시뮬)", executed_sim: "실행(시뮬)" };
   const HOLD = { "": "", no_consent: "광고 동의 없음 → PB 통화", night: "야간 → 다음 날 오전", frequency_cap: "빈도 제한", snooze: "고객이 닫음 → 보류" };
@@ -110,12 +112,12 @@
         <div class="push"><div class="app"><span class="icon">유진</span>유진투자증권 · 지금</div><b>${esc(p.title)}</b><p>${esc(p.body)}</p></div></div></div>`;
     if (p.channel === "kakao")
       return `<div class="phone"><div class="screen kakao"><div class="kk-head"><span class="icon">유진</span>유진투자증권</div>
-        <div class="kk"><div class="kk-top">알림톡 도착</div><p>${esc(p.body)}</p></div></div></div>`;
+        <div class="kk"><div class="kk-top">${p.msg_type === "ad" ? "브랜드 메시지" : "알림톡 도착"}</div><p>${esc(p.body)}</p></div></div></div>`;
     return `<div class="phone"><div class="screen report"><div class="kk-head"><span class="icon">유진</span>앱 > 월간 리포트</div>
       <div class="rep"><b>${esc(p.title)}</b><p>${esc(p.body)}</p></div></div></div>`;
   }
   function previewBlock(p) {
-    return `<div><div class="pv-label">${esc(p.label)}</div>${badge(CH[p.channel])}${badge(MT[p.msg_type], p.msg_type === "ad" ? "accent" : "")}
+    return `<div><div class="pv-label">${esc(p.label)}</div>${badge(chName(p))}${badge(MT[p.msg_type], p.msg_type === "ad" ? "accent" : "")}
       ${p.note ? `<div class="muted small">${esc(p.note)}</div>` : ""}${phone(p)}
       <div class="muted small" style="text-align:center">${p.checked ? "검증 통과 (숫자 일치·금칙어·글자 수)" : "기본 문구로 교체됨"}</div></div>`;
   }
@@ -786,7 +788,7 @@
     const alerts = D.outbox.filter(r => r.cid === cid).sort((a, b) => b.at.localeCompare(a.at));
     const calls = callsOf(cid), last = calls[0], logs = logsOf(cid);
     const openTodos = calls.flatMap(cl => cl.todos.map((t, i) => ({ ...t, call: cl.id, i, done: todoDone(cl, i) }))).filter(t => !t.done).sort((a, b) => (a.due || "9").localeCompare(b.due || "9"));
-    const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "알림톡"].filter(Boolean);
+    const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "카카오톡"].filter(Boolean);
     const total = krw.cash + (krw.auto_rp || 0) + (usdB ? usdB.cash * usdB.rate : 0) + stock;
     const others = fs.filter(f => f.rule !== "R1");
 
@@ -822,7 +824,7 @@
             ${cv.stage === "idle" && !cv.upload ? `<p class="sub">녹음을 올리면 받아쓰고 요약·할 일을 정리해요. 분석한 통화는 오른쪽 '최근 통화 요약'에 쌓여요.</p>` : callPanel(cid)}</section>
 
           <details class="panel fold"><summary><h2>이 고객에게 간 알림</h2><span class="sub">최근 30일 · ${alerts.length}건</span></summary>
-            ${alerts.length ? `<ul class="alog">${alerts.slice(0, 12).map(r => `<li><details><summary><span><b>${esc(r.title)}</b><small>${r.at} · ${CH[r.channel]} · ${MT[r.msg_type]}${r.hold ? " · " + esc(holdLabel(r.hold)) : ""}</small></span><em>${ST[r.status] || r.status}</em></summary><p>${esc(r.body)}</p></details></li>`).join("")}</ul>` : `<p class="sub">보낸 알림이 없어요.</p>`}</details>
+            ${alerts.length ? `<ul class="alog">${alerts.slice(0, 12).map(r => `<li><details><summary><span><b>${esc(r.title)}</b><small>${r.at} · ${chName(r)} · ${MT[r.msg_type]}${r.hold ? " · " + esc(holdLabel(r.hold)) : ""}</small></span><em>${ST[r.status] || r.status}</em></summary><p>${esc(r.body)}</p></details></li>`).join("")}</ul>` : `<p class="sub">보낸 알림이 없어요.</p>`}</details>
         </div>
 
         <div class="col side">
@@ -1333,10 +1335,10 @@
         <span class="muted">${view.length.toLocaleString("ko-KR")}건</span></div>
       <div class="split"><div class="tablewrap"><table><thead><tr><th>예정 시각</th><th>고객</th><th>알림</th><th>채널</th><th>성격</th><th>상태</th><th>보류 사유</th></tr></thead>
         <tbody>${view.map(r => `<tr class="click ${r.id === obSel ? "sel" : ""}" data-id="${esc(r.id)}"><td class="small">${r.at}</td><td>${r.cid} ${esc(CUST[r.cid].name)}</td>
-          <td class="small">${esc(TRIG[r.trigger] || r.trigger)}</td><td class="small">${CH[r.channel]}</td><td class="small">${r.msg_type === "ad" ? badge("광고성", "accent") : "정보성"}</td>
+          <td class="small">${esc(TRIG[r.trigger] || r.trigger)}</td><td class="small">${chName(r)}</td><td class="small">${r.msg_type === "ad" ? badge("광고성", "accent") : "정보성"}</td>
           <td class="small">${ST[r.status] || r.status}</td><td class="small">${esc(holdLabel(r.hold))}</td></tr>`).join("")}</tbody></table></div>
       <div>${sel ? `<div class="card"><div class="pv-label">${sel.cid} ${esc(CUST[sel.cid].name)} · ${esc(TRIG[sel.trigger] || sel.trigger)}</div>
-        ${badge(CH[sel.channel])}${badge(MT[sel.msg_type], sel.msg_type === "ad" ? "accent" : "")}${sel.hold ? badge(holdLabel(sel.hold), "warn") : ""}
+        ${badge(chName(sel))}${badge(MT[sel.msg_type], sel.msg_type === "ad" ? "accent" : "")}${sel.hold ? badge(holdLabel(sel.hold), "warn") : ""}
         <p class="muted small">예정 ${sel.at}${sel.msg_type === "ad" && sel.channel !== "pb_queue" ? " · 광고성은 제목 앞에 (광고) 표기" : ""}</p>
         ${sel.channel === "pb_queue" ? `<div class="pv-label">${esc(sel.title)}</div>` : ""}${phone({ ...sel })}</div>` : ""}</div></div>`;
     $app.querySelectorAll("[data-f]").forEach(b => (b.onclick = () => { obF = b.dataset.f; obSel = null; pageOutbox(); }));
@@ -1522,7 +1524,7 @@
     const calls = callsOf(cid), last = calls[0];
     const openTodos = calls.flatMap(cl => cl.todos.map((t, i) => ({ ...t, call: cl.id, i, done: todoDone(cl, i) }))).filter(t => !t.done).sort((a, b) => (a.due || "9").localeCompare(b.due || "9"));
     const alerts = D.outbox.filter(r => r.cid === cid).sort((a, b) => b.at.localeCompare(a.at));
-    const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "알림톡"].filter(Boolean);
+    const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "카카오톡"].filter(Boolean);
     const others = findingsOf(cid).filter(f => f.rule !== "R1");
     const TABS = [["overview", "개요"], ["holdings", `보유 종목 ${pos.length}`], ["calls", `통화 ${calls.length}`], ["plan", "일정·알림"]];
     const lines = lead ? keyLines(lead.script) : [];
@@ -1542,7 +1544,7 @@
         <div class="col"><section class="panel"><div class="bhead"><h2>통화 녹음 분석</h2></div>${callPanel(cid)}</section></div></div>`;
     else body = `<div class="ov-grid"><div class="col"><section class="panel"><div class="bhead"><h2>케어 일정</h2></div>${calendar(cid)}</section></div>
         <div class="col"><section class="panel"><div class="bhead"><h2>이 고객에게 간 알림</h2><span class="sub">최근 30일 · ${alerts.length}건</span></div>
-        ${alerts.length ? `<ul class="alog">${alerts.slice(0, 12).map(r => `<li><details><summary><span><b>${esc(r.title)}</b><small>${r.at} · ${CH[r.channel]} · ${MT[r.msg_type]}${r.hold ? " · " + esc(holdLabel(r.hold)) : ""}</small></span><em>${ST[r.status] || r.status}</em></summary><p>${esc(r.body)}</p></details></li>`).join("")}</ul>` : `<p class="sub">보낸 알림이 없어요.</p>`}</section></div></div>`;
+        ${alerts.length ? `<ul class="alog">${alerts.slice(0, 12).map(r => `<li><details><summary><span><b>${esc(r.title)}</b><small>${r.at} · ${chName(r)} · ${MT[r.msg_type]}${r.hold ? " · " + esc(holdLabel(r.hold)) : ""}</small></span><em>${ST[r.status] || r.status}</em></summary><p>${esc(r.body)}</p></details></li>`).join("")}</ul>` : `<p class="sub">보낸 알림이 없어요.</p>`}</section></div></div>`;
 
     $app.innerHTML = `<div class="pg c360">
       <a class="crumb" href="#clients">‹ 고객 관리</a>
