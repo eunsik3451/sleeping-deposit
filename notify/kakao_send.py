@@ -128,7 +128,7 @@ def rich_parts(msg):
         "hero": {"kicker": "잠자는 예수금 깨우기", "label": "깨우면 1년에", "big": f"+{man(f['annual_projection_krw'])}",
                  "foot": f"예수금 {man(m['cash_today'])} · {m['streak']}일째 그대로"},
         "title": f"{name}님, 예수금이 {m['streak']}일째 그대로예요",
-        "items": [("쉬는 예수금", man(m["cash_today"])), ("놓친 이자", f"약 {man(f['amount_krw'])} (지난 90일)"),
+        "items": [("쉬는 예수금", man(m["cash_today"])), ("놓친 이자", f"약 {man(f['amount_krw'])} ({m['missed_period'].replace(' 동안', '')})"),
                   (prod["name"], f"연 {rate}"), ("맡길 금액", man(rec["suggest_amount"]))],
         "notice": "※ RP·CMA는 예금자보호 대상이 아니며 금리는 바뀔 수 있어요.\n수신거부: 앱 > 설정 > 알림 설정",
     }

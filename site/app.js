@@ -249,7 +249,7 @@
     } else if (r1) {
       hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님,<br><b>${esc(r1.title)}</b></p>
         <p class="h-label">깨우면 1년에</p><p class="h-big">+${man(idles.reduce((s, f) => s + f.annual_projection_krw, 0))}</p>
-        <button class="h-meta link" data-sheet="why:${esc(r1.finding_id)}">지난 90일 못 받은 이자 ${man(idles.reduce((s, f) => s + f.amount_krw, 0))} · 근거 보기 ›</button>
+        <button class="h-meta link" data-sheet="why:${esc(r1.finding_id)}">${idles.length === 1 ? esc(idles[0].amount_label.replace("놓친", "못 받은")) : "지난 90일 못 받은 이자"} ${man(idles.reduce((s, f) => s + f.amount_krw, 0))} · 근거 보기 ›</button>
 </div>`;
     } else if (items.length) {
       hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님, 기한 안에 챙길 것이</p><p class="h-big ink">${items.length}가지 있어요</p></div>`;
@@ -743,7 +743,7 @@
       <div class="dstats">
         <div><span>${usdF ? "달러 예수금" : "예수금"}</span><b>${usdF ? usd(r1.meta.cash_today) : man(r1.meta.cash_today)}</b><small>쉬는 돈 ${man(r1.meta.idle_krw)}</small></div>
         <div><span>쉬고 있는 기간</span><b>${r1.meta.streak}<em>일째</em></b><small>500만원 이상이 이어진 날</small></div>
-        <div><span>RP 활용 시 예상 이자 차이</span><b class="hot">연 약 ${man(r1.annual_projection_krw)}</b><small>세전 · 지난 90일 못 받은 이자 ${man(r1.amount_krw)}</small></div>
+        <div><span>RP 활용 시 예상 이자 차이</span><b class="hot">연 약 ${man(r1.annual_projection_krw)}</b><small>세전 · ${esc(r1.amount_label.replace("놓친", "못 받은"))} ${man(r1.amount_krw)}</small></div>
       </div>
       ${cv.showWhy ? `<ul class="why-list">${r1.evidence.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
       <div class="dfoot"><span>금리와 보유기간에 따라 달라질 수 있습니다. 가입은 고객이 앱에서 직접 합니다.</span>

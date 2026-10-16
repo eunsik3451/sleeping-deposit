@@ -65,6 +65,7 @@ class TemplateGenerator(MessageGenerator):
                 "cash": money(m["cash_today"], finding.currency),
                 "idle": man(m["idle_krw"]),
                 "missed": man(finding.amount_krw),
+                "missed_period": m.get("missed_period", f"지난 {c['lookback_days']}일 동안"),
                 "annual": man(finding.annual_projection_krw),
                 "days": m["streak"],
                 "buffer": man(m["buffer_krw"]),

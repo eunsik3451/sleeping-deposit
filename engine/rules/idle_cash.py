@@ -11,6 +11,19 @@ from engine.models import Action, Finding
 EVENT_LABELS = {"els_redemption": "ELS 상환금", "bond_maturity": "채권 만기 상환금", "dividend": "배당금"}
 
 
+EVENT_SHORT = {"els_redemption": "상환금", "bond_maturity": "상환금", "dividend": "배당금"}
+
+
+def missed_period(subtype, res, info) -> str:
+    """놓친 이자를 센 기간. 조회 구간 내내 쉬었으면 '지난 90일 동안', 아니면 돈이 쉰 날만 말한다."""
+    if res.swept_days >= res.lookback_days:
+        return f"지난 {res.lookback_days}일 동안"
+    ev = info.get("event")
+    if subtype == "event_inflow" and ev and res.swept_days <= ev["days_since"] + 1:
+        return f"{EVENT_SHORT[ev['flow_type']]}이 들어온 뒤"
+    return f"돈이 쉰 {res.swept_days}일 동안"
+
+
 def title_for(subtype, res, info, acct) -> str:
     if subtype == "event_inflow":
         ev = info["event"]
@@ -100,7 +113,7 @@ def evaluate(acct: AccountSeries, customer, products: pd.DataFrame, cfg, as_of, 
         currency=acct.currency,
         title=title_for(subtype, res, info, acct),
         amount_krw=res.missed_lookback,
-        amount_label=f"지난 {res.lookback_days}일 놓친 이자",
+        amount_label=f"{missed_period(subtype, res, info)} 놓친 이자",
         annual_projection_krw=res.annual_projection,
         deadline=None,
         evidence=evidence_for(subtype, res, info, acct, cfg) + g["evidence"],
@@ -109,6 +122,7 @@ def evaluate(acct: AccountSeries, customer, products: pd.DataFrame, cfg, as_of, 
         pb_flag=bool(pb_flag),
         meta={"key": key, "idle_krw": res.idle_today_krw, "streak": res.streak, "buffer_krw": res.buffer_krw,
               "max_outflow_krw": res.max_outflow_krw, "cash_today": res.cash_today, "rate_today": res.rate_today,
-              "spread": res.spread, "swept_days": res.swept_days, "event": info.get("event"),
+              "spread": res.spread, "swept_days": res.swept_days,
+              "missed_period": missed_period(subtype, res, info), "event": info.get("event"),
               "buy_days": info.get("buy_days"), "profile_valid": g["type"] != "reassess"},
     )

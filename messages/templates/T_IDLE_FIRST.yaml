@@ -6,7 +6,7 @@ msg_type: info
 push:   # 제목 20자, 본문 60자 이내
   default:
     title: "예수금이 {days}일째 쉬고 있어요"
-    body: "{idle}이 쓰이지 않고 있어요. 지난 {lookback}일 놓친 이자는 약 {missed}이에요."
+    body: "{idle}이 쓰이지 않고 있어요. {missed_period} 놓친 이자는 약 {missed}이에요."
   plain:
     title: "{name}님, 쉬고 있는 돈이 있어요"
     body: "예수금 {cash}이 {days}일째 그대로예요. 앱에서 놓친 이자를 확인해 보세요."
@@ -16,10 +16,10 @@ push:   # 제목 20자, 본문 60자 이내
   subtype:
     active_trader:
       title: "매수 대기 자금이 쉬고 있어요"
-      body: "매수 전까지 {idle}이 이자 없이 기다리는 중이에요. 지난 {lookback}일 약 {missed}을 놓쳤어요."
+      body: "매수 전까지 {idle}이 이자 없이 기다리는 중이에요. {missed_period} 약 {missed}을 놓쳤어요."
     fx_idle:
       title: "달러가 {days}일째 쉬고 있어요"
-      body: "달러 예수금 {cash}이 그대로예요. 지난 {lookback}일 놓친 이자는 약 {missed}이에요."
+      body: "달러 예수금 {cash}이 그대로예요. {missed_period} 놓친 이자는 약 {missed}이에요."
     event_inflow:
       title: "{event_label}이 쉬고 있어요"
       body: "{event_date}에 들어온 {event_amount}이 {event_days}일째 그대로예요. 앱에서 확인해 보세요."
@@ -34,7 +34,7 @@ kakao:  # 알림톡 본문 300자 이내
 
       ■ 쉬고 있는 돈: {idle}
       (최근 {lookback}일 중 하루에 가장 많이 쓰신 {buffer}은 남겨두고 계산했어요)
-      ■ 지난 {lookback}일 놓친 이자: 약 {missed}
+      ■ {missed_period} 놓친 이자: 약 {missed}
       ■ 이대로 1년 두면: 약 {annual}
 
       앱 > 잠자는 예수금 깨우기에서 자세한 내용을 볼 수 있어요.

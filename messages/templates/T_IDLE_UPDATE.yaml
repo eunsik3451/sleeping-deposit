@@ -25,7 +25,7 @@ kakao:
     title: "쉬는 돈 이자 안내"
     body: |-
       {name}님, 예수금 {cash}이 {days}일째 그대로예요.
-      지난 {lookback}일 동안 놓친 이자는 약 {missed}이에요.
+      {missed_period} 놓친 이자는 약 {missed}이에요.
 
       ■ 이렇게 이자를 받을 수 있어요
       {product} · 연 {rate} · {risk}
@@ -40,7 +40,7 @@ kakao:
       title: "매수 대기 자금 이자 안내"
       body: |-
         {name}님, 매수를 기다리는 예수금 {idle}이 이자 없이 쉬고 있어요.
-        지난 {lookback}일 동안 놓친 이자는 약 {missed}이에요.
+        {missed_period} 놓친 이자는 약 {missed}이에요.
 
         ■ 예수금 자동 RP
         주식을 대신 사고팔지 않아요. 정하신 금액을 넘는 예수금만 RP에 넣어 두고,
@@ -54,7 +54,7 @@ kakao:
       title: "달러 예수금 이자 안내"
       body: |-
         {name}님, 달러 예수금 {cash}이 {days}일째 그대로예요.
-        지난 {lookback}일 동안 놓친 이자는 약 {missed}이에요.
+        {missed_period} 놓친 이자는 약 {missed}이에요.
 
         ■ 환전 없이 달러 그대로
         {product} · 연 {rate} · {risk}
@@ -71,7 +71,7 @@ kakao_short:
     title: "쉬는 돈 이자 안내"
     body: |-
       {name}님, 예수금 {cash}이 {days}일째 그대로예요.
-      지난 {lookback}일 놓친 이자는 약 {missed}이에요.
+      {missed_period} 놓친 이자는 약 {missed}이에요.
 
       {product}(연 {rate})에 {suggest}을 맡길 수 있어요.
 
@@ -81,7 +81,7 @@ kakao_short:
     active_trader:
       title: "매수 대기 자금 이자 안내"
       body: |-
-        {name}님, 매수 대기 예수금 {idle}이 이자 없이 쉬고 있어요. 지난 {lookback}일 놓친 이자는 약 {missed}이에요.
+        {name}님, 매수 대기 예수금 {idle}이 이자 없이 쉬고 있어요. {missed_period} 놓친 이자는 약 {missed}이에요.
 
         예수금 자동 RP(연 {rate})는 정한 금액을 넘는 돈만 RP에 넣고 주식 살 때 자동으로 빼요.
 
@@ -90,7 +90,7 @@ kakao_short:
     fx_idle:
       title: "달러 예수금 이자 안내"
       body: |-
-        {name}님, 달러 예수금 {cash}이 {days}일째 그대로예요. 지난 {lookback}일 놓친 이자는 약 {missed}이에요.
+        {name}님, 달러 예수금 {cash}이 {days}일째 그대로예요. {missed_period} 놓친 이자는 약 {missed}이에요.
 
         환전 없이 {product}(연 {rate})에 {suggest}을 맡길 수 있어요.
 
