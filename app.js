@@ -1564,7 +1564,18 @@
     const up = $app.querySelector("#openUpload"); if (up) up.onclick = () => { cv.upload = true; pageClientTabs(cid); };
   }
 
+  // ── 고객용 데모 화면 (app.html?c=고객번호): 카톡 알림 버튼으로 들어온 고객 한 명의 앱 화면만 ──
+  const CUSTOMER_MODE = document.body.dataset.mode === "customer";
+  function pageCustomerOnly() {
+    const cid = new URLSearchParams(location.search).get("c");
+    if (!CUST[cid]) { $app.innerHTML = `<p class="muted" style="padding:60px 0;text-align:center">알림의 버튼으로 들어와 주세요.</p>`; return; }
+    if (cx.cid !== cid) cx = { cid, scene: "home", sheet: null, step: 0, ans: [] };  // 알림을 눌러 들어왔으니 잠금화면 없이 앱부터
+    $app.innerHTML = `<div class="device"><div class="device-screen" id="phone">${phoneScreen(cid)}</div></div>`;
+    bindPhone();
+  }
+
   function render() {
+    if (CUSTOMER_MODE) return pageCustomerOnly();
     let [page, arg, arg2] = (location.hash.slice(1) || "home").split("/");
     const AL = { today: "home", brief: "home", pbm: "clients", pb: "clients", overview: "clients", company: "insights", items: "guide", customer: "client" };
     if (AL[page]) { location.replace("#" + AL[page] + (arg ? "/" + arg : "")); return; }
@@ -1575,7 +1586,7 @@
     ({ home: pageHome, tasks: pageTasks, clients: pageClientsMgmt, client: () => pageClientTabs(arg), calendar: pageCalendar, market: pageMarket,
        outbox: pageOutbox, insights: pageCompany, guide: pageItems }[page] || pageHome)();
   }
-  setupShell();
+  if (!CUSTOMER_MODE) setupShell();
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
   render();
 })();
