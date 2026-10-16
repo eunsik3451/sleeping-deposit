@@ -107,7 +107,50 @@ def pick_message(args):
         sys.exit(f"{args.cid} 의 카톡 미리보기에 '{args.label}' 가 없어요. 있는 것: {labels}")
     p = rows[0]
     return {"cid": args.cid, "title": p["title"], "body": p["body"], "short": p.get("short"), "msg_type": p["msg_type"],
-            "ref": f"{args.cid} 오늘 미리보기 · {p['label']}"}
+            "trigger": p.get("trigger"), "ref": f"{args.cid} 오늘 미리보기 · {p['label']}"}
+
+
+# ── 알림톡처럼 보이게: 피드형(보낸 곳 줄 + 항목 표 + 큰 숫자 이미지) ──
+# 숫자는 전부 엔진 결과(data.js의 finding)에서. 지금은 쉬는 돈 이자 안내(T_IDLE_UPDATE)만.
+def rich_parts(msg):
+    if msg.get("trigger") != "T_IDLE_UPDATE":
+        sys.exit("--rich 는 지금 '이자 안내'(T_IDLE_UPDATE)만 돼요.")
+    sys.path.insert(0, str(ROOT))
+    from engine.fmt import man
+
+    data = site_data()
+    f = next(x for x in data["details"][msg["cid"]]["findings"] if x["rule"] == "R1" and x["currency"] == "KRW")
+    name = next(c["name"] for c in data["customers"] if c["id"] == msg["cid"])
+    m, rec = f["meta"], f["recommendation"]
+    prod = data["products"][rec["product_id"]]
+    rate = f"{prod['rate'] * 100:.2f}".rstrip("0").rstrip(".") + "%"
+    return {
+        "hero": {"kicker": "잠자는 예수금 깨우기", "label": "깨우면 1년에", "big": f"+{man(f['annual_projection_krw'])}",
+                 "foot": f"예수금 {man(m['cash_today'])} · {m['streak']}일째 그대로"},
+        "title": f"{name}님, 예수금이 {m['streak']}일째 그대로예요",
+        "items": [("쉬는 예수금", man(m["cash_today"])), ("놓친 이자", f"약 {man(f['amount_krw'])} (지난 90일)"),
+                  (prod["name"], f"연 {rate}"), ("맡길 금액", man(rec["suggest_amount"]))],
+        "notice": "※ RP·CMA는 예금자보호 대상이 아니며 금리는 바뀔 수 있어요.\n수신거부: 앱 > 설정 > 알림 설정",
+    }
+
+
+def hero_name(parts, cid):
+    return f"{cid}-hero-{hashlib.sha1(json.dumps(parts['hero'], ensure_ascii=False).encode()).hexdigest()[:10]}.png"
+
+
+def render_hero(h, path):
+    from PIL import Image, ImageDraw, ImageFont
+
+    W, H, PAD = 800, 400, 56
+    img = Image.new("RGB", (W, H), "#FFFFFF")
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, W, 14], fill="#FEE500")
+    d.text((PAD, 58), h["kicker"], font=ImageFont.truetype(FONT_BOLD, 28), fill="#3182F6")
+    d.text((PAD, 112), h["label"], font=ImageFont.truetype(FONT, 34), fill="#4E5968")
+    d.text((PAD, 156), h["big"], font=ImageFont.truetype(FONT_BOLD, 100), fill="#191F28")
+    d.text((PAD, 310), h["foot"], font=ImageFont.truetype(FONT, 30), fill="#6B7684")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(path, optimize=True)
 
 
 def app_url(cid):
@@ -235,10 +278,39 @@ def cmd_card(_cfg, args):
     print("사이트에 올린 뒤(publish.sh) send-me --card 로 보내세요.")
 
 
+def cmd_hero(_cfg, args):
+    msg = pick_message(args)
+    parts = rich_parts(msg)
+    path = CARD_DIR / hero_name(parts, msg["cid"])
+    render_hero(parts["hero"], path)
+    print(f"[{msg['ref']}] 대표 이미지 → {path.relative_to(ROOT)}")
+    print("사이트에 올린 뒤(publish.sh) send-me --rich 로 보내세요.")
+
+
 def cmd_send_me(cfg, args):
     msg = pick_message(args)
     link = {"web_url": app_url(msg["cid"]), "mobile_web_url": app_url(msg["cid"])}
-    if args.card:
+    if args.rich:
+        parts = rich_parts(msg)
+        url = f"{SITE_URL}kakao/{hero_name(parts, msg['cid'])}"
+        if not (CARD_DIR / hero_name(parts, msg["cid"])).exists():
+            sys.exit(f"대표 이미지가 없어요. 먼저: hero --cid {msg['cid']} --label {args.label}")
+        if not args.dry_run and requests.head(url, timeout=10).status_code != 200:
+            sys.exit(f"이미지가 아직 사이트에 없어요 ({url}). publish.sh 후 1~2분 뒤 다시 하세요.")
+        ad = msg["msg_type"] == "ad"
+        template = {
+            "object_type": "feed",
+            "content": {"title": parts["title"], "description": parts["notice"], "image_url": url,
+                        "image_width": 800, "image_height": 400, "link": link},
+            "item_content": {
+                "profile_text": "(광고) 유진투자증권" if ad else "유진투자증권",
+                "title_image_text": msg["title"].replace("(광고) ", ""),
+                "items": [{"item": k, "item_op": v} for k, v in parts["items"]],
+            },
+            "buttons": [{"title": "앱에서 확인하기", "link": link}],
+        }
+        print(json.dumps(template, ensure_ascii=False, indent=1))
+    elif args.card:
         name = card_name(msg)
         local = CARD_DIR / name
         if not local.exists():
@@ -281,17 +353,18 @@ def main():
     sub.add_parser("login")
     t = sub.add_parser("token")
     t.add_argument("code", help="리다이렉트된 주소창 URL 전체 또는 code 값")
-    for name in ("card", "send-me"):
+    for name in ("card", "hero", "send-me"):
         s = sub.add_parser(name)
         s.add_argument("--id", help="발송함 메시지 id")
         s.add_argument("--cid", default="T001", help="고객번호 (--id 없을 때, 기본 T001)")
         s.add_argument("--label", default="", help="오늘 카톡 미리보기 이름 일부 (예: 이자, 입금, 연금)")
         if name == "send-me":
             s.add_argument("--card", action="store_true", help="이미지 카드로 보내기 (200자 넘는 알림)")
+            s.add_argument("--rich", action="store_true", help="알림톡처럼: 피드형(보낸 곳·항목 표·큰 숫자 이미지)")
             s.add_argument("--dry-run", action="store_true", help="보내지 않고 내용만 출력")
     args = p.parse_args()
     cfg = load_config()
-    {"login": cmd_login, "token": cmd_token, "card": cmd_card, "send-me": cmd_send_me}[args.cmd](cfg, args)
+    {"login": cmd_login, "token": cmd_token, "card": cmd_card, "hero": cmd_hero, "send-me": cmd_send_me}[args.cmd](cfg, args)
 
 
 if __name__ == "__main__":
