@@ -921,3 +921,10 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
   body.custapp #app { padding: 0; }
   body.custapp .device { width: 100%; height: 100vh; height: 100dvh; min-height: 0; margin: 0; }
 }
+/* 시장 이슈 ①: 국내·미국 두 칸 */
+.mk-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+.mk-col, .mk-macro { background: var(--t-fill, #F2F4F6); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.mk-col h3, .mk-macro h3 { margin: 0 0 6px; font-size: 0.95rem; }
+.mk-col > p { margin: 0 0 8px; line-height: 1.6; word-break: keep-all; font-size: 0.94rem; }
+.mk-macro { margin-top: 12px; }
+@media (max-width: 900px) { .mk-two { grid-template-columns: 1fr; } }
