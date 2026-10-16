@@ -952,3 +952,11 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .sc-h b { color: var(--t-ink, #191F28); }   /* 등락 색은 숫자·막대에만 — 업종 이름은 기본색 */
 .sc-t.up, .sc-t.dn { color: #4E5968; }
 .sc-t.up::before { content: "▲ "; color: #E42939; } .sc-t.dn::before { content: "▼ "; color: #2B6BEA; }
+/* 고객 상세: 마지막 연락 막대 */
+.cstrip { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: #fff; border-radius: 16px; padding: 12px 18px; margin: 0 0 12px; }
+.cs-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cs-main b { font-size: 1rem; } .cs-main small { color: var(--t-sub, #6B7684); font-size: 0.85rem; }
+.cs-dot { width: 9px; height: 9px; border-radius: 50%; background: #B0B8C1; align-self: center; }
+.cstrip.lv-mid .cs-dot { background: #F5A623; } .cstrip.lv-bad .cs-dot { background: #F04452; }
+.cstrip.lv-bad .cs-main b { color: #D22030; }
+.cs-acts { display: flex; gap: 8px; align-items: center; }

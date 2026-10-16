@@ -944,10 +944,9 @@
     let k = 0;
     while (k < n && Math.abs(cash[n - 1 - k] - last) <= last * CARE.flat) k++;
     if (k < CARE.days) return null;
-    const lastCall = callsOf(cid)[0];
-    const lastAt = lastCall && lastCall.at;
-    if (lastAt && (Date.now() - new Date(lastAt)) / 864e5 < CARE.quiet) return null;   // 통화 분석이 있으면 90일 동안 안 뜸
-    return { days: k >= n ? `${n}일 넘게` : `${k}일째`, cash: last * 1e4, lastAt };
+    const lc = lastContact(cid);
+    if (lc && lc.days < CARE.quiet) return null;   // 최근 90일 안에 통화·미팅했으면 안 뜸
+    return { days: k >= n ? `${n}일 넘게` : `${k}일째`, cash: last * 1e4, lastAt: lc && lc.date };
   }
   function todayRows() { return clientBase().filter(r => urgency(r.c.id) === "today").sort((a, b) => rankOf(a) - rankOf(b)); }
   function careRows() {
@@ -1408,6 +1407,28 @@
   const todayKey = () => ymd(new Date());
   const taskState = cid => (S.task[todayKey()] || {})[cid] || null;          // done | later | null
   function setTask(cid, st) { const k = todayKey(); (S.task[k] ||= {}); if (st) S.task[k][cid] = st; else delete S.task[k][cid]; save(); }
+
+  // ── 마지막 연락 (통화·미팅): 예수금 방치처럼 '연락 없음'도 관리 척도 ──
+  // 기본값은 데모용 가상 날짜(export), PB가 [통화 완료]/[미팅 완료]를 누르면 오늘로 바뀐다 (보는 사람 브라우저에 저장).
+  // 실서비스 목표: 데스크 키폰 연동으로 통화를 자동 인식 → 기록·요약·할 일까지 자동.
+  if (!S.contact || typeof S.contact !== "object") S.contact = {};
+  function lastContact(cid) {
+    const cands = [];
+    const base = CUST[cid].last_contact; if (base) cands.push({ date: base.date, kind: base.kind });
+    const c0 = callsOf(cid)[0]; if (c0) cands.push({ date: String(c0.ai ? (c0.result.call_date || c0.at) : c0.at).slice(0, 10), kind: "통화" });
+    const mine = S.contact[cid]; if (mine) cands.push({ ...mine, mine: true });
+    if (!cands.length) return null;
+    const best = cands.sort((a, b) => b.date.localeCompare(a.date))[0];
+    const days = Math.max(0, Math.round((new Date(todayKey() + "T00:00:00") - new Date(best.date + "T00:00:00")) / 864e5));
+    return { ...best, days, level: days >= CARE.quiet ? "bad" : days >= 30 ? "mid" : "ok" };
+  }
+  function contactStrip(cid) {
+    const lc = lastContact(cid), today = lc && lc.mine && lc.days === 0;
+    const txt = !lc ? "연락 기록 없음" : lc.days === 0 ? `오늘 ${lc.kind}` : `${lc.days}일째 연락 없음`;
+    const note = !lc ? "" : lc.days === 0 ? "" : `마지막 ${lc.kind} ${lc.date.slice(5).replace("-", "/")}${lc.level === "bad" ? ` · ${CARE.quiet}일 넘음` : ""}`;
+    return `<section class="cstrip ${lc ? "lv-" + lc.level : "lv-bad"}"><div class="cs-main"><span class="cs-dot"></span><b>${txt}</b><small>${note}</small></div>
+      <div class="cs-acts">${today ? `<button class="txt" data-contact="undo">되돌리기</button>` : `<button class="ghost sm" data-contact="통화">통화 완료</button><button class="ghost sm" data-contact="미팅">미팅 완료</button>`}</div></section>`;
+  }
   const PB_LIST = [...new Set(D.customers.map(c => c.pb))].sort();
 
   // 할 일 묶음: 지금 바로(시장·반대매매) / 오늘 중 / 이번 주 / 시간 날 때(관리 필요)
@@ -1568,6 +1589,7 @@
       <div class="c360-head"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
         <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p></div>
         <div class="c360-tot"><div><span>총자산</span><b>${man(total)}</b></div><div><span>원화 예수금</span><b>${man(krw.cash)}</b></div>${usdB ? `<div><span>달러</span><b>${usd(usdB.cash)}</b></div>` : ""}<div><span>주식</span><b>${pos.length ? man(stock) : "–"}</b></div>${loan ? `<div><span>신용</span><b class="red">${man(loan)}</b></div>` : ""}</div></div>
+      ${contactStrip(cid)}
       ${lead ? `<section class="actbar ${g ? "g-" + g : ""}">
         <div class="ab-main"><span class="tag ${tagCls(g)}">${g ? GROUPS.find(x => x[0] === g)[1] : "참고"}</span><div><b>${esc(lead.title)}</b><small>${esc(lead.todo)}</small></div></div>
         <dl class="klines inline">${lines.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
@@ -1579,6 +1601,11 @@
     $app.querySelectorAll("[data-ctab]").forEach(b => (b.onclick = () => { cv.tab = b.dataset.ctab; pageClientTabs(cid); }));
     $app.querySelectorAll("[data-ci]").forEach(b => (b.onclick = () => { cv.open = cv.open === b.dataset.ci ? "__none" : b.dataset.ci; pageClientTabs(cid); }));
     const callB = $app.querySelector("[data-callnow]"); if (callB) callB.onclick = () => callNow(cid);
+    $app.querySelectorAll("[data-contact]").forEach(b => (b.onclick = () => {
+      const k = b.dataset.contact;
+      if (k === "undo") { delete S.contact[cid]; toast("되돌렸어요"); } else { S.contact[cid] = { date: todayKey(), kind: k }; toast(`${k} 완료 · 연락 없는 날을 0일로 바꿨어요`); }
+      save(); pageClientTabs(cid);
+    }));
     $app.querySelectorAll("[data-tst]").forEach(b => (b.onclick = () => { setTask(cid, b.dataset.tst === "undo" ? null : b.dataset.tst); toast(b.dataset.tst === "done" ? "완료했어요" : b.dataset.tst === "later" ? "내일로 미뤘어요" : "되돌렸어요"); pageClientTabs(cid); }));
     const up = $app.querySelector("#openUpload"); if (up) up.onclick = () => { cv.upload = true; pageClientTabs(cid); };
   }
