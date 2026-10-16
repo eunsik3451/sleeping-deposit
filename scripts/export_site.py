@@ -220,6 +220,16 @@ def market_script(a, cust, note, cfg):
     return text
 
 
+def demo_last_contact(cid, as_of):
+    """마지막 연락(통화·미팅) 데모 값. 실제 기록이 없어 고객번호로 고정된 가상 날짜를 만든다.
+    실서비스: 데스크 키폰 연동으로 통화가 자동 기록된다 (CLAUDE.md 진행 기록 참고)."""
+    import zlib
+    u = (zlib.crc32(str(cid).encode()) % 10_000) / 10_000
+    days = 1 + int(160 * u ** 2.5)                       # 절반은 한 달 안, 다섯 명 중 한 명꼴로 90일 넘게 연락 없음
+    kind = "미팅" if zlib.crc32(f"{cid}-k".encode()) % 5 == 0 else "통화"
+    return {"date": f"{as_of - pd.Timedelta(days=days):%Y-%m-%d}", "kind": kind, "demo": True}
+
+
 def market_section(cfg, ctx):
     files = sorted(p for p in (ROOT / "data" / "market").glob("20*.json"))
     if not files:
@@ -355,6 +365,7 @@ def main():
             "missed_month": rep["missed"], "will_miss": rep["will_miss"],
             "found": jsonable(found) if found else None,
             "items_total": sum(f.amount_krw for f in fs if f.rule != "R1"),
+            "last_contact": demo_last_contact(cid, A),
         })
         details[cid] = {
             "findings": [{**finding_dict(f), "script": pb_script(f, c, cfg, gen, A)["body"]} for f in fs],
