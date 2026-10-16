@@ -11,3 +11,6 @@ data/action_log.csv
 
 # 공모전 기획안·내부 분석은 공개 저장소에 올리지 않는다
 docs/
+
+# 카카오 키·토큰
+.kakao/
