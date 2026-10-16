@@ -1,15 +1,18 @@
 """내 PC에서만 쓰는 카톡 발송 도우미.
 
-켜 두면 사이트(공개 주소든 PC 파일이든)를 이 PC 브라우저로 열었을 때 테스트 고객 페이지에 [카톡 보내기] 버튼이 나온다.
+켜 두고 이 PC 브라우저로 http://127.0.0.1:8766/ (또는 site/index.html 파일)을 열면 테스트 고객 페이지에 [카톡 보내기] 버튼이 나온다.
 키·토큰은 .kakao/ 에만 있고 브라우저로 넘어가지 않는다. 127.0.0.1 에서만 듣고, 사이트 주소에서 온 요청만 받는다.
 
-    python notify/kakao_server.py        # 끄려면 Ctrl+C
+    python notify/kakao_server.py   → 브라우저에서 http://127.0.0.1:8766/ 열기 (끄려면 Ctrl+C)
+    공개 주소(github.io)에서는 크롬이 내 PC로의 요청을 막아서 버튼이 안 나온다.
 """
 import json
+import mimetypes
 import re
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote
 
 import requests
 
@@ -17,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kakao_send as ks  # noqa: E402
 
 PORT = 8766
+SITE = (ks.ROOT / "site").resolve()
 TEST_CIDS = ("T001", "T002")      # 테스트 고객(본인·팀원)만 보낼 수 있다
 ALLOWED_ORIGIN = re.compile(r"^(https://eunsik3451\.github\.io|null|http://(localhost|127\.0\.0\.1)(:\d+)?)$")
 
@@ -91,7 +95,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path != "/ping":
-            return self.reply(404, {"ok": False})
+            return self.static()
         try:
             self.reply(200, status())
         except SystemExit as e:
@@ -106,6 +110,20 @@ class Handler(BaseHTTPRequestHandler):
         except SystemExit as e:   # kakao_send 의 오류 메시지 (토큰 만료 등)
             self.reply(500, {"ok": False, "error": str(e)})
 
+    def static(self):
+        """사이트도 여기서 띄운다 (http://127.0.0.1:8766/). 공개 주소에서 내 PC로 요청하면 크롬이 막기 때문."""
+        rel = unquote(self.path.split("?")[0].split("#")[0]).lstrip("/") or "index.html"
+        path = (SITE / rel).resolve()
+        if SITE not in path.parents or not path.is_file():
+            return self.reply(404, {"ok": False})
+        raw = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", mimetypes.guess_type(path.name)[0] or "application/octet-stream")
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(raw)
+
     def log_message(self, *_):
         pass
 
@@ -114,7 +132,7 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     Handler.cfg = ks.load_config()
     ks.access_token(Handler.cfg)   # 토큰이 없거나 만료면 여기서 알려 준다
-    print(f"카톡 발송 도우미 켜짐 (127.0.0.1:{PORT}). 이 PC 브라우저로 사이트의 조은식·김지혁 고객 페이지 → '일정·알림' 탭. 끄려면 Ctrl+C")
+    print(f"카톡 발송 도우미 켜짐 → 브라우저에서 http://127.0.0.1:{PORT}/#client/T001 열기 (조은식·김지혁 고객 페이지 '카톡 보내기'). 끄려면 Ctrl+C")
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
 
 
