@@ -960,3 +960,47 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .cstrip.lv-mid .cs-dot { background: #F5A623; } .cstrip.lv-bad .cs-dot { background: #F04452; }
 .cstrip.lv-bad .cs-main b { color: #D22030; }
 .cs-acts { display: flex; gap: 8px; align-items: center; }
+
+/* ── 고객 프로필 머리: 이름 · 연락 일수(크게) · 핵심 숫자 ── */
+.c360-top { background: #fff; border-radius: 20px; padding: 18px 22px; margin-bottom: 12px; }
+.c360-top .c360-head { align-items: center; }
+.cbadge { margin-left: auto; display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-radius: 16px; background: #F2F4F6; }
+.cb-num b { display: block; font-size: 1.55rem; line-height: 1.1; letter-spacing: -0.02em; }
+.cb-num small { color: #6B7684; font-size: 0.8rem; }
+.cbadge.lv-mid { background: #FFF6E5; } .cbadge.lv-mid .cb-num b { color: #C27800; }
+.cbadge.lv-bad { background: #FFEEF0; } .cbadge.lv-bad .cb-num b { color: #D22030; }
+.cb-acts { display: flex; gap: 6px; }
+.ckpis { display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #F2F4F6; }
+.ckpis span { display: block; color: #6B7684; font-size: 0.78rem; }
+.ckpis b { font-size: 1.12rem; }
+.ckpis small { display: block; font-size: 0.78rem; color: #6B7684; margin-top: 1px; }
+.ckpis em { font-style: normal; } .ckpis em.warn { color: #C27800; } .ckpis em.bad { color: #D22030; }
+
+/* 꼭 알아야 할 것 */
+.must { background: #fff; border-radius: 20px; padding: 16px 22px; margin-bottom: 12px; }
+.must h2 { margin: 0 0 8px; font-size: 1.02rem; }
+.must ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.must li { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #F2F4F6; }
+.must li:last-child { border-bottom: none; }
+.must li .tag { flex: 0 0 auto; min-width: 72px; text-align: center; }
+.must li b { display: block; font-size: 0.95rem; } .must li small { color: #6B7684; font-size: 0.83rem; }
+.tag.s-info { background: #F2F4F6; color: #4E5968; }
+
+/* 고객 목록: 연락 일수 열 */
+.cm-rows li a { grid-template-columns: 44px minmax(0, 1fr) auto 84px 130px 16px; }
+.lcd { text-align: right; } .lcd b { display: block; } .lcd small { color: #8B95A1; font-size: 0.75rem; }
+.lcd.lv-mid b { color: #C27800; } .lcd.lv-bad b { color: #D22030; }
+.sortsel { width: auto; }
+@media (max-width: 900px) {
+  .cbadge { margin-left: 0; width: 100%; justify-content: space-between; }
+  .cm-rows li a { grid-template-columns: 40px minmax(0, 1fr) 70px auto 14px; }
+  .cm-rows li a > .tag { display: none; }
+}
+@media (max-width: 620px) { .cm-rows li a { grid-template-columns: 40px minmax(0, 1fr) 64px auto; } }
+.tag.s-idle { background: #E8F3FF; color: #1B64DA; }
+
+.ckpis > div { min-width: 0; }
+.ckpis small span { display: inline; font-size: inherit; }
+.c360-top .c360-head { margin-bottom: 0; }
+.toolbar .sortsel { flex: 0 0 auto; width: auto; min-width: 150px; }
+.ckpis .dn { color: #2B6BEA; } .ckpis .up { color: #E42939; }
