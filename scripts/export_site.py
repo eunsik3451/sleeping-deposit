@@ -97,8 +97,21 @@ def render(item, cust, cfg, gen, as_of):
     label, trig, ch, mtype, f, extra, note = item
     out = gen.generate_checked(trig, ch, mtype if ch != "pb_queue" else "info", cust, f, extra, as_of)
     title = ad_title(out["title"], cfg) if mtype == "ad" and ch in ("push", "kakao") else out["title"]
+    short = None
+    if ch == "kakao" and len(kakao_text(title, out["body"], mtype)) > KAKAO_TEXT_LIMIT:
+        s = gen.generate_checked(trig, "kakao_short", mtype, cust, f, extra, as_of)
+        if s["used"] != "safe" and len(kakao_text(title, s["body"], mtype)) <= KAKAO_TEXT_LIMIT:
+            short = s["body"]
     return {"label": label, "trigger": trig, "channel": ch, "msg_type": mtype, "title": title, "body": out["body"],
-            "note": note, "checked": out["used"] == "template"}
+            "short": short, "note": note, "checked": out["used"] == "template"}
+
+
+KAKAO_TEXT_LIMIT = 200   # 카톡 메시지 API 텍스트 본문 한도 (실서비스 알림톡·브랜드 메시지는 더 김)
+
+
+def kakao_text(title, body, mtype):
+    """카톡 메시지 API로 실제 나가는 글: 광고성은 "(광고) 제목" 줄을 맨 앞에."""
+    return f"{title}\n\n{body}" if mtype == "ad" else body
 
 
 def pb_script(f, cust, cfg, gen, as_of):

@@ -8,10 +8,11 @@
     python notify/kakao_send.py token "<주소창 URL>" # 돌아온 주소(또는 code)로 토큰 저장
 
     # 보낼 알림 고르기: --id 발송함 메시지 id, 또는 --cid 고객 --label 오늘 미리보기 이름 일부
-    python notify/kakao_send.py send-me --id M20261005-T001-T_EVENT-kakao   # 200자 이내 → 텍스트
-    python notify/kakao_send.py card --cid T001 --label 이자                # 200자 넘는 알림 → 이미지 카드 만들기
-    bash scripts/publish.sh "카톡 카드"                                     # 이미지를 사이트에 올리고
-    python notify/kakao_send.py send-me --cid T001 --label 이자 --card      # 이미지 카드로 보내기
+    python notify/kakao_send.py send-me --cid T001 --label 이자   # 텍스트 (200자 넘으면 템플릿 kakao_short 짧은 버전)
+    python notify/kakao_send.py send-me --id M20261005-T001-T_EVENT-kakao
+
+    # (보조) 이미지 카드 — 카톡 말풍선에서 글자가 작아 읽기 어려워 기본으로 쓰지 않는다
+    python notify/kakao_send.py card --cid T001 --label 이자 → publish.sh → send-me ... --card
 """
 import argparse
 import hashlib
@@ -96,7 +97,7 @@ def pick_message(args):
         if not rows:
             sys.exit(f"발송함에 카톡 메시지 {args.id} 가 없어요.")
         o = rows[0]
-        return {"cid": o["cid"], "title": o["title"], "body": o["body"], "msg_type": o["msg_type"], "ref": o["id"]}
+        return {"cid": o["cid"], "title": o["title"], "body": o["body"], "short": None, "msg_type": o["msg_type"], "ref": o["id"]}
     det = data["details"].get(args.cid)
     if not det:
         sys.exit(f"고객 {args.cid} 가 없어요.")
@@ -105,11 +106,26 @@ def pick_message(args):
         labels = [p["label"] for p in det["previews"] if p["channel"] == "kakao"]
         sys.exit(f"{args.cid} 의 카톡 미리보기에 '{args.label}' 가 없어요. 있는 것: {labels}")
     p = rows[0]
-    return {"cid": args.cid, "title": p["title"], "body": p["body"], "msg_type": p["msg_type"], "ref": f"{args.cid} 오늘 미리보기 · {p['label']}"}
+    return {"cid": args.cid, "title": p["title"], "body": p["body"], "short": p.get("short"), "msg_type": p["msg_type"],
+            "ref": f"{args.cid} 오늘 미리보기 · {p['label']}"}
 
 
 def app_url(cid):
     return f"{SITE_URL}app.html?c={cid}"
+
+
+def message_text(msg):
+    """보낼 글: 광고성은 "(광고) 제목" 줄을 맨 앞에. 200자를 넘으면 템플릿의 짧은 버전(kakao_short)."""
+    def join(body):
+        return f"{msg['title']}\n\n{body}" if msg["msg_type"] == "ad" else body
+    full = join(msg["body"])
+    if len(full) <= TEXT_LIMIT:
+        return full, "전체"
+    if msg.get("short"):
+        return join(msg["short"]), "짧은 버전"
+    if msg["msg_type"] == "ad":
+        sys.exit(f"광고성 알림이 {len(full)}자인데 짧은 버전이 없어요. 자르면 고지 문구가 빠지니 템플릿에 kakao_short 를 추가하세요.")
+    return fit_text(msg["body"]), "잘라냄"
 
 
 def fit_text(body, limit=TEXT_LIMIT):
@@ -240,11 +256,9 @@ def cmd_send_me(cfg, args):
         }
         print(f"[{msg['ref']}] 이미지 카드 {w}x{h}\n{url}\n버튼 → {link['web_url']}\n")
     else:
-        text = fit_text(msg["body"])
-        if text != msg["body"] and msg["msg_type"] == "ad":
-            sys.exit(f"광고성 알림이 {len(msg['body'])}자라 자르면 고지 문구가 빠져요. --card 로 보내세요.")
+        text, kind = message_text(msg)
         template = {"object_type": "text", "text": text, "link": link, "button_title": "앱에서 확인하기"}
-        print(f"[{msg['ref']}] {len(msg['body'])}자 → {len(text)}자\n{text}\n버튼 → {link['web_url']}\n")
+        print(f"[{msg['ref']}] {kind} {len(text)}자\n{text}\n버튼 → {link['web_url']}\n")
     if args.dry_run:
         return
     r = requests.post(

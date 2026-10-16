@@ -7,7 +7,8 @@ PERCENT_RE = re.compile(r"\d+(?:\.\d+)?\s*%")
 ALWAYS_ALLOWED = {"1"}          # "1년" 같은 표현만 허용. 나머지 숫자는 전부 {값}에서 와야 한다
 FORBIDDEN_INFO_WORDS = ("가입", "추천", "RP", "금리")
 PROTECTION_WORD = "예금자보호"    # 준법: RP·CMA(RP형)를 안내하면 예금자보호 대상이 아님을 반드시 알린다
-LIMITS = {"push": {"title": 20, "body": 60}, "kakao": {"body": 300}}
+LIMITS = {"push": {"title": 20, "body": 60}, "kakao": {"body": 300},
+          "kakao_short": {"body": 175}}   # 카톡 메시지 API 데모용: 텍스트 200자 − 광고 제목 줄 자리
 
 
 def _norm(tok: str) -> str:
@@ -30,7 +31,7 @@ def check(title, body, values: dict, msg_type, channel, product_names=()) -> lis
         problems.append(f"계산값에 없는 숫자: {', '.join(sorted(stray))}")
 
     # 정보성: 고객에게 나가는 채널만 검사 (pb_queue 통화 스크립트는 고객에게 발송되지 않음)
-    if msg_type == "info" and channel in ("push", "kakao", "monthly_report"):
+    if msg_type == "info" and channel in ("push", "kakao", "kakao_short", "monthly_report"):
         text = f"{title}\n{body}"
         words = [w for w in (*FORBIDDEN_INFO_WORDS, *product_names) if w and w in text]
         if words:
