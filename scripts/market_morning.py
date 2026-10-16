@@ -127,15 +127,16 @@ def main():
     for a in alerts:
         if a["kind"] == "big_move":
             need[a["symbol"]] = (a["name"], a["chg_pct"], a["trade_date"])
-    notes.setdefault("_market", {"summary": "", "bullets": [], "sources": [], "checked_by": ""})   # 오늘 시장 요약 (뉴스 확인 후 채움)
+    notes.setdefault("_market", {"headline": "", "why": [], "kr": {"line": "", "up": [], "down": []},
+                                  "us": {"line": "", "up": [], "down": []}, "chips": [], "sources": []})   # 오늘 시장 요약 (뉴스 확인 후 채움)
     for sym, (name, chg, d) in need.items():
         notes.setdefault(sym, {"name": name, "trade_date": d, "chg_pct": round(chg * 100, 2),
-                               "reason": "", "sources": [], "checked_by": ""})
+                               "reason": "", "sources": []})
     npath.write_text(json.dumps(notes, ensure_ascii=False, indent=1), encoding="utf-8")
 
     kinds = pd.Series([a["kind"] for a in alerts]).value_counts().to_dict() if alerts else {}
     print(f"기준일 {ref:%Y-%m-%d} · 보유 고객 {out['holders']}명 · 보유 {out['positions']}건 · 알림 {kinds}")
-    print(f"  오늘 시장 요약 → {'✓' if notes['_market']['summary'] else '요약 필요'}")
+    print(f"  어제 시장 요약 → {'✓' if notes['_market'].get('headline') else '요약 필요'}")
     for sym, (name, chg, d) in need.items():
         mark = "✓" if notes[sym]["reason"] else "이유 필요"
         print(f"  {name}({sym}) {chg * 100:+.1f}% [{d}] → {mark}")

@@ -1017,6 +1017,21 @@
   // 시장 요약은 지난 거래일 마감 기준: 기준일 전날이면 '어제', 주말·휴일을 건너뛰었으면 '지난 거래일'
   const mkDay = () => { const r = new Date(MK.ref_date + "T00:00:00"); return (AS_OF - r) / 864e5 === 1 ? "어제" : "지난 거래일"; };
   const mkDate = () => { const r = new Date(MK.ref_date + "T00:00:00"); return `${r.getMonth() + 1}/${r.getDate()}(${"일월화수목금토"[r.getDay()]})`; };
+  // ① 시장 요약: 흐름 한 줄 → 왜(근거) → 국내·미국 오른 업종/내린 업종과 근거 → 환율·금리 → 출처(접힘)
+  function mkBrief(sm) {
+    if (!sm.headline) return sm.summary ? `<p class="mk-sum">${esc(sm.summary)}</p>` : `<p class="sub">${mkDay()} 시장 요약을 아직 쓰지 않았어요.</p>`;
+    const sec = (list, up) => (list || []).map(x => `<li class="${up ? "up" : "dn"}"><div class="sc-h"><b>${esc(x.sector)}</b><span>${esc(x.move)}</span></div><p>${esc(x.why)}</p></li>`).join("");
+    const col = (t, x) => x ? `<div class="mk-col"><h3>${t}</h3><p class="mk-line">${esc(x.line)}</p>
+        ${(x.up || []).length ? `<p class="sc-t up">오른 업종</p><ul class="sc">${sec(x.up, true)}</ul>` : ""}
+        ${(x.down || []).length ? `<p class="sc-t dn">내린 업종</p><ul class="sc">${sec(x.down, false)}</ul>` : ""}
+        ${x.outlook ? `<p class="mk-out">${esc(x.outlook)}</p>` : ""}</div>` : "";
+    const src = [...(sm.sources || [])];
+    return `<p class="mk-sum">${esc(sm.headline)}</p>
+      ${(sm.why || []).length ? `<ol class="mk-why">${sm.why.map(w => `<li><b>${esc(w.t)}</b><span>${esc(w.d)}</span></li>`).join("")}</ol>` : ""}
+      <div class="mk-two">${col("국내", sm.kr)}${col("미국", sm.us)}</div>
+      ${(sm.chips || []).length ? `<div class="mk-chips">${sm.chips.map(c => `<span>${esc(c)}</span>`).join("")}</div>` : ""}
+      ${src.length ? `<details class="mk-src"><summary>출처 ${src.length}건</summary>${srcLinks(src)}</details>` : ""}`;
+  }
   const srcLinks = list => (list || []).length ? `<p class="src">${list.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title.split(":")[0])}</a>`).join(" · ")}</p>` : "";
   function pageMarket() {
     if (!MK) { $app.innerHTML = `<div class="pg"><h1>시장 이슈</h1><p class="sub">아침 시장 점검을 아직 돌리지 않았어요.</p></div>`; return; }
@@ -1041,13 +1056,9 @@
       <div class="pg-head"><div><h1>시장 이슈</h1><p class="sub">${mkDate()} 마감 기준 · ${mkDay()} 국내·미국 시장, 내 고객 보유 종목, 평가금이 크게 바뀐 고객 순서로 보세요</p></div></div>
 
       <section class="panel">
-        <div class="bhead"><h2>① ${mkDay()} 시장 <small class="sub">${mkDate()} 마감 · 국내·미국</small></h2><span class="sub">${esc(sm.checked_by || "")}</span></div>
+        <div class="bhead"><h2>① ${mkDay()} 시장 <small class="sub">${mkDate()} 마감 · 국내·미국</small></h2></div>
         <div class="idx-row">${MK.indices.map(i => `<div class="card-s soft"><span>${esc(i.name)}</span><b>${i.close.toLocaleString("ko-KR")}</b><em class="${i.chg_pct < 0 ? "dn" : "up"}">${pctTxt(i.chg_pct)}</em></div>`).join("")}</div>
-        ${sm.summary ? `<p class="mk-sum">${esc(sm.summary)}</p><ul class="mk-bul">${(sm.bullets || []).map(b => `<li>${esc(b)}</li>`).join("")}</ul>
-          ${srcLinks(sm.sources)}` : `<p class="sub">${mkDay()} 시장 요약을 아직 쓰지 않았어요.</p>`}
-        ${sm.kr || sm.us ? `<div class="mk-two">${[["국내", sm.kr], ["미국", sm.us]].filter(([, x]) => x).map(([t, x]) => `<div class="mk-col">
-          <h3>${t}</h3><p>${esc(x.summary)}</p><ul class="mk-bul">${(x.bullets || []).map(b => `<li>${esc(b)}</li>`).join("")}</ul>${srcLinks(x.sources)}</div>`).join("")}</div>` : ""}
-        ${(sm.macro || []).length ? `<div class="mk-macro"><h3>환율·금리·원자재</h3><ul class="mk-bul">${sm.macro.map(b => `<li>${esc(b)}</li>`).join("")}</ul></div>` : ""}
+        ${mkBrief(sm)}
       </section>
 
       <section class="panel">
@@ -1448,7 +1459,7 @@
           <ul class="glist">${GROUPS.map(([k, t, d]) => `<li><a href="#tasks"><span class="dot g-${k}"></span><span><b>${t}</b><small>${d}</small></span><em>${cnt(k)}명</em></a></li>`).join("")}</ul>
         </section>
         ${MK ? `<section class="panel mk-one"><div class="bhead"><h2>${mkDay()} 시장 <small class="sub">${mkDate()}</small></h2><a href="#market">시장 이슈 ›</a></div>
-          <p class="mk-line">${ko ? `코스피 <b class="${ko.chg_pct < 0 ? "dn" : "up"}">${pctTxt(ko.chg_pct)}</b> · ` : ""}${esc(sm && sm.summary ? sm.summary.split(/(?<=다\.)\s/)[0] : "시장 요약 전")}</p>
+          <p class="mk-line">${ko ? `코스피 <b class="${ko.chg_pct < 0 ? "dn" : "up"}">${pctTxt(ko.chg_pct)}</b> · ` : ""}${esc(sm && (sm.headline || (sm.summary ? sm.summary.split(/(?<=다\.)\s/)[0] : "")) || "시장 요약 전")}</p>
           <p class="sub">내 고객 ${affected}명이 영향을 받았어요 (큰 등락·담보 부족)</p></section>` : ""}
         <section class="panel"><div class="bhead"><h2>다가오는 마감</h2><a href="#calendar">일정 ›</a></div>
           <ul class="cal">${due.map(u => `<li><span class="d"><b>${u.date.slice(5).replace("-", "/")}</b><small class="${u.dl <= 3 ? "red" : ""}">D-${u.dl}</small></span><span class="t"><b>${esc(u.label)}</b><small>고객 ${u.cids.size}명</small></span></li>`).join("") || `<li class="empty">14일 안에 마감이 없어요</li>`}</ul></section>

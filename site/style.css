@@ -928,3 +928,27 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .mk-col > p { margin: 0 0 8px; line-height: 1.6; word-break: keep-all; font-size: 0.94rem; }
 .mk-macro { margin-top: 12px; }
 @media (max-width: 900px) { .mk-two { grid-template-columns: 1fr; } }
+/* 시장 요약: 왜 → 업종 → 지표 */
+.mk-why { margin: 6px 0 4px; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; counter-reset: w; }
+.mk-why li { background: var(--t-fill, #F2F4F6); border-radius: 12px; padding: 10px 12px; counter-increment: w; }
+.mk-why b { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+.mk-why b::before { content: counter(w) ". "; color: var(--t-blue); }
+.mk-why span { font-size: 0.85rem; color: #4E5968; line-height: 1.5; }
+.mk-line { margin: 0 0 8px !important; font-weight: 600; font-size: 0.92rem; }
+.sc-t { margin: 10px 0 4px; font-size: 0.8rem; font-weight: 700; }
+.sc-t.up { color: #E42939; } .sc-t.dn { color: #2B6BEA; }
+.sc { list-style: none; margin: 0; padding: 0; }
+.sc li { padding: 7px 0 7px 10px; border-left: 3px solid; margin-bottom: 4px; }
+.sc li.up { border-color: #F7A1A9; } .sc li.dn { border-color: #9DBDF5; }
+.sc-h { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.sc-h b { font-size: 0.92rem; } .sc-h span { font-size: 0.82rem; color: #4E5968; }
+.sc p { margin: 2px 0 0; font-size: 0.84rem; color: #6B7684; line-height: 1.5; }
+.mk-out { margin: 10px 0 0 !important; font-size: 0.84rem; color: #6B7684; }
+.mk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.mk-chips span { background: #fff; border: 1px solid var(--t-line, #EEF0F3); border-radius: 999px; padding: 4px 10px; font-size: 0.82rem; color: #4E5968; }
+.mk-src { margin-top: 10px; font-size: 0.82rem; color: var(--t-faint, #8B95A1); }
+.mk-src summary { cursor: pointer; }
+@media (max-width: 900px) { .mk-why { grid-template-columns: 1fr; } }
+.sc-h b { color: var(--t-ink, #191F28); }   /* 등락 색은 숫자·막대에만 — 업종 이름은 기본색 */
+.sc-t.up, .sc-t.dn { color: #4E5968; }
+.sc-t.up::before { content: "▲ "; color: #E42939; } .sc-t.dn::before { content: "▼ "; color: #2B6BEA; }
