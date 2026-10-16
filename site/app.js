@@ -367,6 +367,13 @@
         <p class="s-note center">데모라 실제 주문은 하지 않아요</p>`;
     } else if (kind === "item") {
       body = itemSheet(f);
+    } else if (kind === "report") {
+      const p = D.details[cid].previews.find(x => x.trigger === "T_MONTHLY");
+      const rows = p.body.split("\n").filter(l => l.startsWith("■")).map(l => l.slice(1).trim().split(/:\s*/));
+      body = `<p class="s-sub">매월 1일 리포트</p><h3>${esc(p.title)}</h3>
+        ${rows.map(([k, v]) => `<div class="s-kv"><span>${esc(k)}</span><b>${esc(v || "")}</b></div>`).join("")}
+        <p class="s-note">예수금 자동 RP나 RP로 깨우면 다음 달부터 '깨운 뒤 받은 이자'에 쌓여요.</p>
+        <button class="a-cta" data-close>확인</button>`;
     } else if (kind === "done") {
       body = `<div class="s-done"><div class="s-check-ico">✓</div><h3>${esc(fid)}</h3></div><button class="a-cta" data-close>확인</button>`;
     }
@@ -376,12 +383,12 @@
 
   function itemSheet(f) {
     const m = f.meta, dl = daysLeft(f.deadline);
-    const rows = {
-      R2: [["올해 실현이익", won(m.realized)], ["평가손실 / 평가이익", `${won(m.loss)} / ${won(m.gain)}`], ["올해 마지막 매도일", `${f.deadline} (D-${dl})`]],
-      R3: [["보유 → 청약 가능", `${m.qty.toLocaleString("ko-KR")}주 → ${m.shares.toLocaleString("ko-KR")}주`], ["청약가 / 현재가", `${won(m.issue_price)} / ${won(m.now)}`], ["청약 기간", `${m.start} ~ ${f.deadline}`]],
-      R4: [["만기일", `${f.deadline} (D-${dl})`], ["상환 예정 금액", man(m.expected)], ["한 달 그대로 두면", `약 ${man(f.amount_krw)} 못 받음`]],
-      R5: [["올해 납입 / 한도", `${man(m.paid)} / ${man(m.limit)}`], ["남은 한도", man(m.remain)], ["마감", `${f.deadline} 납입분까지 (D-${dl})`]],
-    }[f.rule];
+    const rows = ({   // 해당 항목 줄만 만든다 (다른 항목 값이 없어서 오류 나지 않게)
+      R2: () => [["올해 실현이익", won(m.realized)], ["평가손실 / 평가이익", `${won(m.loss)} / ${won(m.gain)}`], ["올해 마지막 매도일", `${f.deadline} (D-${dl})`]],
+      R3: () => [["보유 → 청약 가능", `${m.qty.toLocaleString("ko-KR")}주 → ${m.shares.toLocaleString("ko-KR")}주`], ["청약가 / 현재가", `${won(m.issue_price)} / ${won(m.now)}`], ["청약 기간", `${m.start} ~ ${f.deadline}`]],
+      R4: () => [["만기일", `${f.deadline} (D-${dl})`], ["상환 예정 금액", man(m.expected)], ["한 달 그대로 두면", `약 ${man(f.amount_krw)} 못 받음`]],
+      R5: () => [["올해 납입 / 한도", `${man(m.paid)} / ${man(m.limit)}`], ["남은 한도", man(m.remain)], ["마감", `${f.deadline} 납입분까지 (D-${dl})`]],
+    })[f.rule]();
     const note = { R2: "매도를 권하는 안내가 아니에요. 다른 증권사 손익은 빠져 있어요.",
       R3: "청약 여부는 직접 판단해 주세요. 주가가 바뀌면 차이도 달라져요.",
       R4: "다시 투자할지는 직접 정하세요. 정하기 전까지는 예수금 자동 RP로 이자를 받을 수 있어요.",
@@ -1682,12 +1689,24 @@
     const up = $app.querySelector("#openUpload"); if (up) up.onclick = () => { cv.upload = true; pageClientTabs(cid); };
   }
 
+  // 카톡 알림 버튼의 &s= → 열 화면 (why·buy·item:발견번호, report). 자동 RP를 제안한 경우 buy는 auto로
+  function deepSheet(cid) {
+    const s = new URLSearchParams(location.search).get("s");
+    if (!s) return null;
+    if (s === "report") return D.details[cid].previews.some(p => p.trigger === "T_MONTHLY") ? "report" : null;
+    const day = id => id.replace(/-\d{8}$/, "");   // 발견번호 끝의 기준일은 매일 바뀌므로 빼고 비교 (어제 받은 알림도 열림)
+    const [kind, fid0] = s.split(":"), f = findingsOf(cid).find(x => day(x.finding_id) === day(fid0 || "")), fid = f && f.finding_id;
+    if (!f || !["why", "buy", "item"].includes(kind)) return null;
+    if (kind === "buy" && (foundOf(cid) || f.recommendation.product_id === "AUTO_RP")) return foundOf(cid) ? null : `auto:${fid}`;
+    return `${kind}:${fid}`;
+  }
+
   // ── 고객용 데모 화면 (app.html?c=고객번호): 카톡 알림 버튼으로 들어온 고객 한 명의 앱 화면만 ──
   const CUSTOMER_MODE = document.body.dataset.mode === "customer";
   function pageCustomerOnly() {
     const cid = new URLSearchParams(location.search).get("c");
     if (!CUST[cid]) { $app.innerHTML = `<p class="muted" style="padding:60px 0;text-align:center">알림의 버튼으로 들어와 주세요.</p>`; return; }
-    if (cx.cid !== cid) cx = { cid, scene: "home", sheet: null, step: 0, ans: [] };  // 알림을 눌러 들어왔으니 잠금화면 없이 앱부터
+    if (cx.cid !== cid) cx = { cid, scene: "home", sheet: deepSheet(cid), step: 0, ans: [] };  // 알림을 눌러 들어왔으니 잠금화면 없이 앱부터
     $app.innerHTML = `<div class="device"><div class="device-screen" id="phone">${phoneScreen(cid)}</div></div>`;
     bindPhone();
   }

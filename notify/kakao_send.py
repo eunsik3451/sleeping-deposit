@@ -127,7 +127,7 @@ WAS = {"push": " (원래 앱 푸시)", "monthly_report": " (원래 앱 월간 �
 
 def to_msg(cid, p):
     return {"cid": cid, "title": p["title"], "body": p["body"], "short": p.get("short"), "msg_type": p["msg_type"],
-            "trigger": p.get("trigger"), "ref": f"{cid} · {p['label']}{WAS.get(p.get('was'), '')}"}
+            "trigger": p.get("trigger"), "sheet": sheet_for(p), "ref": f"{cid} · {p['label']}{WAS.get(p.get('was'), '')}"}
 
 
 # ── 알림톡처럼 보이게: 피드형(보낸 곳 줄 + 항목 표 + 큰 숫자 이미지) ──
@@ -173,8 +173,23 @@ def render_hero(h, path):
     img.save(path, optimize=True)
 
 
-def app_url(cid):
-    return f"{SITE_URL}app.html?c={cid}"
+def app_url(cid, sheet=None):
+    """알림 버튼 → 고객 앱. sheet가 있으면 그 알림 내용 화면을 바로 연다 (실서비스에서는 앱 딥링크)."""
+    return f"{SITE_URL}app.html?c={cid}" + (f"&s={sheet}" if sheet else "")
+
+
+def sheet_for(p):
+    """알림 종류 → 앱에서 열 화면. 근거(why)·RP 맡기기(buy)·항목(item)·월간 리포트(report)."""
+    trig, fid = p.get("trigger"), p.get("fid")
+    if trig == "T_MONTHLY":
+        return "report"
+    if not fid:
+        return None
+    if trig == "T_IDLE_UPDATE":
+        return f"buy:{fid}"
+    if trig in ("T_EVENT", "T_IDLE_FIRST"):
+        return f"why:{fid}"
+    return f"item:{fid}"
 
 
 SENDER = "[사이로그 테스트]"  # 개인 카톡 계정으로 보내므로 회사 이름을 보낸 곳처럼 쓰지 않는다
@@ -363,7 +378,7 @@ def cmd_send_all(cfg, args):
 
 def cmd_send_me(cfg, args, msg=None):
     msg = msg or pick_message(args)
-    link = {"web_url": app_url(msg["cid"]), "mobile_web_url": app_url(msg["cid"])}
+    link = {"web_url": app_url(msg["cid"], msg.get("sheet")), "mobile_web_url": app_url(msg["cid"], msg.get("sheet"))}
     if args.rich:
         parts = rich_parts(msg)
         url = f"{SITE_URL}kakao/{hero_name(parts, msg['cid'])}"

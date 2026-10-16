@@ -47,7 +47,8 @@ def send(cfg, cid, label, to):
         return 404, {"ok": False, "error": f"{cid}에 '{label}' 알림이 없어요."}
     msg = ks.to_msg(cid, pool[0])
     text, _ = ks.message_text(msg)
-    link = {"web_url": ks.app_url(cid), "mobile_web_url": ks.app_url(cid)}
+    url_ = ks.app_url(cid, msg.get("sheet"))
+    link = {"web_url": url_, "mobile_web_url": url_}
     data = {"template_object": json.dumps({"object_type": "text", "text": text, "link": link, "button_title": "앱에서 확인하기"},
                                           ensure_ascii=False)}
     if to == "friend":

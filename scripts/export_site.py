@@ -74,7 +74,7 @@ def kakao_test(fs, cust, cfg, gen, as_of, tail):
                 continue
             seen.add((trig, id(ff)))
             label = label.replace(" (발견 즉시)", "").replace(" (알림톡)", "")
-            out.append({**render((label, trig, "kakao", mtype, ff, extra, None), cust, cfg, gen, as_of), "was": ch})
+            out.append({**render((label, trig, "kakao", mtype, ff, extra, None), cust, cfg, gen, as_of), "was": ch, "fid": f.finding_id})
     for label, trig, ch, extra in tail:
         r = render((label, trig, ch, "info", None, extra, None), cust, cfg, gen, as_of)
         out.append({**r, "channel": "kakao", "was": ch})
