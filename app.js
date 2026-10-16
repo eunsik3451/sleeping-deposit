@@ -47,6 +47,39 @@
     t.textContent = msg; t.hidden = false;
     clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2600);
   }
+
+  // ── 내 PC에서만: 카톡 발송 도우미(notify/kakao_server.py)가 켜져 있으면 테스트 고객 페이지에 보내기 버튼 ──
+  // 키·토큰은 PC 밖으로 나가지 않는다. 도우미가 꺼져 있거나 다른 사람 PC면 버튼이 안 보인다.
+  const KLOCAL = "http://127.0.0.1:8766";
+  let kakaoLocal = null;
+  function kakaoPing() {
+    fetch(KLOCAL + "/ping").then(r => r.json()).then(j => {
+      if (!j.ok) return;
+      kakaoLocal = j;
+      const m = location.hash.match(/^#client\/(T\d+)/);
+      if (m && kakaoLocal.cids[m[1]]) pageClientTabs(m[1]);
+    }).catch(() => {});
+  }
+  function kakaoPanel(cid) {
+    const k = kakaoLocal && kakaoLocal.cids[cid];
+    if (!k) return "";
+    const WAS = { push: "원래 앱 푸시", monthly_report: "원래 앱 리포트" };
+    return `<section class="panel kpanel"><div class="bhead"><h2>카톡으로 보내기</h2><span class="pill-tag">내 PC에서만</span></div>
+      <p class="sub small">이 고객에게 가는 알림을 카카오톡으로 보내요. 앱 푸시로 가던 알림도 카톡 문구로 보내요.${k.friend ? "" : " 고객에게 보내려면 카톡 친구 연결이 필요해요."}</p>
+      <ul class="klist">${k.items.map((it, i) => `<li><span><b>${esc(it.title)}</b><small>${esc(it.label)}${it.was && WAS[it.was] ? " · " + WAS[it.was] : ""} · ${it.ad ? "광고성" : "정보성"}</small></span>
+        <span class="kbtns"><button class="ghost sm" data-ksend="${i}|me">나에게</button>${k.friend ? `<button class="cta sm" data-ksend="${i}|friend">${esc(k.friend)}님에게</button>` : ""}</span></li>`).join("")}</ul></section>`;
+  }
+  function bindKakao(cid) {
+    $app.querySelectorAll("[data-ksend]").forEach(b => (b.onclick = () => {
+      const [i, to] = b.dataset.ksend.split("|"), it = kakaoLocal.cids[cid].items[+i];
+      if (to === "friend" && !confirm(`${kakaoLocal.cids[cid].friend}님 카카오톡으로 '${it.title}'을 보낼까요?`)) return;
+      b.disabled = true;
+      fetch(KLOCAL + "/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cid, label: it.label, to }) })
+        .then(r => r.json()).then(j => toast(j.ok ? `보냈어요 · ${j.where}` : j.error))
+        .catch(() => toast("카톡 발송 도우미가 꺼져 있어요"))
+        .finally(() => (b.disabled = false));
+    }));
+  }
   function modal(html, onMount) {
     const m = document.getElementById("modal");
     m.innerHTML = `<div class="dialog" role="dialog" aria-modal="true">${html}</div>`;
@@ -1614,7 +1647,7 @@
     else if (cv.tab === "calls") body = `<div class="ov-grid"><div class="col"><section class="panel"><div class="bhead"><h2>최근 통화 요약</h2>${last ? `<span class="pill-tag ${last.ai ? "ai" : ""}">${last.ai ? "AI 요약 · PB 확인 전" : "PB 확인 완료"}</span>` : ""}</div>${last ? callSummary(last, calls) : `<p class="sub">아직 분석한 통화가 없어요.</p>`}</section></div>
         <div class="col"><section class="panel"><div class="bhead"><h2>통화 녹음 분석</h2></div>${callPanel(cid)}</section></div></div>`;
     else body = `<div class="ov-grid"><div class="col"><section class="panel"><div class="bhead"><h2>케어 일정</h2></div>${calendar(cid)}</section></div>
-        <div class="col"><section class="panel"><div class="bhead"><h2>이 고객에게 간 알림</h2><span class="sub">최근 30일 · ${alerts.length}건</span></div>
+        <div class="col">${kakaoPanel(cid)}<section class="panel"><div class="bhead"><h2>이 고객에게 간 알림</h2><span class="sub">최근 30일 · ${alerts.length}건</span></div>
         ${alerts.length ? `<ul class="alog">${alerts.slice(0, 12).map(r => `<li><details><summary><span><b>${esc(r.title)}</b><small>${r.at} · ${chName(r)} · ${MT[r.msg_type]}${r.hold ? " · " + esc(holdLabel(r.hold)) : ""}</small></span><em>${ST[r.status] || r.status}</em></summary><p>${esc(r.body)}</p></details></li>`).join("")}</ul>` : `<p class="sub">보낸 알림이 없어요.</p>`}</section></div></div>`;
 
     $app.innerHTML = `<div class="pg c360">
@@ -1629,11 +1662,12 @@
         <div class="ab-main"><span class="tag ${tagCls(g)}">${g ? GROUPS.find(x => x[0] === g)[1] : "참고"}</span><div><b>${esc(lead.title)}</b><small>${esc(lead.todo)}</small></div></div>
         <dl class="klines inline">${lines.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         <div class="ab-acts">${st ? `<span class="sub">${st === "done" ? "오늘 완료" : "내일 다시"}</span><button class="txt" data-tst="undo">되돌리기</button>`
-          : `<button class="cta sm" data-callnow>전화 걸기</button><button class="ghost sm" data-tst="done">완료</button><button class="txt" data-tst="later">내일로</button>`}</div></section>` : ""}
+          : `<button class="cta sm" data-callnow>전화 걸기</button>${kakaoLocal && kakaoLocal.cids[cid] ? `<button class="ghost sm" data-ctab="plan">카톡 보내기</button>` : ""}<button class="ghost sm" data-tst="done">완료</button><button class="txt" data-tst="later">내일로</button>`}</div></section>` : ""}
       ${mustKnow(cid, lead ? items.slice(1) : items, openTodos, last, consent)}
       <nav class="ctabs">${TABS.map(([k, t]) => `<button class="${cv.tab === k ? "on" : ""}" data-ctab="${k}">${t}</button>`).join("")}</nav>
       ${body}</div>`;
     bindClient(cid);
+    bindKakao(cid);
     $app.querySelectorAll("[data-ctab]").forEach(b => (b.onclick = () => { cv.tab = b.dataset.ctab; pageClientTabs(cid); }));
     $app.querySelectorAll("[data-ci]").forEach(b => (b.onclick = () => { cv.open = cv.open === b.dataset.ci ? "__none" : b.dataset.ci; pageClientTabs(cid); }));
     const callB = $app.querySelector("[data-callnow]"); if (callB) callB.onclick = () => callNow(cid);
@@ -1668,7 +1702,7 @@
     ({ home: pageHome, tasks: pageTasks, clients: pageClientsMgmt, client: () => pageClientTabs(arg), calendar: pageCalendar, market: pageMarket,
        outbox: pageOutbox, insights: pageCompany, guide: pageItems }[page] || pageHome)();
   }
-  if (!CUSTOMER_MODE) setupShell();
+  if (!CUSTOMER_MODE) { setupShell(); kakaoPing(); }
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
   render();
 })();
