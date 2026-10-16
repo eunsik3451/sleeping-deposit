@@ -1013,3 +1013,27 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .klist b { display: block; font-size: 0.95rem; }
 .klist small { color: var(--t-faint); font-size: 0.8rem; }
 .kbtns { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* 메인 '어제 시장' 카드 (전체 폭) */
+.home-grid .span2 { grid-column: 1 / -1; }
+.hm-head { font-size: 1.08rem; font-weight: 700; line-height: 1.55; margin: 2px 0 14px; word-break: keep-all; }
+.ixs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.ix { background: #F9FAFB; border-radius: 14px; padding: 12px 14px; }
+.ix small { display: block; color: var(--t-sub); font-size: 0.8rem; }
+.ix b { display: block; font-size: 1.12rem; margin: 2px 0; }
+.ix em { font-style: normal; font-weight: 700; font-size: 0.9rem; }
+.hm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+.hm-chips span { background: #F2F4F6; color: #4E5968; border-radius: 999px; padding: 5px 11px; font-size: 0.8rem; font-weight: 600; }
+.hm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 16px; }
+.hm-col h3 { font-size: 0.92rem; margin: 0 0 8px; }
+.hm-line { color: var(--t-sub); font-size: 0.85rem; line-height: 1.5; margin: 0 0 8px; word-break: keep-all; }
+.hm-why, .hm-sec { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.hm-why b, .hm-sec b { display: block; font-size: 0.9rem; }
+.hm-why small, .hm-sec small { color: var(--t-sub); font-size: 0.8rem; line-height: 1.5; word-break: keep-all; }
+.hm-sec li { display: grid; grid-template-columns: 14px 1fr; gap: 6px; }
+.hm-sec li > span { font-size: 0.7rem; padding-top: 3px; }
+.hm-out { margin: 16px 0 0; padding: 12px 14px; background: #F9FAFB; border-radius: 12px; font-size: 0.88rem; line-height: 1.55; word-break: keep-all; }
+.hm-out b { margin-right: 6px; }
+.hm-me { display: block; margin-top: 12px; color: var(--t-blue); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
+@media (max-width: 1100px) { .hm-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+@media (max-width: 620px) { .ixs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
