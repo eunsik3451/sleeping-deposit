@@ -62,6 +62,26 @@ def finding_dict(f):
 
 def previews(f, cust, cfg, gen, as_of):
     """고객에게 나가는 알림 예시 (실제 트리거·동의 규칙대로)."""
+    return [render(i, cust, cfg, gen, as_of) for i in preview_items(f, cust, cfg)]
+
+
+def kakao_test(fs, cust, cfg, gen, as_of, tail):
+    """테스트 고객용: 앱 푸시는 보낼 수 없으니 고객에게 가는 알림을 전부 카톡 문구로 (알림마다 하나)."""
+    out, seen = [], set()
+    for f in fs:
+        for label, trig, ch, mtype, ff, extra, _ in preview_items(f, cust, cfg):
+            if ch not in ("push", "kakao") or (trig, id(ff)) in seen:
+                continue
+            seen.add((trig, id(ff)))
+            label = label.replace(" (발견 즉시)", "").replace(" (알림톡)", "")
+            out.append({**render((label, trig, "kakao", mtype, ff, extra, None), cust, cfg, gen, as_of), "was": ch})
+    for label, trig, ch, extra in tail:
+        r = render((label, trig, ch, "info", None, extra, None), cust, cfg, gen, as_of)
+        out.append({**r, "channel": "kakao", "was": ch})
+    return out
+
+
+def preview_items(f, cust, cfg):
     items = []
     if f.rule != "R1":
         trig, mtype = ITEM_TRIGGERS[f.rule]
@@ -90,7 +110,7 @@ def previews(f, cust, cfg, gen, as_of):
         if f.pb_flag and not any(i[2] == "pb_queue" for i in items):
             items.append(("PB 통화 스크립트", "T_IDLE_UPDATE", "pb_queue", "info", f, None,
                           "금액이 크거나 상담이 필요한 건이라 PB 콜리스트에도 올라갑니다."))
-    return [render(i, cust, cfg, gen, as_of) for i in items]
+    return items
 
 
 def render(item, cust, cfg, gen, as_of):
@@ -312,11 +332,14 @@ def main():
         extra = {"month": prev_end.replace(day=1), "missed_month": prev["missed"], "will_miss": prev["will_miss"],
                  "found_month": prev["found"]}
         pv = [p for f in fs for p in previews(f, c, cfg, gen, A)]
+        tail = []
         if found:
             fe = {**extra, "found_total": found["found_krw"],
                   "found_on": found["on_date"] if found["on_date"].year > 1900 else A, "found_invested": found["invested_krw"]}
             pv.append(render(("매월 1일 깨운 예수금 이자", "T_FOUND", "push", "info", None, fe, None), c, cfg, gen, A))
+            tail.append(("매월 1일 깨운 예수금 이자", "T_FOUND", "kakao", fe))
         pv.append(render(("매월 1일 월간 리포트", "T_MONTHLY", "monthly_report", "info", None, extra, None), c, cfg, gen, A))
+        tail.append(("매월 1일 월간 리포트", "T_MONTHLY", "monthly_report", extra))
 
         bal = {}
         for acct in ctx.accounts_of(cid):
@@ -336,6 +359,7 @@ def main():
         details[cid] = {
             "findings": [{**finding_dict(f), "script": pb_script(f, c, cfg, gen, A)["body"]} for f in fs],
             "previews": pv,
+            **({"kakao_test": kakao_test(fs, c, cfg, gen, A, tail)} if str(cid).startswith("T") else {}),
             "stock": (lambda s: [round(x / 1e4) for x in s] if s is not None else None)(
                 stock_series(cid, pd.DatetimeIndex(trend.date), market) if len(trend) else None),
             "flows": flow_list(cid, data, fxr, trend.date.iloc[0], A) if len(trend) else [],
