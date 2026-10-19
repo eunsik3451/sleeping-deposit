@@ -29,10 +29,10 @@ def main():
             tx = tx.replace(heard, f["meant"])
     have = numbers(tx) | {"1"}
     parts = [a["headline"], a["summary"], *a.get("customer_context", []), *a["key"], *a["requests"], *a["promises"], *[t["text"] for t in a["todos"]]]
-    # 고객에게 보내는 상담 정리: 날짜는 할 일 날짜(통화에서 정한 '다음 주 화요일' 등을 계산한 것)에서 와도 된다
-    recap = a.get("customer_recap")
-    if recap:
-        parts += [recap["body"], *[n["t"] for n in recap.get("next", [])]]
+    # 고객 입장으로 쓴 약속 목록: 날짜는 통화일·할 일 날짜(통화에서 정한 '다음 주 화요일' 등을 계산한 것)에서 와도 된다
+    promises = a.get("customer_promises")
+    if promises:
+        parts += [n["t"] for n in promises]
         for d in [a.get("call_date")] + [t.get("due") for t in a["todos"]]:
             if d:
                 y, mo, dd = d.split("-")

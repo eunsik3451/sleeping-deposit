@@ -32,7 +32,7 @@ PERSONAS = {"P001": "매매대기 + 달러 + 유상증자", "P002": "ELS 상환�
 TRIGGER_LABELS = {"T_EVENT": "입금 다음 날 알림", "T_IDLE_FIRST": "처음 알림", "T_IDLE_UPDATE": "이자 안내(재알림)",
                   "T_REASSESS": "진단 만료 안내", "T_MONTHLY": "월간 리포트", "T_FOUND": "깨운 예수금 이자 알림",
                   "T_TAX": "해외주식 세금 안내", "T_RIGHTS": "유상증자 청약 안내", "T_MATURITY": "만기 안내",
-                  "T_PENSION": "연금저축 세액공제 안내", "T_MOVE": "보유 종목 큰 변동", "T_CALLNOTE": "상담 정리"}
+                  "T_PENSION": "연금저축 세액공제 안내", "T_MOVE": "보유 종목 큰 변동"}
 
 
 def jsonable(x):
@@ -78,17 +78,6 @@ def kakao_test(fs, cust, cfg, gen, as_of, tail):
     for label, trig, ch, extra in tail:
         r = render((label, trig, ch, "info", None, extra, None), cust, cfg, gen, as_of)
         out.append({**r, "channel": "kakao", "was": ch})
-    return out
-
-
-def call_notes(cid):
-    """통화 직후 고객에게 보내는 상담 정리 (analysis.json의 customer_recap, Claude가 녹취록을 보고 작성 → call_check로 숫자 검사)."""
-    out = []
-    for a in sorted((ROOT / "data" / "calls" / cid).glob("*/analysis.json")):
-        r = json.loads(a.read_text(encoding="utf-8")).get("customer_recap")
-        if r:
-            out.append({"label": f"상담 정리 ({a.parent.name[4:6]}/{a.parent.name[6:8]} 통화 후)", "trigger": "T_CALLNOTE", "channel": "kakao",
-                        "msg_type": "info", "title": r["title"], "body": r["body"], "short": None, "was": "new", "call": a.parent.name})
     return out
 
 
@@ -385,7 +374,7 @@ def main():
         details[cid] = {
             "findings": [{**finding_dict(f), "script": pb_script(f, c, cfg, gen, A)["body"]} for f in fs],
             "previews": pv,
-            **({"kakao_test": kakao_test(fs, c, cfg, gen, A, tail) + [{**m, "was": "kakao"} for m in moves] + call_notes(cid)}
+            **({"kakao_test": kakao_test(fs, c, cfg, gen, A, tail) + [{**m, "was": "kakao"} for m in moves]}
                if str(cid).startswith("T") else {}),
             "stock": (lambda s: [round(x / 1e4) for x in s] if s is not None else None)(
                 stock_series(cid, pd.DatetimeIndex(trend.date), market) if len(trend) else None),

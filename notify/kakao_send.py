@@ -122,7 +122,7 @@ def kakao_pool(data, cid):
     return det.get("kakao_test") or [p for p in det["previews"] if p["channel"] == "kakao"]
 
 
-WAS = {"push": " (원래 앱 푸시)", "monthly_report": " (원래 앱 월간 리포트)", "new": " (새 기능)"}
+WAS = {"push": " (원래 앱 푸시)", "monthly_report": " (원래 앱 월간 리포트)"}
 
 
 def to_msg(cid, p):
@@ -185,8 +185,6 @@ def sheet_for(p):
         return "report"
     if trig == "T_MOVE":
         return f"move:{p.get('sym')}"
-    if trig == "T_CALLNOTE":
-        return f"call:{p.get('call')}"
     if not fid:
         return None
     if trig == "T_IDLE_UPDATE":
