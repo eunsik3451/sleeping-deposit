@@ -1037,3 +1037,56 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .hm-me { display: block; margin-top: 12px; color: var(--t-blue); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
 @media (max-width: 1100px) { .hm-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
 @media (max-width: 620px) { .ixs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ══════════ 고객 이야기 (#story) ══════════ */
+.side-nav nav a.nav-story { background: #EAF2FF; color: #1B64DA; font-weight: 700; }
+.side-nav nav a.nav-story.on { background: #3182F6; color: #fff; }
+.story { max-width: 1180px; }
+.st-hero { margin: 4px 0 22px; }
+.st-kicker { color: var(--t-blue); font-weight: 700; margin: 0 0 6px; }
+.st-hero h1 { font-size: 2.1rem; line-height: 1.35; margin: 0 0 12px; word-break: keep-all; }
+.st-hero .sub { line-height: 1.7; word-break: keep-all; }
+.st-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 30px; }
+.st-kpis > div { background: #fff; border-radius: 18px; padding: 18px 20px; }
+.st-kpis small { display: block; color: var(--t-sub); font-size: 0.82rem; }
+.st-kpis b { display: block; font-size: 1.45rem; margin: 6px 0 4px; }
+.st-kpis i { font-style: normal; color: var(--t-faint); font-size: 0.8rem; }
+.st-line { list-style: none; margin: 0; padding: 0; position: relative; }
+.st-line::before { content: ""; position: absolute; left: 15px; top: 8px; bottom: 8px; width: 2px; background: #DCE6F5; }
+.st-line > li { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 18px; margin-bottom: 22px; position: relative; }
+.st-when { padding-left: 44px; position: relative; padding-top: 4px; }
+.st-n { position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; background: #3182F6; color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 0.9rem; }
+.st-when b { display: block; font-size: 0.98rem; }
+.st-when small { color: var(--t-faint); font-size: 0.8rem; }
+.st-card { background: #fff; border-radius: 20px; padding: 20px 22px; }
+.st-card h2 { font-size: 1.12rem; margin: 0 0 14px; line-height: 1.45; word-break: keep-all; }
+.st-body { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 22px; align-items: start; }
+.st-side { display: grid; gap: 12px; }
+.st-side p { margin: 0; font-size: 0.9rem; line-height: 1.6; word-break: keep-all; }
+.st-side b { display: block; font-size: 0.78rem; margin-bottom: 2px; }
+.st-before { color: #6B7684; } .st-before b { color: #8B95A1; }
+.st-behind { color: #8B95A1; font-size: 0.84rem !important; padding-top: 10px; border-top: 1px dashed #E5E8EB; } .st-behind b { color: #B0B8C1; }
+.kk { background: #B2C7D9; border-radius: 16px; padding: 12px; }
+.kk-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 0.8rem; }
+.kk-head small { color: #4E5968; }
+.kk-ico { width: 26px; height: 26px; border-radius: 9px; background: #1B64DA; color: #fff; display: grid; place-items: center; font-size: 0.62rem; font-weight: 800; }
+.kk-bubble { background: #fff; border-radius: 4px 14px 14px 14px; overflow: hidden; }
+.kk-title { margin: 0; background: #FEE500; padding: 9px 12px; font-weight: 700; font-size: 0.86rem; }
+.kk-body { margin: 0; padding: 10px 12px; white-space: pre-line; font-size: 0.82rem; line-height: 1.55; color: #191919; }
+.kk-btn { display: block; margin: 0 10px 10px; padding: 9px; text-align: center; background: #F2F3F5; border-radius: 8px; color: #191919; font-size: 0.82rem; font-weight: 600; text-decoration: none; }
+.kk-btn:hover { background: #E5E8EB; }
+.st-quote { background: #F9FAFB; border-radius: 14px; padding: 14px 16px; }
+.st-quote small { color: #8B5CF6; font-weight: 700; font-size: 0.76rem; }
+.st-quote p { margin: 6px 0 0; font-weight: 600; line-height: 1.55; word-break: keep-all; }
+.st-promise { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.st-promise li { display: grid; grid-template-columns: 82px 1fr; gap: 10px; background: #F9FAFB; border-radius: 12px; padding: 10px 12px; font-size: 0.88rem; }
+.st-promise b { color: var(--t-blue); }
+.st-end { margin-top: 10px; }
+.st-end ul { margin: 8px 0 12px; padding-left: 18px; line-height: 1.9; }
+@media (max-width: 1100px) { .st-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .st-body { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) {
+  .st-line > li { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .st-hero h1 { font-size: 1.6rem; }
+}
+/* 고객 앱: 내 주식 */
+.a-title .a-sub { color: #8B95A1; font-weight: 500; font-size: 0.78rem; margin-left: 4px; }

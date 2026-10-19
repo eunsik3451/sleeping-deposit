@@ -34,7 +34,8 @@ def positions(holdings: pd.DataFrame, closes: pd.DataFrame, fx: pd.Series, unive
         usd = u.currency == "USD"
         rate_base = float(fx.loc[:s.index[-1 - base_lag]].iloc[-1]) if usd else 1.0
         rate_now = float(fx.loc[:s.index[-1]].iloc[-1]) if usd else 1.0
-        avg = float(s.iloc[-1 - base_lag])
+        fixed = getattr(h, "avg_price", float("nan"))
+        avg = float(fixed) if fixed == fixed else float(s.iloc[-1 - base_lag])   # 평균 매입가를 정해 둔 보유분(테스트 고객)은 그 값
         qty = math.floor(h.buy_amount_krw / (avg * rate_base))
         if qty <= 0:
             continue

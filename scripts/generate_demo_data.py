@@ -324,6 +324,8 @@ def stock_holdings(customers: pd.DataFrame, as_of, seed) -> pd.DataFrame:
         ("P002", "068270", 20 * M, 0), ("P002", "028300", 10 * M, 0),
         ("P003", "005930", 40 * M, 0),
         ("P004", "000660", 15 * M, 0), ("P004", "NVDA", 10 * M, 0),
+        # T001 조은식: 통화(10/16)에서 말한 삼성전자 약 −30% 손실 (평균 매입가 30만원 고정) + SK하이닉스 소액
+        ("T001", "005930", 30 * M, 0, 300000), ("T001", "000660", 10 * M, 0),
     ]
     for c in customers.itertuples():
         if c.customer_id.startswith(("P", "T")) or rng.random() > 0.45:
@@ -336,7 +338,8 @@ def stock_holdings(customers: pd.DataFrame, as_of, seed) -> pd.DataFrame:
             amount = krw(rng.uniform(3, 80) * M)
             loan = krw(amount * rng.uniform(0.4, 0.6)) if i == credit_slot and sym.isdigit() else 0
             rows.append((c.customer_id, sym, amount, loan))
-    return pd.DataFrame(rows, columns=["customer_id", "symbol", "buy_amount_krw", "credit_loan_krw"])
+    rows = [r if len(r) == 5 else (*r, float("nan")) for r in rows]   # avg_price: 정해 둔 평균 매입가 (없으면 기준일 60거래일 전 종가)
+    return pd.DataFrame(rows, columns=["customer_id", "symbol", "buy_amount_krw", "credit_loan_krw", "avg_price"])
 
 
 def generate(cfg, seed=None) -> dict:

@@ -87,6 +87,8 @@ class TemplateGenerator(MessageGenerator):
             if m.get("event"):
                 v.update(self._event_values(m["event"]))
         if extra:
+            if extra.get("move"):
+                v.update(self._move_values(extra["move"]))
             if extra.get("event"):
                 v.update(self._event_values(extra["event"]))
             for k in ("missed_month", "will_miss", "found_month", "found_total", "found_invested"):
@@ -116,6 +118,15 @@ class TemplateGenerator(MessageGenerator):
         elif f.rule == "R5":
             v.update(paid=man(m["paid"]), limit=man(m["limit"]), remain=man(m["remain"]))
         return v
+
+    @staticmethod
+    def _move_values(a) -> dict:
+        """보유 종목 큰 등락(T_MOVE): 시장 알림 한 건 → 종목·날짜·방향·종가·평가금액 변동."""
+        price = (lambda x: f"{int(round(x)):,}원") if a.get("currency", "KRW") == "KRW" else (lambda x: f"${x:,.2f}")
+        d = a["day_delta_krw"]
+        return {"stock": a["name"], "move_date": md(pd.Timestamp(a["trade_date"])), "dir": "올랐어요" if a["chg_pct"] > 0 else "내렸어요",
+                "close": price(a["close"]), "prev_close": price(a["prev_close"]), "value": man(a["value_krw"]),
+                "delta": ("+" if d >= 0 else "−") + man(abs(d))}
 
     @staticmethod
     def _event_values(ev) -> dict:

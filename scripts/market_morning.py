@@ -57,7 +57,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", help="시세 기준일(이 날짜 종가까지 사용). 기본: 오늘 이전 마지막 거래일")
     ap.add_argument("--as-of", help="서비스 기준일(예수금·마감 D-day 계산). 기본: 오늘. config.yaml의 as_of_date를 이 날짜로 바꾼다")
+    ap.add_argument("--offline", metavar="YYYY-MM-DD", help="시세를 새로 받지 않고 저장된 그날 시세로 보유 종목만 다시 계산 (고객 보유 데이터를 바꿨을 때). 기준일·지수·시장 요약은 그대로")
     args = ap.parse_args()
+    if args.offline:
+        return rebuild_offline(args.offline)
     set_as_of(args.as_of or f"{pd.Timestamp.today():%Y-%m-%d}")
     cfg = load_config()
     c = cfg["market"]
@@ -141,6 +144,31 @@ def main():
         mark = "✓" if notes[sym]["reason"] else "이유 필요"
         print(f"  {name}({sym}) {chg * 100:+.1f}% [{d}] → {mark}")
     print(f"저장: {path.relative_to(ROOT)} · 이유 메모: {npath.relative_to(ROOT)}")
+
+
+def rebuild_offline(day):
+    """저장된 시세(history·fx_history)로 보유 종목·알림·신용만 다시 계산. 새 보유 종목은 그날 파일에 시세가 있어야 한다."""
+    cfg = load_config()
+    path = MARKET / f"{day}.json"
+    out = json.loads(path.read_text(encoding="utf-8"))
+    universe = pd.read_csv(MARKET / "universe.csv", dtype=str)
+    holdings = generate(cfg)["stock_holdings"]
+    missing = sorted(set(holdings.symbol) - set(out["history"]))
+    if missing:
+        print(f"  저장된 시세가 없는 종목은 빠집니다: {', '.join(missing)}")
+    closes = pd.DataFrame({s: pd.Series({pd.Timestamp(d): v for d, v in h}) for s, h in out["history"].items()}).sort_index()
+    fx = pd.Series({pd.Timestamp(d): v for d, v in out["fx_history"]}).sort_index()
+    ref = pd.Timestamp(out["ref_date"])
+    pos = positions(holdings, closes, fx, universe, ref, cfg["market"]["base_lag_days"])
+    alerts, credit = detect(pos, cfg), credit_book(pos, cfg)
+    movers = (pos.drop_duplicates("symbol")[["symbol", "name", "market", "chg_pct", "close", "prev_close", "trade_date", "spark"]]
+              .sort_values("chg_pct", key=abs, ascending=False))
+    out.update({"movers": movers.head(12).to_dict("records"), "alerts": alerts, "credit": credit,
+                "positions_all": pos[["customer_id", "symbol", "name", "currency", "qty", "close", "chg_pct", "value_krw",
+                                      "day_delta_krw", "pnl_krw", "credit_loan_krw", "trade_date"]].to_dict("records"),
+                "holders": int(pos.customer_id.nunique()), "positions": int(len(pos))})
+    path.write_text(json.dumps(out, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
+    print(f"{day} 보유 종목 다시 계산 · 보유 고객 {out['holders']}명 · 보유 {out['positions']}건 · 알림 {len(alerts)}건")
 
 
 if __name__ == "__main__":
