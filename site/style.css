@@ -1090,3 +1090,20 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 }
 /* 고객 앱: 내 주식 */
 .a-title .a-sub { color: #8B95A1; font-weight: 500; font-size: 0.78rem; margin-left: 4px; }
+/* 고객 이야기: 핵심(쉬는 돈 깨우기) 단계 강조·이자 비교 */
+.st-line > li.key .st-card { box-shadow: 0 0 0 2px #3182F6 inset; }
+.st-line > li.key .st-n { background: #1B64DA; box-shadow: 0 0 0 4px #CFE2FF; }
+.st-kpis > div.hi { background: #3182F6; color: #fff; }
+.st-kpis > div.hi small, .st-kpis > div.hi i { color: #DCEBFF; }
+.st-calc { background: #F5F9FF; border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+.st-calc-t { margin: 0 0 10px; font-weight: 700; font-size: 0.9rem; }
+.sc-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 80px; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 0.85rem; }
+.sc-row small { display: block; color: #8B95A1; font-size: 0.74rem; }
+.sc-row i { display: block; height: 12px; border-radius: 6px; background: #C9CED6; }
+.sc-row.on i { background: #3182F6; }
+.sc-row b { text-align: right; }
+.sc-row.on b { color: #1B64DA; }
+.sc-diff { margin: 8px 0 4px; font-size: 0.9rem; } .sc-diff b { color: #1B64DA; font-size: 1.1rem; }
+.sc-note { margin: 4px 0 0; color: #8B95A1; font-size: 0.76rem; }
+.st-calc.earn .sc-big { margin: 0; font-size: 1.9rem; font-weight: 800; color: #1B64DA; }
+.st-calc.earn .sc-sub { margin: 2px 0 0; font-size: 0.85rem; color: #4E5968; }
