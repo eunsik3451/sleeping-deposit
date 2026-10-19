@@ -301,7 +301,7 @@
       return `<button class="a-row" data-sheet="item:${esc(f.finding_id)}"><span class="a-ico">${ITEM_ICON[f.rule]}</span>
         <span class="a-txt"><b>${esc(f.subtype_label)}</b><small>${esc(SHORT[f.rule])} · 마감 ${f.deadline.slice(5).replace("-", "/")}</small></span>
         <span class="a-amt"><b>+${man(f.amount_krw)}</b><small class="${dl <= 7 ? "due" : ""}">D-${dl}</small></span></button>`; }).join("")}</div>` : "";
-    return `${hero}${appCreditCard(cid)}${chart}${idleRows}${itemRows}
+    return `${hero}${appCreditCard(cid)}${appStockCard(cid)}${chart}${idleRows}${itemRows}
       <p class="a-fine">참고용 정보이며 투자 자문이 아닙니다. 이자는 가정한 금리로 계산한 추정치로 실제와 다를 수 있습니다. 가입 전 상품설명서를 확인하세요. 고객·종목·상품명은 가상입니다.</p>`;
   }
 
@@ -367,6 +367,32 @@
         <p class="s-note center">데모라 실제 주문은 하지 않아요</p>`;
     } else if (kind === "item") {
       body = itemSheet(f);
+    } else if (kind === "move") {
+      const sym = cx.sheet.slice(5), p = MK.positions.find(x => x.customer_id === cid && x.symbol === sym);
+      const note = (MK.stock_notes || {})[sym], prev = p.close / (1 + p.chg_pct), krwP = p.currency === "KRW";
+      const price = x => krwP ? won(Math.round(x)) : `$${x.toFixed(2)}`;
+      body = `<p class="s-sub">보유 종목 안내 · ${p.trade_date.slice(5).replace("-", "/")} 종가</p><h3>${esc(p.name)} 주가가 하루 동안 크게 ${p.chg_pct < 0 ? "내렸어요" : "올랐어요"}</h3>
+        <p class="s-big ${p.chg_pct < 0 ? "dn" : "up"}">${pctTxt(p.chg_pct)}</p>
+        <div class="s-kv"><span>종가 (전날)</span><b>${price(p.close)} (${price(prev)})</b></div>
+        <div class="s-kv"><span>보유 수량</span><b>${p.qty.toLocaleString("ko-KR")}주</b></div>
+        <div class="s-kv"><span>평가금액</span><b>${man(p.value_krw)}</b></div>
+        <div class="s-kv"><span>하루 변동</span><b class="${p.day_delta_krw < 0 ? "dn" : "up"}">${p.day_delta_krw < 0 ? "−" : "+"}${man(Math.abs(p.day_delta_krw))}</b></div>
+        <div class="s-kv"><span>산 뒤 손익</span><b class="${p.pnl_krw < 0 ? "dn" : "up"}">${p.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(p.pnl_krw))}</b></div>
+        ${note && note.reason ? `<div class="s-box soft"><b>왜 움직였나요</b><br>${esc(note.reason)}</div>` : ""}
+        <p class="s-note">사고팔기를 권하는 안내가 아니에요. 투자 판단은 직접 해 주세요.</p>
+        <button class="a-cta sub" data-act="pb">담당 PB에게 물어보기</button>
+        <button class="a-cta" data-close>확인</button>`;
+    } else if (kind === "call") {
+      const cl = callsOf(cid).find(c => c.id.endsWith(cx.sheet.slice(5))), r = cl.result.customer_recap;
+      const lines = r.body.split(String.fromCharCode(10)).slice(2).filter(Boolean);
+      const wd = d => "일월화수목금토"[new Date(d + "T00:00:00").getDay()];
+      body = `<p class="s-sub">상담 정리 · ${cl.result.call_date.slice(5).replace("-", "/")} 통화</p><h3>담당 PB와 나눈 이야기</h3>
+        <ul class="s-list">${lines.filter(l => l.startsWith("■")).map(l => `<li>${esc(l.slice(1).trim())}</li>`).join("")}</ul>
+        <p class="s-sub">다음 약속</p>
+        ${r.next.map(n => `<div class="s-kv"><span>${n.date ? `${n.date.slice(5).replace("-", "/")}(${wd(n.date)})` : "입금되면"}</span><b>${esc(n.t)}</b></div>`).join("")}
+        <div class="s-box soft">펀드 등 투자 상품은 원금 손실이 날 수 있어요. 가입은 설명을 듣고 직접 결정하세요.</div>
+        <button class="a-cta sub" data-act="pb">약속 바꾸기 · PB에게 연락</button>
+        <button class="a-cta" data-close>확인</button>`;
     } else if (kind === "report") {
       const p = D.details[cid].previews.find(x => x.trigger === "T_MONTHLY");
       const rows = p.body.split("\n").filter(l => l.startsWith("■")).map(l => l.slice(1).trim().split(/:\s*/));
@@ -596,6 +622,16 @@
     return `<div class="cs"><span class="cs-t">신용 보유 고객 ${new Set(MK.credit.map(b => b.customer_id)).size}명</span>
       ${["margin_call", "margin_warn", "margin_watch", "margin_safe"].map(k => `<span class="cs-i ${stageCls(k)}"><i></i>${STAGE[k][0]} <b>${n(k)}</b></span>`).join("")}
       <span class="cs-h">위험·경고·주의는 아래 목록에 있어요</span></div>`;
+  }
+
+  function appStockCard(cid) {   // 고객 앱: 내 주식 (하루 큰 변동은 위로, 누르면 왜 움직였나요)
+    if (!MK) return "";
+    const mine = MK.positions.filter(p => p.customer_id === cid).sort((a, b) => Math.abs(b.chg_pct) - Math.abs(a.chg_pct));
+    if (!mine.length) return "";
+    return `<div class="a-card"><div class="a-title">내 주식 <small class="a-sub">${MK.ref_date.slice(5).replace("-", "/")} 종가</small></div>${mine.map(p => `
+      <button class="a-row" data-sheet="move:${esc(p.symbol)}"><span class="a-ico">${esc(p.name.slice(0, 1))}</span>
+        <span class="a-txt"><b>${esc(p.name)}</b><small>${p.qty.toLocaleString("ko-KR")}주 · ${man(p.value_krw)}</small></span>
+        <span class="a-amt"><b class="${p.chg_pct < 0 ? "dn" : "up"}">${pctTxt(p.chg_pct)}</b><small>${Math.abs(p.chg_pct) >= MK.big_move_pct ? "크게 움직였어요" : "어제"}</small></span></button>`).join("")}</div>`;
   }
 
   function appCreditCard(cid) {   // 고객 앱: 본인 신용 보유분
@@ -1521,6 +1557,83 @@
   }
   function callNow(cid) { toast(`데모라 실제로 전화를 걸지 않아요 · ${CUST[cid].name}님`); }
 
+  // ════════════════ 고객 이야기 (조은식 고객이 겪는 순간을 시간 순서로) ════════════════
+  // 고객이 받은 카톡 → 앱 화면 → 예전에는 어땠나 → (작게) 그 뒤에서 PB가 한 일. 숫자·문구는 전부 실제 데이터(kakao_test·통화 분석)에서
+  function pageStory() {
+    const cid = "T001", c = CUST[cid];
+    if (!c) { $app.innerHTML = `<div class="pg"><p class="sub">테스트 고객 데이터가 없어요.</p></div>`; return; }
+    const kt = (D.details[cid].kakao_test || []), msg = t => kt.find(p => p.trigger === t);
+    const fs = findingsOf(cid), r1 = fs.find(f => f.rule === "R1"), r5 = fs.find(f => f.rule === "R5");
+    const ev = r1 && r1.meta.event, call = callsOf(cid).find(x => x.ai), recap = call && call.result.customer_recap;
+    const pos = MK ? MK.positions.filter(p => p.customer_id === cid) : [], big = pos.find(p => Math.abs(p.chg_pct) >= MK.big_move_pct);
+    const D0 = s => new Date(s + "T00:00:00"), addD = (s, n) => ymd(new Date(D0(s).getTime() + n * 864e5));
+    const md = s => `${D0(s).getMonth() + 1}/${D0(s).getDate()}(${"일월화수목금토"[D0(s).getDay()]})`;
+    const sheet = p => ({ T_EVENT: `why:${p.fid}`, T_IDLE_FIRST: `why:${p.fid}`, T_IDLE_UPDATE: `buy:${p.fid}`, T_PENSION: `item:${p.fid}`,
+      T_MOVE: `move:${p.sym}`, T_CALLNOTE: `call:${p.call}` }[p.trigger]);
+    const bubble = p => {
+      if (!p) return "";
+      const lines = p.body.split("\n"), body = (lines[0].startsWith("[유진투자증권]") ? lines.slice(2) : lines).join("\n");
+      return `<div class="kk"><div class="kk-head"><span class="kk-ico">유진</span><b>${p.msg_type === "ad" ? "브랜드 메시지" : "알림톡"}</b><small>유진투자증권</small></div>
+        <div class="kk-bubble"><p class="kk-title">${esc(p.title)}</p><p class="kk-body">${esc(body)}</p>
+        <a class="kk-btn" href="app.html?c=${cid}&s=${encodeURIComponent(sheet(p))}" target="_blank" rel="noopener">앱에서 확인하기</a></div></div>`;
+    };
+    const steps = [
+      ev && { date: md(addD(ev.date, 1)), tag: "입금 다음 날", title: `${EVENT_LBL[ev.flow_type] || "상환금"} ${man(ev.amount)}이 들어온 다음 날, 먼저 알려 줘요`,
+        msg: msg("T_EVENT"), before: "상환금이 들어온 걸 따로 확인하지 않으면, 이자가 거의 없는 예수금으로 그냥 남아 있어요.",
+        behind: "PB '오늘 할 일'에 '상환금 입금 다음 날'로 올라가요." },
+      ev && { date: md(addD(ev.date, 7)), tag: "7일째", title: "돈이 쉬기 시작하면, 얼마를 못 받고 있는지 숫자로 보여 줘요",
+        msg: msg("T_IDLE_FIRST"), before: "얼마를 손해 보고 있는지 고객이 알 방법이 없었어요.",
+        behind: "평소 하루에 쓰는 돈은 남겨 두고, 진짜로 쉬는 돈만 계산해요." },
+      r1 && { date: "그다음", tag: "광고 동의 고객만", title: "쉬는 동안 받을 수 있는 방법을 안내하고, 앱에서 바로 직접 맡겨요",
+        msg: msg("T_IDLE_UPDATE"), before: "상품을 찾아 메뉴를 헤매거나, 지점에 전화해야 했어요.",
+        behind: "알림은 주 1건까지만, 밤에는 보내지 않아요. 가입은 고객이 직접 해요." },
+      r5 && { date: "연말 전", tag: `마감 ${r5.deadline.slice(5).replace("-", "/")}`, title: "놓치기 쉬운 연말 세액공제도 먼저 챙겨요",
+        msg: msg("T_PENSION"), before: "12월 31일이 지나고 나서야 한도를 못 채운 걸 알았어요.",
+        behind: "마감 7일 전에 한 번 더 알려요." },
+      big && { date: md(addD(big.trade_date, 1)) + " 아침", tag: "시장 급락", title: `${big.name}가 하루 ${pctTxt(big.chg_pct)} 움직인 다음 날 아침, 내 계좌 기준으로 알려 줘요`,
+        msg: msg("T_MOVE"), before: "뉴스로 '폭락' 소식만 보고, 내 계좌가 어떻게 됐는지는 앱을 열어 직접 찾아봐야 했어요.",
+        behind: "같은 시각 PB 화면 '지금 바로'에 이 고객과 등락 이유·통화 문구가 올라가요." },
+      call && { date: md(call.result.call_date), tag: "고객이 PB에게 전화", title: "전화를 받은 PB는 이미 고객 상황을 다 알고 있어요",
+        quote: call.result.headline, before: "PB가 계좌를 하나씩 열어 보며 상황을 파악하느라, 상담이 길어지고 놓치는 게 생겼어요.",
+        behind: `쉬는 상환금·보유 손실·연금 한도가 한 화면에. 통화가 끝나면 녹음 요약과 할 일 ${call.todos.length}건이 일정에 들어가요.` },
+      recap && { date: md(call.result.call_date) + " 통화 직후", tag: "새 기능", title: "통화가 끝나면, 오늘 이야기와 다음 약속을 카톡으로 정리해 드려요",
+        msg: msg("T_CALLNOTE"), before: "말로만 한 약속은 고객도 PB도 잊기 쉬웠어요.",
+        behind: "PB가 확인한 통화 요약에서 고객에게 필요한 내용만 골라 보내요." },
+      recap && { date: recap.next.filter(n => n.date).map(n => md(n.date)).join(" · "), tag: "약속한 날", title: "약속한 날, 약속한 대로",
+        list: recap.next, before: "PB가 바쁘면 '알아봐 드릴게요'가 흐지부지되기도 했어요.",
+        behind: "약속은 PB '일정'에 들어가 그날 '오늘 할 일'로 떠요." },
+    ].filter(Boolean);
+    const extraYear = fs.filter(f => f.rule === "R1").reduce((s, f) => s + f.annual_projection_krw, 0) + fs.filter(f => f.rule !== "R1").reduce((s, f) => s + f.amount_krw, 0);
+    $app.innerHTML = `<div class="pg story">
+      <div class="st-hero"><p class="st-kicker">고객 이야기</p>
+        <h1>${esc(c.name)}님이 필요한 순간마다<br><span class="hl">먼저 연락이 왔어요.</span></h1>
+        <p class="sub">${c.age}세 · ${esc(c.risk)} · ELS 상환금이 들어왔고, 주식은 손실 중이고, 연말 세액공제 한도도 남아 있는 고객.<br>
+          고객이 겪는 순간을 시간 순서로 따라가 봐요. 각 카톡의 버튼을 누르면 고객이 보게 될 앱 화면이 열려요.</p></div>
+      <div class="st-kpis">
+        <div><small>더 받을 수 있는 돈 (1년)</small><b>+${man(extraYear)}</b><i>쉬는 상환금 이자 + 연금 세액공제</i></div>
+        <div><small>고객이 먼저 받은 안내</small><b>${steps.filter(s => s.msg).length}번</b><i>묻기 전에, 필요한 때에</i></div>
+        <div><small>통화에서 한 약속</small><b>${call ? call.todos.length : 0}건 → 일정</b><i>잊히지 않게</i></div>
+        <div><small>급락 다음 날</small><b>아침에 안내</b><i>내 계좌 기준으로, 사고팔기 권유 없이</i></div>
+      </div>
+      <ol class="st-line">${steps.map((s, i) => `<li>
+        <div class="st-when"><span class="st-n">${i + 1}</span><b>${esc(s.date)}</b><small>${esc(s.tag)}</small></div>
+        <div class="st-card"><h2>${esc(s.title)}</h2>
+          <div class="st-body">
+            ${s.msg ? bubble(s.msg) : ""}
+            ${s.quote ? `<div class="st-quote"><small>통화 요약 (AI)</small><p>${esc(s.quote)}</p></div>` : ""}
+            ${s.list ? `<ul class="st-promise">${s.list.map(n => `<li><b>${n.date ? md(n.date) : "입금되면"}</b><span>${esc(n.t)}</span></li>`).join("")}</ul>` : ""}
+            <div class="st-side"><p class="st-before"><b>예전에는</b>${esc(s.before)}</p><p class="st-behind"><b>그 뒤에서</b>${esc(s.behind)}</p></div>
+          </div></div></li>`).join("")}</ol>
+      <section class="panel st-end"><h2>고객 입장에서 달라지는 것</h2>
+        <ul><li><b>잊고 있던 돈을 금액으로</b> 알려 줘요. 쉬는 예수금, 만기, 청약, 세액공제.</li>
+          <li><b>불안한 순간에 먼저</b> 연락이 와요. 보유 종목 급등락 다음 날 아침, 내 계좌 기준으로.</li>
+          <li><b>상담이 기록으로 남고 약속이 지켜져요.</b> 통화가 끝나면 정리 카톡, 약속한 날 PB가 먼저.</li>
+          <li><b>결정은 고객이 직접</b> 해요. 사고팔기를 권하지 않고, 가입은 앱에서 본인이.</li></ul>
+        <p class="sub">반대매매 위험 안내는 회사가 이미 고객에게 보내고 있어 사이로그는 PB 화면에서만 보여 줘요.</p></section>
+    </div>`;
+  }
+  const EVENT_LBL = { els_redemption: "ELS 상환금", bond_maturity: "채권 상환금", dividend: "배당금" };
+
   // ════════════════ 메인 ════════════════
   function pageHome() {
     const tasks = myTasks(), core = tasks.filter(t => t.g === "now" || t.g === "today");
@@ -1707,6 +1820,8 @@
     const s = new URLSearchParams(location.search).get("s");
     if (!s) return null;
     if (s === "report") return D.details[cid].previews.some(p => p.trigger === "T_MONTHLY") ? "report" : null;
+    if (s.startsWith("move:")) return MK && MK.positions.some(p => p.customer_id === cid && p.symbol === s.slice(5)) ? s : null;
+    if (s.startsWith("call:")) return callsOf(cid).some(c => c.id.endsWith(s.slice(5)) && c.result && c.result.customer_recap) ? s : null;
     const day = id => id.replace(/-\d{8}$/, "");   // 발견번호 끝의 기준일은 매일 바뀌므로 빼고 비교 (어제 받은 알림도 열림)
     const [kind, fid0] = s.split(":"), f = findingsOf(cid).find(x => day(x.finding_id) === day(fid0 || "")), fid = f && f.finding_id;
     if (!f || !["why", "buy", "item"].includes(kind)) return null;
@@ -1731,9 +1846,9 @@
     if (AL[page]) { location.replace("#" + AL[page] + (arg ? "/" + arg : "")); return; }
     const nav = page === "client" ? "clients" : page;
     document.querySelectorAll("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.page === nav));
-    const T = { home: "메인", tasks: "오늘 할 일", clients: "고객 관리", client: "고객 관리", calendar: "일정", market: "시장 이슈", outbox: "보낸 알림", insights: "성과", guide: "기준 안내" };
+    const T = { story: "고객 이야기", home: "메인", tasks: "오늘 할 일", clients: "고객 관리", client: "고객 관리", calendar: "일정", market: "시장 이슈", outbox: "보낸 알림", insights: "성과", guide: "기준 안내" };
     document.getElementById("pgtitle").textContent = T[page] || "메인";
-    ({ home: pageHome, tasks: pageTasks, clients: pageClientsMgmt, client: () => pageClientTabs(arg), calendar: pageCalendar, market: pageMarket,
+    ({ story: pageStory, home: pageHome, tasks: pageTasks, clients: pageClientsMgmt, client: () => pageClientTabs(arg), calendar: pageCalendar, market: pageMarket,
        outbox: pageOutbox, insights: pageCompany, guide: pageItems }[page] || pageHome)();
   }
   if (!CUSTOMER_MODE) { setupShell(); kakaoPing(); }
