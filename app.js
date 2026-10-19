@@ -382,17 +382,6 @@
         <p class="s-note">사고팔기를 권하는 안내가 아니에요. 투자 판단은 직접 해 주세요.</p>
         <button class="a-cta sub" data-act="pb">담당 PB에게 물어보기</button>
         <button class="a-cta" data-close>확인</button>`;
-    } else if (kind === "call") {
-      const cl = callsOf(cid).find(c => c.id.endsWith(cx.sheet.slice(5))), r = cl.result.customer_recap;
-      const lines = r.body.split(String.fromCharCode(10)).slice(2).filter(Boolean);
-      const wd = d => "일월화수목금토"[new Date(d + "T00:00:00").getDay()];
-      body = `<p class="s-sub">상담 정리 · ${cl.result.call_date.slice(5).replace("-", "/")} 통화</p><h3>담당 PB와 나눈 이야기</h3>
-        <ul class="s-list">${lines.filter(l => l.startsWith("■")).map(l => `<li>${esc(l.slice(1).trim())}</li>`).join("")}</ul>
-        <p class="s-sub">다음 약속</p>
-        ${r.next.map(n => `<div class="s-kv"><span>${n.date ? `${n.date.slice(5).replace("-", "/")}(${wd(n.date)})` : "입금되면"}</span><b>${esc(n.t)}</b></div>`).join("")}
-        <div class="s-box soft">펀드 등 투자 상품은 원금 손실이 날 수 있어요. 가입은 설명을 듣고 직접 결정하세요.</div>
-        <button class="a-cta sub" data-act="pb">약속 바꾸기 · PB에게 연락</button>
-        <button class="a-cta" data-close>확인</button>`;
     } else if (kind === "report") {
       const p = D.details[cid].previews.find(x => x.trigger === "T_MONTHLY");
       const rows = p.body.split("\n").filter(l => l.startsWith("■")).map(l => l.slice(1).trim().split(/:\s*/));
@@ -1564,12 +1553,12 @@
     if (!c) { $app.innerHTML = `<div class="pg"><p class="sub">테스트 고객 데이터가 없어요.</p></div>`; return; }
     const kt = (D.details[cid].kakao_test || []), msg = t => kt.find(p => p.trigger === t);
     const fs = findingsOf(cid), r1 = fs.find(f => f.rule === "R1"), r5 = fs.find(f => f.rule === "R5");
-    const ev = r1 && r1.meta.event, call = callsOf(cid).find(x => x.ai), recap = call && call.result.customer_recap;
+    const ev = r1 && r1.meta.event, call = callsOf(cid).find(x => x.ai), promises = call && call.result.customer_promises;
     const pos = MK ? MK.positions.filter(p => p.customer_id === cid) : [], big = pos.find(p => Math.abs(p.chg_pct) >= MK.big_move_pct);
     const D0 = s => new Date(s + "T00:00:00"), addD = (s, n) => ymd(new Date(D0(s).getTime() + n * 864e5));
     const md = s => `${D0(s).getMonth() + 1}/${D0(s).getDate()}(${"일월화수목금토"[D0(s).getDay()]})`;
     const sheet = p => ({ T_EVENT: `why:${p.fid}`, T_IDLE_FIRST: `why:${p.fid}`, T_IDLE_UPDATE: `buy:${p.fid}`, T_PENSION: `item:${p.fid}`,
-      T_MOVE: `move:${p.sym}`, T_CALLNOTE: `call:${p.call}` }[p.trigger]);
+      T_MOVE: `move:${p.sym}` }[p.trigger]);
     const bubble = p => {
       if (!p) return "";
       const lines = p.body.split("\n"), body = (lines[0].startsWith("[유진투자증권]") ? lines.slice(2) : lines).join("\n");
@@ -1596,12 +1585,9 @@
       call && { date: md(call.result.call_date), tag: "고객이 PB에게 전화", title: "전화를 받은 PB는 이미 고객 상황을 다 알고 있어요",
         quote: call.result.headline, before: "PB가 계좌를 하나씩 열어 보며 상황을 파악하느라, 상담이 길어지고 놓치는 게 생겼어요.",
         behind: `쉬는 상환금·보유 손실·연금 한도가 한 화면에. 통화가 끝나면 녹음 요약과 할 일 ${call.todos.length}건이 일정에 들어가요.` },
-      recap && { date: md(call.result.call_date) + " 통화 직후", tag: "새 기능", title: "통화가 끝나면, 오늘 이야기와 다음 약속을 카톡으로 정리해 드려요",
-        msg: msg("T_CALLNOTE"), before: "말로만 한 약속은 고객도 PB도 잊기 쉬웠어요.",
-        behind: "PB가 확인한 통화 요약에서 고객에게 필요한 내용만 골라 보내요." },
-      recap && { date: recap.next.filter(n => n.date).map(n => md(n.date)).join(" · "), tag: "약속한 날", title: "약속한 날, 약속한 대로",
-        list: recap.next, before: "PB가 바쁘면 '알아봐 드릴게요'가 흐지부지되기도 했어요.",
-        behind: "약속은 PB '일정'에 들어가 그날 '오늘 할 일'로 떠요." },
+      promises && { date: promises.filter(n => n.date).map(n => md(n.date)).join(" · "), tag: "약속한 날", title: "약속한 날, 약속한 대로",
+        list: promises, before: "PB가 바쁘면 '알아봐 드릴게요'가 흐지부지되기도 했어요.",
+        behind: "통화에서 나온 약속은 PB '일정'에 들어가 그날 '오늘 할 일'로 떠요." },
     ].filter(Boolean);
     const extraYear = fs.filter(f => f.rule === "R1").reduce((s, f) => s + f.annual_projection_krw, 0) + fs.filter(f => f.rule !== "R1").reduce((s, f) => s + f.amount_krw, 0);
     $app.innerHTML = `<div class="pg story">
@@ -1627,7 +1613,7 @@
       <section class="panel st-end"><h2>고객 입장에서 달라지는 것</h2>
         <ul><li><b>잊고 있던 돈을 금액으로</b> 알려 줘요. 쉬는 예수금, 만기, 청약, 세액공제.</li>
           <li><b>불안한 순간에 먼저</b> 연락이 와요. 보유 종목 급등락 다음 날 아침, 내 계좌 기준으로.</li>
-          <li><b>상담이 기록으로 남고 약속이 지켜져요.</b> 통화가 끝나면 정리 카톡, 약속한 날 PB가 먼저.</li>
+          <li><b>상담에서 한 약속이 지켜져요.</b> 약속한 날, PB가 먼저 연락해요.</li>
           <li><b>결정은 고객이 직접</b> 해요. 사고팔기를 권하지 않고, 가입은 앱에서 본인이.</li></ul>
         <p class="sub">반대매매 위험 안내는 회사가 이미 고객에게 보내고 있어 사이로그는 PB 화면에서만 보여 줘요.</p></section>
     </div>`;
@@ -1821,7 +1807,6 @@
     if (!s) return null;
     if (s === "report") return D.details[cid].previews.some(p => p.trigger === "T_MONTHLY") ? "report" : null;
     if (s.startsWith("move:")) return MK && MK.positions.some(p => p.customer_id === cid && p.symbol === s.slice(5)) ? s : null;
-    if (s.startsWith("call:")) return callsOf(cid).some(c => c.id.endsWith(s.slice(5)) && c.result && c.result.customer_recap) ? s : null;
     const day = id => id.replace(/-\d{8}$/, "");   // 발견번호 끝의 기준일은 매일 바뀌므로 빼고 비교 (어제 받은 알림도 열림)
     const [kind, fid0] = s.split(":"), f = findingsOf(cid).find(x => day(x.finding_id) === day(fid0 || "")), fid = f && f.finding_id;
     if (!f || !["why", "buy", "item"].includes(kind)) return null;
