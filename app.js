@@ -1566,6 +1566,16 @@
         <div class="kk-bubble"><p class="kk-title">${esc(p.title)}</p><p class="kk-body">${esc(body)}</p>
         <a class="kk-btn" href="app.html?c=${cid}&s=${encodeURIComponent(sheet(p))}" target="_blank" rel="noopener">앱에서 확인하기</a></div></div>`;
     };
+    const rp = r1 ? { amt: r1.recommendation.suggest_amount, prod: D.products[r1.recommendation.product_id] } : null;
+    const yearAt = r => rp.amt * r, monthAt = r => rp.amt * r * 30 / 365;
+    const calcHtml = () => `<div class="st-calc"><p class="st-calc-t">${man(rp.amt)}을 1년 두면</p>
+      <div class="sc-row"><span>예수금 그대로 <small>이용료 연 ${pct(D.rates.deposit)}</small></span><i style="width:${D.rates.deposit / rp.prod.rate * 100}%"></i><b>약 ${man(yearAt(D.rates.deposit))}</b></div>
+      <div class="sc-row on"><span>${esc(rp.prod.name)}에 맡기면 <small>연 ${pct(rp.prod.rate)} · 세전, 변동</small></span><i style="width:100%"></i><b>약 ${man(yearAt(rp.prod.rate))}</b></div>
+      <p class="sc-diff">차이 <b>+${man(r1.annual_projection_krw)}</b> · 이미 쉰 ${r1.meta.streak}일 동안 못 받은 이자 약 ${man(r1.amount_krw)}</p>
+      <p class="sc-note">RP는 예금자보호 대상이 아니고, 수시 RP 금리는 바뀔 수 있어요.</p></div>`;
+    const earnHtml = () => `<div class="st-calc earn"><p class="st-calc-t">한 달 뒤 고객 앱 (예시)</p>
+      <p class="sc-big">+${man(monthAt(rp.prod.rate))}</p><p class="sc-sub">깨운 뒤 받은 이자 (30일) · 예수금으로 뒀다면 약 ${man(monthAt(D.rates.deposit))}</p>
+      <p class="sc-note">${man(rp.amt)}을 ${esc(rp.prod.name)} 연 ${pct(rp.prod.rate)}로 맡겼다고 가정한 예시예요.</p></div>`;
     const steps = [
       ev && { date: md(addD(ev.date, 1)), tag: "입금 다음 날", title: `${EVENT_LBL[ev.flow_type] || "상환금"} ${man(ev.amount)}이 들어온 다음 날, 먼저 알려 줘요`,
         msg: msg("T_EVENT"), before: "상환금이 들어온 걸 따로 확인하지 않으면, 이자가 거의 없는 예수금으로 그냥 남아 있어요.",
@@ -1573,9 +1583,12 @@
       ev && { date: md(addD(ev.date, 7)), tag: "7일째", title: "돈이 쉬기 시작하면, 얼마를 못 받고 있는지 숫자로 보여 줘요",
         msg: msg("T_IDLE_FIRST"), before: "얼마를 손해 보고 있는지 고객이 알 방법이 없었어요.",
         behind: "평소 하루에 쓰는 돈은 남겨 두고, 진짜로 쉬는 돈만 계산해요." },
-      r1 && { date: "그다음", tag: "광고 동의 고객만", title: "쉬는 동안 받을 수 있는 방법을 안내하고, 앱에서 바로 직접 맡겨요",
-        msg: msg("T_IDLE_UPDATE"), before: "상품을 찾아 메뉴를 헤매거나, 지점에 전화해야 했어요.",
-        behind: "알림은 주 1건까지만, 밤에는 보내지 않아요. 가입은 고객이 직접 해요." },
+      r1 && { date: "그다음 주", tag: "핵심 · 쉬는 돈 깨우기", key: true, title: `쉬는 ${man(rp.amt)}을 RP에 맡기면 1년에 약 ${man(r1.annual_projection_krw)}을 더 받아요`,
+        msg: msg("T_IDLE_UPDATE"), calc: true, before: "예수금으로 두면 이용료(연 " + pct(D.rates.deposit) + ")만 붙는데, 얼마나 손해인지 몰랐어요. 상품을 찾아 메뉴를 헤매거나 지점에 전화해야 했고요.",
+        behind: "평소 쓰는 돈은 남기고 쉬는 돈만 계산해 금액까지 제안해요. 광고는 동의한 고객에게만, 주 1건까지. 가입은 고객이 앱에서 직접 해요." },
+      r1 && { date: "맡긴 뒤 매달", tag: "예시", key: true, title: "맡긴 뒤에는, 깨운 돈이 이자를 얼마나 벌었는지 매달 알려 줘요",
+        earn: true, before: "RP에 넣어 둔 돈이 얼마를 벌었는지 따로 찾아보지 않으면 알 수 없었어요.",
+        behind: "매월 1일 '깨운 뒤 받은 이자' 알림. 출금하거나 주식을 사면 RP에서 자동으로 빠져요(예수금 자동 RP)." },
       r5 && { date: "연말 전", tag: `마감 ${r5.deadline.slice(5).replace("-", "/")}`, title: "놓치기 쉬운 연말 세액공제도 먼저 챙겨요",
         msg: msg("T_PENSION"), before: "12월 31일이 지나고 나서야 한도를 못 채운 걸 알았어요.",
         behind: "마감 7일 전에 한 번 더 알려요." },
@@ -1593,25 +1606,27 @@
     $app.innerHTML = `<div class="pg story">
       <div class="st-hero"><p class="st-kicker">고객 이야기</p>
         <h1>${esc(c.name)}님이 필요한 순간마다<br><span class="hl">먼저 연락이 왔어요.</span></h1>
-        <p class="sub">${c.age}세 · ${esc(c.risk)} · ELS 상환금이 들어왔고, 주식은 손실 중이고, 연말 세액공제 한도도 남아 있는 고객.<br>
+        <p class="sub">${c.age}세 · ${esc(c.risk)} · ELS 상환금 ${ev ? man(ev.amount) : ""}이 예수금으로 쉬고 있고, 주식은 손실 중이고, 연말 세액공제 한도도 남아 있는 고객.<br>
           고객이 겪는 순간을 시간 순서로 따라가 봐요. 각 카톡의 버튼을 누르면 고객이 보게 될 앱 화면이 열려요.</p></div>
       <div class="st-kpis">
-        <div><small>더 받을 수 있는 돈 (1년)</small><b>+${man(extraYear)}</b><i>쉬는 상환금 이자 + 연금 세액공제</i></div>
+        ${rp ? `<div class="hi"><small>쉬는 돈 깨우면 (1년)</small><b>+${man(r1.annual_projection_krw)}</b><i>${man(rp.amt)}을 ${esc(rp.prod.name)}에 맡기면</i></div>` : ""}
+        <div><small>놓치기 쉬운 돈까지 합치면 (1년)</small><b>+${man(extraYear)}</b><i>쉬는 돈 이자 + 연금 세액공제</i></div>
         <div><small>고객이 먼저 받은 안내</small><b>${steps.filter(s => s.msg).length}번</b><i>묻기 전에, 필요한 때에</i></div>
         <div><small>통화에서 한 약속</small><b>${call ? call.todos.length : 0}건 → 일정</b><i>잊히지 않게</i></div>
-        <div><small>급락 다음 날</small><b>아침에 안내</b><i>내 계좌 기준으로, 사고팔기 권유 없이</i></div>
       </div>
-      <ol class="st-line">${steps.map((s, i) => `<li>
+      <ol class="st-line">${steps.map((s, i) => `<li class="${s.key ? "key" : ""}">
         <div class="st-when"><span class="st-n">${i + 1}</span><b>${esc(s.date)}</b><small>${esc(s.tag)}</small></div>
         <div class="st-card"><h2>${esc(s.title)}</h2>
           <div class="st-body">
             ${s.msg ? bubble(s.msg) : ""}
+            ${s.earn ? earnHtml() : ""}
             ${s.quote ? `<div class="st-quote"><small>통화 요약 (AI)</small><p>${esc(s.quote)}</p></div>` : ""}
             ${s.list ? `<ul class="st-promise">${s.list.map(n => `<li><b>${n.date ? md(n.date) : "입금되면"}</b><span>${esc(n.t)}</span></li>`).join("")}</ul>` : ""}
-            <div class="st-side"><p class="st-before"><b>예전에는</b>${esc(s.before)}</p><p class="st-behind"><b>그 뒤에서</b>${esc(s.behind)}</p></div>
+            <div class="st-side">${s.calc ? calcHtml() : ""}<p class="st-before"><b>예전에는</b>${esc(s.before)}</p><p class="st-behind"><b>그 뒤에서</b>${esc(s.behind)}</p></div>
           </div></div></li>`).join("")}</ol>
       <section class="panel st-end"><h2>고객 입장에서 달라지는 것</h2>
-        <ul><li><b>잊고 있던 돈을 금액으로</b> 알려 줘요. 쉬는 예수금, 만기, 청약, 세액공제.</li>
+        <ul><li><b>쉬는 돈을 깨워 더 받게</b> 해 줘요. 쉬는 예수금을 찾아 RP로 받을 이자를 금액으로 보여 주고, 앱에서 바로 맡겨요.</li>
+          <li><b>잊고 있던 돈을 금액으로</b> 알려 줘요. 만기, 청약, 세액공제.</li>
           <li><b>불안한 순간에 먼저</b> 연락이 와요. 보유 종목 급등락 다음 날 아침, 내 계좌 기준으로.</li>
           <li><b>상담에서 한 약속이 지켜져요.</b> 약속한 날, PB가 먼저 연락해요.</li>
           <li><b>결정은 고객이 직접</b> 해요. 사고팔기를 권하지 않고, 가입은 앱에서 본인이.</li></ul>
