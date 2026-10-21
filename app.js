@@ -1580,8 +1580,8 @@
       ev && { date: md(addD(ev.date, 1)), tag: "입금 다음 날", title: `${EVENT_LBL[ev.flow_type] || "상환금"} ${man(ev.amount)}이 들어온 다음 날, 먼저 알려 줘요`,
         msg: msg("T_EVENT"), before: "상환금이 들어온 걸 따로 확인하지 않으면, 이자가 거의 없는 예수금으로 그냥 남아 있어요.",
         behind: "PB '오늘 할 일'에 '상환금 입금 다음 날'로 올라가요." },
-      ev && { date: md(addD(ev.date, 7)), tag: "7일째", title: "돈이 쉬기 시작하면, 얼마를 못 받고 있는지 숫자로 보여 줘요",
-        msg: msg("T_IDLE_FIRST"), before: "얼마를 손해 보고 있는지 고객이 알 방법이 없었어요.",
+      r1 && { date: "같은 주", tag: `원래 있던 돈은 ${r1.meta.streak}일째`, title: `원래 쉬던 돈까지 합쳐 ${man(r1.meta.idle_krw)}이 쉬고 있다고, 못 받은 이자와 함께 알려 줘요`,
+        msg: msg("T_IDLE_FIRST"), before: `상환금 말고도 몇 달째 그대로인 돈이 있었지만, ${r1.amount_label.replace("놓친 이자", "")}얼마를 못 받았는지 아무도 알려 주지 않았어요.`,
         behind: "평소 하루에 쓰는 돈은 남겨 두고, 진짜로 쉬는 돈만 계산해요." },
       r1 && { date: "그다음 주", tag: "핵심 · 쉬는 돈 깨우기", key: true, title: `쉬는 ${man(rp.amt)}을 RP에 맡기면 1년에 약 ${man(r1.annual_projection_krw)}을 더 받아요`,
         msg: msg("T_IDLE_UPDATE"), calc: true, before: "예수금으로 두면 이용료(연 " + pct(D.rates.deposit) + ")만 붙는데, 얼마나 손해인지 몰랐어요. 상품을 찾아 메뉴를 헤매거나 지점에 전화해야 했고요.",
@@ -1606,7 +1606,7 @@
     $app.innerHTML = `<div class="pg story">
       <div class="st-hero"><p class="st-kicker">고객 이야기</p>
         <h1>${esc(c.name)}님이 필요한 순간마다<br><span class="hl">먼저 연락이 왔어요.</span></h1>
-        <p class="sub">${c.age}세 · ${esc(c.risk)} · ELS 상환금 ${ev ? man(ev.amount) : ""}이 예수금으로 쉬고 있고, 주식은 손실 중이고, 연말 세액공제 한도도 남아 있는 고객.<br>
+        <p class="sub">${c.age}세 · ${esc(c.risk)} · 예수금 ${r1 ? man(r1.meta.cash_today) : ""}(그중 ELS 상환금 ${ev ? man(ev.amount) : ""})이 쉬고 있고, 주식은 손실 중이고, 연말 세액공제 한도도 남아 있는 고객.<br>
           고객이 겪는 순간을 시간 순서로 따라가 봐요. 각 카톡의 버튼을 누르면 고객이 보게 될 앱 화면이 열려요.</p></div>
       <div class="st-kpis">
         ${rp ? `<div class="hi"><small>쉬는 돈 깨우면 (1년)</small><b>+${man(r1.annual_projection_krw)}</b><i>${man(rp.amt)}을 ${esc(rp.prod.name)}에 맡기면</i></div>` : ""}
