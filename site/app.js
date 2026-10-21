@@ -1546,91 +1546,6 @@
   }
   function callNow(cid) { toast(`데모라 실제로 전화를 걸지 않아요 · ${CUST[cid].name}님`); }
 
-  // ════════════════ 서비스 소개 (랜딩) ════════════════
-  // 고객에게 무엇을 주는지(중심) → PB에게 무엇을 주는지(보조) → 경제적 가치(공시) → 원칙 → 앞으로. 기능을 3+4개 묶음으로만 보여 준다
-  const PUBLIC = {   // 유진투자증권 2026 반기보고서(별도) · 홈페이지 공시 금리 · 2025 연금저축 통계
-    deposit: 9378, depositAvg: 8963, dep2024: 4332, dep2025: 7374,   // 위탁자예수금, 억원
-    pensionAvgPaid: 161, pensionLimit: 600,                           // 만원 (업계 평균 납입 = 13.5조 ÷ 840만명)
-  };
-  function pageIntro() {
-    const gap = D.rates.rp - D.rates.deposit;
-    const eok = x => `약 ${Math.round(x).toLocaleString("ko-KR")}억원`;
-    const per1000 = 1000 * gap;   // 1,000만원 기준 1년 차이 (만원)
-    const pension = (PUBLIC.pensionLimit - PUBLIC.pensionAvgPaid) * 0.132;
-    const t1 = CUST.T001 && findingsOf("T001");
-    const t1Year = t1 ? t1.filter(f => f.rule === "R1").reduce((s, f) => s + f.annual_projection_krw, 0) + t1.filter(f => f.rule !== "R1").reduce((s, f) => s + f.amount_krw, 0) : 0;
-    const pillar = (n, t, lead, items, value) => `<section class="in-pillar"><div class="in-ph"><span class="in-num">${n}</span><div><h3>${t}</h3><p>${lead}</p></div></div>
-      <ul>${items.map(([a, b]) => `<li><b>${a}</b><span>${b}</span></li>`).join("")}</ul>${value ? `<p class="in-val">${value}</p>` : ""}</section>`;
-    $app.innerHTML = `<div class="pg intro">
-      <section class="in-hero">
-        <img src="logo.svg" alt="" width="56" height="56">
-        <p class="in-kicker">사이로그 · PB와 고객 사이</p>
-        <h1>고객이 놓치는 돈과 순간을,<br><span class="hl">묻기 전에 먼저 챙겨 드려요.</span></h1>
-        <p class="in-lead">계좌 데이터만으로 쉬고 있는 돈, 놓치기 쉬운 마감과 세금, 불안한 순간을 찾아 고객에게는 금액으로 알려 드리고,<br>PB에게는 누구에게 무엇을 말할지 정리해 드려요. 결정과 가입은 언제나 고객이 직접 해요.</p>
-        <div class="in-cta"><a class="cta" href="#story">고객 이야기 보기</a><a class="ghost" href="#home">PB 화면 보기</a></div>
-      </section>
-
-      <section class="in-money">
-        <div class="in-big"><small>유진 고객 예수금 중 20%만 쉬고 있어도</small><b>1년에 ${eok(PUBLIC.depositAvg * 0.2 * gap)}</b><span>고객이 받지 못하는 이자 (RP 연 ${pct(D.rates.rp)} − 예탁금 이용료 연 ${pct(D.rates.deposit)})</span></div>
-        <div class="in-facts">
-          <div><small>위탁자예수금 (2026.6말)</small><b>${PUBLIC.deposit.toLocaleString("ko-KR")}억원</b><i>2024말 ${PUBLIC.dep2024.toLocaleString("ko-KR")}억 → 1년 반 새 2배</i></div>
-          <div><small>쉬는 돈 1,000만원이면</small><b>1년 +${per1000.toFixed(1)}만원</b><i>RP에 맡겼을 때 차이</i></div>
-          <div><small>연금저축 한도 채우면</small><b>약 ${Math.round(pension)}만원 환급</b><i>평균 납입 ${PUBLIC.pensionAvgPaid}만원 → 한도 ${PUBLIC.pensionLimit}만원, 13.2%</i></div>
-          <div><small>예시 고객 조은식님</small><b>1년 +${man(t1Year)}</b><i>쉬는 상환금 이자 + 연금 세액공제</i></div>
-        </div>
-        <details class="in-src"><summary>숫자 근거</summary><p>위탁자예수금: 유진투자증권 2026년 반기보고서(별도, 평균 잔액 ${PUBLIC.depositAvg.toLocaleString("ko-KR")}억원으로 계산). 금리: 유진 홈페이지 공시(챔피언CMA(RP형) 연 ${pct(D.rates.rp)}, 예탁금 이용료 100만원 초과 연 ${pct(D.rates.deposit)}). 쉬는 돈 비율 20%는 가정이며 실제 값은 사내 원장으로 사이로그 엔진을 돌리면 나와요(10%면 ${eok(PUBLIC.depositAvg * 0.1 * gap)}, 30%면 ${eok(PUBLIC.depositAvg * 0.3 * gap)}). 연금저축 평균 납입은 2025년 업계 통계(납입 13.5조원 ÷ 가입자 840만명) 추정치예요.</p></details>
-      </section>
-
-      <h2 class="in-sec">고객에게 드리는 것 <small>세 가지</small></h2>
-      <div class="in-pillars">
-        ${pillar(1, "쉬는 돈 깨우기", "예수금이 쉬고 있으면, 얼마를 못 받고 있는지 금액으로 알려 드리고 앱에서 바로 맡기게 해요.", [
-          ["입금 다음 날", "ELS·펀드 상환금, 배당금이 들어온 다음 날"],
-          ["7일째", "평소 쓰는 돈은 빼고, 진짜 쉬는 돈과 못 받은 이자"],
-          ["RP 안내", "얼마를 맡기면 1년에 얼마 더 받는지, 앱에서 직접"],
-          ["매달", "깨운 돈이 번 이자, 못 받은 이자 리포트"]], `쉬는 돈 1,000만원 → 1년 +${per1000.toFixed(1)}만원`)}
-        ${pillar(2, "놓치기 쉬운 마감·세금", "날짜를 놓치면 사라지는 돈을, 마감 전에 두 번 알려 드려요.", [
-          ["펀드·ELS 만기", "상환 예정 금액과 날짜, 쉬지 않게 미리"],
-          ["유상증자 청약", "청약가와 시세 차이, 마감일"],
-          ["해외주식 양도세", "연말 마지막 매도일 전, 공제 250만원 활용"],
-          ["연금저축", "연말 세액공제 남은 한도와 돌려받을 세금"]], `연금저축 약 ${Math.round(pension)}만원 · 양도세 최대 55만원`)}
-        ${pillar(3, "불안한 순간에 먼저", "시장이 크게 흔들린 다음 날 아침, 내 계좌 기준으로 알려 드려요.", [
-          ["보유 종목 급등락", "하루 ±10% 다음 날 아침, 종가와 평가금액 변동"],
-          ["왜 움직였나", "앱에서 등락 이유 요약, 사고팔기 권유 없이"],
-          ["담당 PB 연결", "궁금하면 바로 PB에게"]], "반대매매 안내는 회사가 이미 보내고 있어요")}
-      </div>
-
-      <h2 class="in-sec">PB에게 드리는 것 <small>고객을 먼저 챙길 수 있도록</small></h2>
-      <div class="in-pb">
-        <a href="#tasks"><b>오늘 할 일</b><span>오늘 누구에게, 무엇을, 어떤 말로. 급한 순서대로 고객 한 명씩</span></a>
-        <a href="#clients"><b>고객 한 장</b><span>예수금·쉬는 돈·보유 종목·마감·지난 통화를 한 화면에</span></a>
-        <a href="#market"><b>시장 이슈</b><span>어제 시장과 내 고객 보유 종목의 큰 변화, 그 이유</span></a>
-        <a href="#calendar"><b>통화 요약 → 일정</b><span>녹음을 요약해 할 일로, 약속한 날 '오늘 할 일'에</span></a>
-      </div>
-
-      <h2 class="in-sec">이렇게 움직여요</h2>
-      <ol class="in-flow">
-        <li><b>계좌 데이터</b><span>예수금·입출금·보유 종목·만기·권리</span></li>
-        <li><b>계산</b><span>쉬는 돈·못 받은 이자·마감·급등락을 규칙대로 (문장이 숫자를 바꾸지 못해요)</span></li>
-        <li><b>고객 알림</b><span>정보성은 알림톡, 광고성은 동의한 고객에게만</span></li>
-        <li><b>PB 할 일</b><span>큰 금액·상담이 필요한 건은 PB가 먼저 전화</span></li>
-        <li><b>고객이 직접</b><span>앱에서 본인 인증 후 직접 가입·실행</span></li>
-      </ol>
-
-      <div class="in-two">
-        <section class="panel"><h2>지키는 원칙</h2><ul class="in-rules">
-          <li>사고팔기를 권하지 않고, 가입은 고객이 직접 해요. PB가 대신 가입하지 않아요.</li>
-          <li>광고성 알림은 동의한 고객에게만, 주 1건까지, 밤에는 보내지 않아요.</li>
-          <li>RP·CMA는 예금자보호 대상이 아니라는 점을 알림마다 알려 드려요.</li>
-          <li>회사 수익을 줄이는 항목(수수료 비교 등)은 다루지 않아요.</li></ul></section>
-        <section class="panel"><h2>앞으로</h2><ul class="in-rules">
-          <li><b>키폰 연동:</b> 전화가 오면 고객을 알아보고, 통화가 끝나면 요약과 할 일까지 자동으로.</li>
-          <li><b>사내 원장 연결:</b> 실제 쉬는 돈 비율과 고객별 금액을 그대로 계산.</li>
-          <li><b>알림 확대:</b> 공모주 환불금, 신주인수권 매도, 해외주식 양도세 5월 신고.</li></ul></section>
-      </div>
-      <p class="in-foot">프로토타입 · 고객·종목명은 가상 데이터(테스트 고객 조은식·김지혁은 이름만 실명) · 시세와 시장 요약은 실제 데이터</p>
-    </div>`;
-  }
-
   // ════════════════ 고객 이야기 (조은식 고객이 겪는 순간을 시간 순서로) ════════════════
   // 고객이 받은 카톡 → 앱 화면 → 예전에는 어땠나 → (작게) 그 뒤에서 PB가 한 일. 숫자·문구는 전부 실제 데이터(kakao_test·통화 분석)에서
   function pageStory() {
@@ -1926,15 +1841,16 @@
 
   function render() {
     if (CUSTOMER_MODE) return pageCustomerOnly();
-    let [page, arg, arg2] = (location.hash.slice(1) || "intro").split("/");
+    if (!location.hash || location.hash === "#intro") { location.replace("landing.html"); return; }   // 첫 화면은 서비스 소개 랜딩
+    let [page, arg, arg2] = location.hash.slice(1).split("/");
     const AL = { today: "home", brief: "home", pbm: "clients", pb: "clients", overview: "clients", company: "insights", items: "guide", customer: "client" };
     if (AL[page]) { location.replace("#" + AL[page] + (arg ? "/" + arg : "")); return; }
     const nav = page === "client" ? "clients" : page;
     document.querySelectorAll("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.page === nav));
-    const T = { intro: "서비스 소개", story: "고객 이야기", home: "메인", tasks: "오늘 할 일", clients: "고객 관리", client: "고객 관리", calendar: "일정", market: "시장 이슈", outbox: "보낸 알림", insights: "성과", guide: "기준 안내" };
-    document.getElementById("pgtitle").textContent = T[page] || "서비스 소개";
-    ({ intro: pageIntro, story: pageStory, home: pageHome, tasks: pageTasks, clients: pageClientsMgmt, client: () => pageClientTabs(arg), calendar: pageCalendar, market: pageMarket,
-       outbox: pageOutbox, insights: pageCompany, guide: pageItems }[page] || pageIntro)();
+    const T = { story: "고객 이야기", home: "메인", tasks: "오늘 할 일", clients: "고객 관리", client: "고객 관리", calendar: "일정", market: "시장 이슈", outbox: "보낸 알림", insights: "성과", guide: "기준 안내" };
+    document.getElementById("pgtitle").textContent = T[page] || "메인";
+    ({ story: pageStory, home: pageHome, tasks: pageTasks, clients: pageClientsMgmt, client: () => pageClientTabs(arg), calendar: pageCalendar, market: pageMarket,
+       outbox: pageOutbox, insights: pageCompany, guide: pageItems }[page] || pageHome)();
   }
   if (!CUSTOMER_MODE) { setupShell(); kakaoPing(); }
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });

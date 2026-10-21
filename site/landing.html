@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사이로그 · 놓치고 있던 내 돈, 먼저 알려 드려요</title>
+<meta name="description" content="사이로그: 쉬고 있는 예수금, 놓치기 쉬운 마감과 세금, 불안한 순간을 고객이 묻기 전에 먼저 알려 드리는 서비스. 유진투자증권 AX 공모전 프로토타입.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<style>
+:root { --ink: #191F28; --sub: #4E5968; --faint: #8B95A1; --line: #E5E8EB; --blue: #3182F6; --blue-d: #1B64DA; --blue-bg: #EAF2FF; --bg2: #F9FAFB; --red: #F04452; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Malgun Gothic', sans-serif; color: var(--ink); background: #fff; line-height: 1.6; word-break: keep-all; }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+/* 상단 */
+.top { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.92); backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid rgba(0,0,0,.04); }
+.top .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 1.1rem; }
+.top nav { display: flex; gap: 22px; margin-left: auto; font-size: 0.95rem; }
+.top nav a { text-decoration: none; color: var(--sub); font-weight: 600; }
+.top nav a:hover { color: var(--ink); }
+.btn { display: inline-block; text-decoration: none; font-weight: 700; border-radius: 14px; padding: 14px 24px; font-size: 1rem; }
+.btn.pri { background: var(--blue); color: #fff; } .btn.pri:hover { background: var(--blue-d); }
+.btn.sec { background: #F2F4F6; color: var(--ink); } .btn.sec:hover { background: var(--line); }
+.btn.sm { padding: 9px 16px; font-size: 0.9rem; border-radius: 11px; }
+/* 히어로 */
+.hero { padding: 72px 0 80px; background: linear-gradient(180deg, #F3F8FF 0%, #fff 100%); }
+.hero .wrap { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; }
+.eyebrow { color: var(--blue); font-weight: 700; margin: 0 0 14px; }
+.hero h1 { font-size: 3.1rem; line-height: 1.25; margin: 0 0 20px; letter-spacing: -0.03em; }
+.hero h1 em { font-style: normal; color: var(--blue); }
+.hero p.lead { font-size: 1.15rem; color: var(--sub); margin: 0 0 32px; }
+.hero .ctas { display: flex; gap: 10px; flex-wrap: wrap; }
+.hero small.note { display: block; margin-top: 18px; color: var(--faint); font-size: 0.85rem; }
+/* 휴대폰 + 카톡 */
+.phone { width: 340px; max-width: 100%; margin: 0 auto; background: #111; border-radius: 46px; padding: 12px; box-shadow: 0 30px 60px rgba(27,100,218,.18); }
+.screen { background: #B2C7D9; border-radius: 36px; padding: 44px 14px 18px; height: 600px; overflow: hidden; position: relative; }
+.screen::before { content: ""; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 90px; height: 22px; background: #111; border-radius: 12px; }
+.chat-head { text-align: center; font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; color: #1d2733; }
+.msg { margin-bottom: 12px; animation: up .6s both; }
+.msg:nth-child(3) { animation-delay: .25s; } .msg:nth-child(4) { animation-delay: .5s; }
+@keyframes up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .msg { animation: none; } }
+.kk-who { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #33404d; margin-bottom: 5px; }
+.kk-ico { width: 26px; height: 26px; border-radius: 9px; background: var(--blue-d); color: #fff; display: grid; place-items: center; font-size: 0.6rem; font-weight: 800; }
+.kk-b { background: #fff; border-radius: 4px 14px 14px 14px; overflow: hidden; max-width: 280px; }
+.kk-t { background: #FEE500; padding: 8px 12px; font-weight: 700; font-size: 0.82rem; }
+.kk-x { padding: 9px 12px; font-size: 0.78rem; line-height: 1.55; white-space: pre-line; color: #191919; }
+.kk-btn { display: block; margin: 0 10px 10px; padding: 8px; text-align: center; background: #F2F3F5; border-radius: 8px; font-size: 0.78rem; font-weight: 600; text-decoration: none; color: #191919; }
+.kk-btn:hover { background: var(--line); }
+.screen .kk-x { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; padding-bottom: 0; margin-bottom: 10px; }
+/* 공통 섹션 */
+section.s { padding: 96px 0; }
+section.s.alt { background: var(--bg2); }
+.s-head { text-align: center; max-width: 720px; margin: 0 auto 56px; }
+.s-head .eyebrow { margin-bottom: 10px; }
+.s-head h2 { font-size: 2.2rem; line-height: 1.3; margin: 0 0 14px; letter-spacing: -0.02em; }
+.s-head p { color: var(--sub); font-size: 1.05rem; margin: 0; }
+/* 문제 */
+.pains { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.pain { background: #fff; border-radius: 24px; padding: 28px; }
+.pain .q { font-size: 1.25rem; font-weight: 800; line-height: 1.4; margin: 0 0 12px; }
+.pain p { color: var(--sub); margin: 0; }
+/* 기능 */
+.feat { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; margin-bottom: 96px; }
+.feat:last-child { margin-bottom: 0; }
+.feat.rev .feat-txt { order: 2; }
+.feat-num { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--blue-bg); color: var(--blue-d); font-weight: 800; margin-bottom: 14px; }
+.feat h3 { font-size: 1.85rem; line-height: 1.3; margin: 0 0 14px; letter-spacing: -0.02em; }
+.feat p.d { color: var(--sub); font-size: 1.05rem; margin: 0 0 22px; }
+.moments { list-style: none; margin: 0 0 22px; padding: 0; border-top: 1px solid var(--line); }
+.moments li { display: grid; grid-template-columns: 110px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+.moments b { color: var(--blue-d); }
+.moments span { color: var(--sub); }
+.gain { display: inline-block; background: var(--blue-bg); color: var(--blue-d); font-weight: 800; border-radius: 12px; padding: 10px 14px; }
+.feat-vis { background: #B2C7D9; border-radius: 28px; padding: 26px; display: flex; justify-content: center; }
+.feat-vis .kk-b { max-width: 340px; width: 100%; }
+.feat-vis .kk-x { font-size: 0.85rem; }
+/* 숫자 */
+.money { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+.big { background: var(--blue-d); color: #fff; border-radius: 28px; padding: 40px; }
+.big small { opacity: .85; font-weight: 600; }
+.big b { display: block; font-size: 3.2rem; line-height: 1.15; margin: 10px 0 12px; letter-spacing: -0.03em; }
+.big p { margin: 0; opacity: .85; font-size: 0.95rem; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card { background: #fff; border-radius: 22px; padding: 22px; }
+.card small { color: var(--sub); font-weight: 600; font-size: 0.85rem; }
+.card b { display: block; font-size: 1.55rem; margin: 6px 0 4px; }
+.card i { font-style: normal; color: var(--faint); font-size: 0.82rem; line-height: 1.45; display: block; }
+.src { margin-top: 20px; color: var(--faint); font-size: 0.82rem; }
+.src summary { cursor: pointer; font-weight: 600; }
+.src p { margin: 8px 0 0; }
+/* PB */
+.pb { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.pb a { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 24px; text-decoration: none; transition: border-color .15s; }
+.pb a:hover { border-color: var(--blue); }
+.pb b { display: block; font-size: 1.1rem; margin-bottom: 8px; }
+.pb span { color: var(--sub); font-size: 0.92rem; }
+.pb .go { display: block; margin-top: 14px; color: var(--blue); font-weight: 700; font-size: 0.88rem; }
+/* 시작 */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; counter-reset: s; }
+.step { background: #fff; border-radius: 24px; padding: 28px; counter-increment: s; }
+.step::before { content: counter(s); display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--blue); color: #fff; font-weight: 800; margin-bottom: 16px; }
+.step b { display: block; font-size: 1.15rem; margin-bottom: 6px; }
+.step span { color: var(--sub); }
+/* 약속 */
+.promise { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.promise div { border-top: 3px solid var(--blue); padding-top: 16px; }
+.promise b { display: block; font-size: 1.05rem; margin-bottom: 6px; }
+.promise span { color: var(--sub); font-size: 0.93rem; }
+/* FAQ */
+.faq { max-width: 780px; margin: 0 auto; }
+.faq details { border-bottom: 1px solid var(--line); padding: 18px 4px; }
+.faq summary { cursor: pointer; font-weight: 700; font-size: 1.05rem; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::after { content: "+"; color: var(--faint); font-weight: 400; font-size: 1.4rem; line-height: 1; }
+.faq details[open] summary::after { content: "−"; }
+.faq p { color: var(--sub); margin: 12px 0 0; }
+/* 마무리 */
+.end { text-align: center; padding: 100px 0; background: linear-gradient(180deg, #fff 0%, #EAF2FF 100%); }
+.end h2 { font-size: 2.3rem; line-height: 1.3; margin: 0 0 16px; letter-spacing: -0.02em; }
+.end p { color: var(--sub); font-size: 1.05rem; margin: 0 0 30px; }
+.end .ctas { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+footer { padding: 36px 0 48px; color: var(--faint); font-size: 0.82rem; border-top: 1px solid var(--line); }
+footer p { margin: 0 0 6px; }
+/* 반응형 */
+@media (max-width: 960px) {
+  .hero .wrap, .feat, .money { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+  .feat.rev .feat-txt { order: 0; }
+  .pains, .steps { grid-template-columns: minmax(0, 1fr); }
+  .pb, .promise { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero h1 { font-size: 2.4rem; }
+}
+@media (max-width: 600px) {
+  .wrap { padding: 0 16px; }
+  .top nav a:not(.btn) { display: none; }
+  .hero { padding: 44px 0 56px; } .hero h1 { font-size: 1.95rem; }
+  section.s { padding: 64px 0; } .s-head h2, .end h2 { font-size: 1.65rem; }
+  .feat h3 { font-size: 1.45rem; } .big b { font-size: 2.3rem; } .big { padding: 28px; }
+  .cards, .pb, .promise { grid-template-columns: minmax(0, 1fr); }
+  .moments li { grid-template-columns: 88px 1fr; }
+  .screen { height: 540px; }
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="logo" href="landing.html"><img src="logo.svg" alt="" width="32" height="32">사이로그</a>
+  <nav><a href="#features">서비스</a><a href="#value">돌려받는 돈</a><a href="#pb">담당 PB</a><a href="#faq">자주 묻는 질문</a>
+    <a class="btn pri sm" href="index.html#story">서비스 둘러보기</a></nav>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <div>
+    <p class="eyebrow">유진투자증권 새 서비스 · 사이로그</p>
+    <h1>놓치고 있던 내 돈,<br><em>묻기 전에 먼저</em><br>알려 드려요.</h1>
+    <p class="lead">쉬고 있는 예수금, 놓치기 쉬운 마감과 세금, 시장이 흔들린 다음 날까지.<br>내 계좌를 기준으로 필요한 순간에 카카오톡으로 알려 드려요.</p>
+    <div class="ctas"><a class="btn pri" href="index.html#story">한 고객의 이야기 보기</a><a class="btn sec" href="#features">어떤 걸 알려 주나요?</a></div>
+    <small class="note">사고팔기를 권하지 않아요. 결정과 가입은 언제나 고객님이 직접 해요.</small>
+  </div>
+  <div class="phone"><div class="screen" id="heroChat"><div class="chat-head">유진투자증권</div></div></div>
+</div></section>
+
+<section class="s alt"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">왜 필요할까요</p><h2>내 계좌에서 조용히<br>놓치고 있는 것들</h2></div>
+  <div class="pains">
+    <div class="pain"><p class="q">"상환금이 들어온 걸<br>몰랐어요"</p><p>예수금으로 그냥 두면 이용료가 연 <b data-rate="deposit"></b>뿐이에요. 쉬는 동안 받을 수 있었던 이자는 아무도 알려 주지 않아요.</p></div>
+    <div class="pain"><p class="q">"마감이 지나고<br>알았어요"</p><p>청약 마감, 펀드 만기, 연말 세액공제와 양도세. 날짜를 놓치면 받을 수 있던 돈이 그대로 사라져요.</p></div>
+    <div class="pain"><p class="q">"폭락 뉴스만 보고<br>밤새 불안했어요"</p><p>시장이 크게 흔들린 날, 내 계좌가 어떻게 됐는지는 앱을 열어 직접 찾아봐야 했어요.</p></div>
+  </div>
+</div></section>
+
+<section class="s" id="features"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">사이로그가 알려 드리는 것</p><h2>필요한 순간에, 내 계좌 기준으로</h2><p>알림을 누르면 바로 그 내용을 앱에서 확인하고, 원하면 그 자리에서 직접 진행할 수 있어요.</p></div>
+
+  <div class="feat">
+    <div class="feat-txt"><span class="feat-num">1</span><h3>쉬고 있는 돈을<br>깨워 드려요</h3>
+      <p class="d">평소 쓰는 돈은 남겨 두고, 진짜로 쉬는 돈만 찾아 얼마를 더 받을 수 있는지 금액으로 알려 드려요.</p>
+      <ul class="moments"><li><b>입금 다음 날</b><span>상환금·배당금이 들어오면 바로</span></li><li><b>7일째</b><span>쉬는 돈과 지금까지 못 받은 이자</span></li>
+        <li><b>RP 안내</b><span>얼마를 맡기면 1년에 얼마 더 받는지</span></li><li><b>매달</b><span>깨운 돈이 번 이자 리포트</span></li></ul>
+      <span class="gain" id="gain1"></span></div>
+    <div class="feat-vis" data-msg="T_IDLE_UPDATE"></div>
+  </div>
+
+  <div class="feat rev">
+    <div class="feat-txt"><span class="feat-num">2</span><h3>놓치기 쉬운<br>마감과 세금을 챙겨 드려요</h3>
+      <p class="d">날짜를 놓치면 사라지는 돈을, 마감 전에 한 번 더 알려 드려요.</p>
+      <ul class="moments"><li><b>펀드·ELS 만기</b><span>상환 예정 금액과 날짜</span></li><li><b>유상증자 청약</b><span>청약가와 시세 차이, 마감일</span></li>
+        <li><b>해외주식 양도세</b><span>연말 전, 기본공제 250만원 활용</span></li><li><b>연금저축</b><span>연말 세액공제 남은 한도</span></li></ul>
+      <span class="gain" id="gain2"></span></div>
+    <div class="feat-vis" data-msg="T_PENSION"></div>
+  </div>
+
+  <div class="feat">
+    <div class="feat-txt"><span class="feat-num">3</span><h3>불안한 순간에<br>먼저 알려 드려요</h3>
+      <p class="d">보유 종목이 하루 10% 넘게 움직이면, 다음 날 아침 내 계좌가 어떻게 됐는지 알려 드려요. 왜 움직였는지는 앱에서 볼 수 있어요.</p>
+      <ul class="moments"><li><b>다음 날 아침</b><span>종가와 내 평가금액 변동</span></li><li><b>왜 움직였나</b><span>등락 이유 요약, 사고팔기 권유 없이</span></li>
+        <li><b>담당 PB</b><span>궁금하면 바로 연결</span></li></ul></div>
+    <div class="feat-vis" data-msg="T_MOVE"></div>
+  </div>
+</div></section>
+
+<section class="s alt" id="value"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">돌려받는 돈</p><h2>예수금으로 쉬는 동안<br>받지 못하는 이자</h2><p>유진투자증권 고객 예수금(공시)과 금리만으로 계산한 숫자예요.</p></div>
+  <div class="money">
+    <div class="big"><small>고객 예수금 중 20%만 쉬고 있어도</small><b id="bigNum"></b><p>고객님들이 1년 동안 받지 못하는 이자 (세전).<br>이미 RP·CMA에 들어 있는 돈은 빼고 계산했어요.</p></div>
+    <div class="cards">
+      <div class="card"><small>쉬는 돈 1,000만원이면</small><b id="per1000"></b><i>예수금 대신 RP에 맡겼을 때, 1년 기준</i></div>
+      <div class="card"><small>연금저축 한도를 채우면</small><b id="pension"></b><i>평균 납입 161만원 → 한도 600만원, 공제율 13.2%</i></div>
+      <div class="card"><small>해외주식 기본공제를 쓰면</small><b>최대 55만원 절세</b><i>250만원 × 22%</i></div>
+      <div class="card"><small>예시 고객 조은식님</small><b id="t1"></b><i>쉬는 상환금 이자 + 연금 세액공제</i></div>
+    </div>
+  </div>
+  <details class="src"><summary>숫자는 이렇게 계산했어요</summary>
+    <p>· 위탁자예수금: 유진투자증권 2026년 반기보고서(별도) — 2026년 6월 말 9,378억원, 상반기 평균 8,963억원. 고객 RP(CMA·RP) 1조 5,137억원은 차입부채(환매조건부채권매도)로 따로 잡혀 있어 포함되지 않아요.<br>
+    · 금리 차이: 예탁금 이용료 연 0.60%(100만원 초과분, 홈페이지 공시)와 고객 RP 금리의 차이. 6월 말 고객 원화 RP 이자율 연 2.25~2.40%(반기보고서) ~ 챔피언CMA(RP형) 연 2.75%(홈페이지, 2026.8.28 기준)로 범위를 두었어요.<br>
+    · 쉬는 돈 비율 20%는 가정이에요. 사이로그는 실제로는 고객마다 '평소 쓰는 돈을 빼고 7일 넘게 쉬는 돈'을 계산해요.<br>
+    · 연금저축 평균 납입: 2025년 업계 통계(납입 13.5조원 ÷ 가입자 840만명)로 추정한 값이에요. 공제율 13.2%(총급여 5,500만원 이하면 16.5%).</p></details>
+</div></section>
+
+<section class="s" id="pb"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">담당 PB와 함께</p><h2>알림만 보내고 끝나지 않아요</h2><p>상담이 필요한 순간에는 담당 PB가 고객님의 상황을 이미 알고 먼저 연락드려요.</p></div>
+  <div class="pb">
+    <a href="index.html#tasks"><b>오늘 연락할 고객</b><span>누구에게, 무엇을, 어떤 말로. 급한 순서대로</span><span class="go">PB 화면 보기 ›</span></a>
+    <a href="index.html#client/T001"><b>고객 한 장</b><span>예수금·쉬는 돈·보유 종목·마감·지난 통화를 한 화면에</span><span class="go">고객 화면 보기 ›</span></a>
+    <a href="index.html#market"><b>시장 이슈</b><span>어제 시장과 내 고객 보유 종목의 큰 변화, 그 이유</span><span class="go">시장 이슈 보기 ›</span></a>
+    <a href="index.html#calendar"><b>약속한 날에</b><span>통화에서 한 약속을 요약해 일정으로, 그날 먼저 연락</span><span class="go">일정 보기 ›</span></a>
+  </div>
+</div></section>
+
+<section class="s alt"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">시작하기</p><h2>이렇게 받아 보세요</h2></div>
+  <div class="steps">
+    <div class="step"><b>알림 받기에 동의</b><span>카카오톡 알림을 켜 두세요. 상품 안내(광고)는 따로 동의한 경우에만 보내요.</span></div>
+    <div class="step"><b>필요한 순간에 카톡</b><span>쉬는 돈, 마감, 큰 등락이 생기면 내 계좌 기준으로 알려 드려요.</span></div>
+    <div class="step"><b>앱에서 확인하고 직접</b><span>버튼을 누르면 바로 그 화면. 맡길지, 그대로 둘지는 직접 정하세요.</span></div>
+  </div>
+</div></section>
+
+<section class="s"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">사이로그의 약속</p><h2>믿을 수 있게, 귀찮지 않게</h2></div>
+  <div class="promise">
+    <div><b>권유하지 않아요</b><span>사고팔기를 권하지 않고, 가입은 고객님이 앱에서 직접 해요.</span></div>
+    <div><b>자주 보내지 않아요</b><span>상품 안내는 동의한 분께만, 주 1건까지, 밤에는 보내지 않아요.</span></div>
+    <div><b>숫자는 계산으로만</b><span>금액은 계좌 데이터로 계산한 값만 쓰고, 문장이 숫자를 바꾸지 못해요.</span></div>
+    <div><b>위험도 함께</b><span>RP·CMA는 예금자보호 대상이 아니라는 점, 금리가 바뀔 수 있다는 점을 늘 함께 알려 드려요.</span></div>
+  </div>
+</div></section>
+
+<section class="s alt" id="faq"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">자주 묻는 질문</p><h2>궁금한 점</h2></div>
+  <div class="faq">
+    <details><summary>알림이 너무 많이 오지 않나요?</summary><p>상품을 안내하는 알림은 일주일에 1건까지만 보내고, 밤 9시부터 아침 8시까지는 보내지 않아요. 입금·만기처럼 내 계좌의 사실을 알려 드리는 알림만 필요한 때에 따로 가요.</p></details>
+    <details><summary>대신 사고팔아 주나요?</summary><p>아니요. 사이로그는 알려 드리기만 해요. RP에 맡기거나 청약하는 것은 고객님이 앱에서 본인 인증 후 직접 하고, 담당 PB도 대신 가입하지 않아요.</p></details>
+    <details><summary>RP는 안전한가요?</summary><p>RP는 예금자보호 대상이 아니고, 수시 RP 금리는 바뀔 수 있어요. 위험등급과 상품설명서를 확인하고 직접 판단해 주세요. 알림과 앱 화면에도 늘 함께 안내해 드려요.</p></details>
+    <details><summary>'쉬는 돈'은 어떻게 정하나요?</summary><p>최근 3개월 중 하루에 가장 많이 쓰신 금액과 결제 예정 금액은 남겨 두고, 그보다 많은 돈이 7일 넘게 그대로 있을 때 쉬는 돈으로 봐요. 매매에 쓸 돈을 건드리지 않도록요.</p></details>
+    <details><summary>반대매매 위험도 알려 주나요?</summary><p>신용 담보가 부족할 때의 안내는 지금도 증권사에서 보내 드리고 있어요. 사이로그는 담당 PB가 그 전에 미리 위험을 보고 연락드릴 수 있게 도와요.</p></details>
+    <details><summary>내 계좌 정보는 어디로 가나요?</summary><p>계산은 증권사 안의 계좌 데이터로만 하고, 알림 문장도 미리 정한 문구에 계산된 숫자를 넣어 만들어요. 외부 AI 서비스로 계좌 정보를 보내지 않아요.</p></details>
+  </div>
+</div></section>
+
+<section class="end"><div class="wrap">
+  <h2>내 돈이 쉬고 있는지,<br>이제 먼저 알려 드릴게요.</h2>
+  <p>한 고객이 실제로 겪는 순간을 따라가 보세요.</p>
+  <div class="ctas"><a class="btn pri" href="index.html#story">조은식님의 이야기 보기</a><a class="btn sec" href="index.html#home">PB 화면 둘러보기</a></div>
+</div></section>
+
+<footer><div class="wrap">
+  <p><b>사이로그</b> · 팀 사이로그 · 유진투자증권 AX 공모전 프로토타입</p>
+  <p>본 페이지는 서비스 소개를 위한 시안이며 투자 권유가 아닙니다. 고객·종목명은 가상 데이터이고(테스트 고객 조은식·김지혁은 이름만 실명), 시세와 시장 요약은 실제 데이터입니다. 이자는 가정한 금리로 계산한 추정치로 실제와 다를 수 있습니다.</p>
+</div></footer>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  const D = window.SITE_DATA, cid = "T001";
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const man = x => { const m = Math.round(x / 1e4); return m >= 1e4 ? `${Math.floor(m / 1e4)}억${m % 1e4 ? " " + (m % 1e4).toLocaleString("ko-KR") + "만" : ""}원` : `${m.toLocaleString("ko-KR")}만원`; };
+  const pct = r => `${parseFloat((r * 100).toFixed(2))}%`;
+  const PUB = { depAvg: 8963, rpLow: 0.0225 };   // 억원 · 6월 말 고객 원화 RP 이자율 하단 (반기보고서)
+  const dep = D.rates.deposit, rp = D.rates.rp;
+  document.querySelectorAll('[data-rate="deposit"]').forEach(e => (e.textContent = pct(dep)));
+  const lo = Math.round(PUB.depAvg * 0.2 * (PUB.rpLow - dep)), hi = Math.round(PUB.depAvg * 0.2 * (rp - dep));
+  document.getElementById("bigNum").textContent = `연 ${lo}억~${hi}억원`;
+  document.getElementById("per1000").textContent = `1년 최대 +${(1000 * (rp - dep)).toFixed(1)}만원`;
+  document.getElementById("pension").textContent = `약 ${Math.round((600 - 161) * 0.132)}만원 환급`;
+  document.getElementById("gain1").textContent = `쉬는 돈 1,000만원 → 1년 최대 +${(1000 * (rp - dep)).toFixed(1)}만원`;
+  document.getElementById("gain2").textContent = `연금저축 약 ${Math.round((600 - 161) * 0.132)}만원 · 양도세 최대 55만원`;
+  const det = D.details[cid] || {}, fs = det.findings || [];
+  const t1 = fs.filter(f => f.rule === "R1").reduce((s, f) => s + f.annual_projection_krw, 0) + fs.filter(f => f.rule !== "R1").reduce((s, f) => s + f.amount_krw, 0);
+  document.getElementById("t1").textContent = t1 ? `1년 +${man(t1)}` : "–";
+  const kt = det.kakao_test || [], msg = t => kt.find(p => p.trigger === t);
+  const sheet = p => ({ T_EVENT: `why:${p.fid}`, T_IDLE_FIRST: `why:${p.fid}`, T_IDLE_UPDATE: `buy:${p.fid}`, T_PENSION: `item:${p.fid}`, T_MOVE: `move:${p.sym}` }[p.trigger]);
+  const body = p => { const l = p.body.split("\n"); return (l[0].startsWith("[유진투자증권]") ? l.slice(2) : l).join("\n"); };
+  const bubble = (p, btn) => p ? `<div class="kk-b"><div class="kk-t">${esc(p.title)}</div><div class="kk-x">${esc(body(p))}</div>${btn ? `<a class="kk-btn" href="app.html?c=${cid}&s=${encodeURIComponent(sheet(p))}" target="_blank" rel="noopener">앱에서 확인하기</a>` : ""}</div>` : "";
+  const who = p => `<div class="kk-who"><span class="kk-ico">유진</span>${p.msg_type === "ad" ? "브랜드 메시지" : "알림톡"}</div>`;
+  const chat = document.getElementById("heroChat");
+  ["T_EVENT", "T_MOVE", "T_PENSION"].map(msg).filter(Boolean).forEach(p => chat.insertAdjacentHTML("beforeend", `<div class="msg">${who(p)}${bubble(p, false)}</div>`));
+  document.querySelectorAll(".feat-vis[data-msg]").forEach(el => { const p = msg(el.dataset.msg); el.innerHTML = p ? `<div>${who(p)}${bubble(p, true)}</div>` : ""; });
+})();
+</script>
+</body>
+</html>
