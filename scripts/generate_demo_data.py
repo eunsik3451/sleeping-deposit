@@ -213,8 +213,8 @@ def personas(as_of):
     p004 = Account(25 * M)
 
     # 테스트 고객 (사용자·팀원 이름, 데이터는 가상): 녹음 요약·카톡 발송 테스트용
-    # T001 조은식: ELS 상환금 3,000만원 12일째 + 연금저축 남은 한도 400만원
-    t001 = Account(1 * M).add(80, "withdrawal", 0.3 * M).add(12, "els_redemption", 30 * M)
+    # T001 조은식: 160일 전 들어온 5,000만원이 그대로 + 12일 전 ELS 상환금 5,000만원도 그대로 (예수금 약 1억) + 연금저축 남은 한도 400만원
+    t001 = Account(1 * M).add(160, "deposit", 49 * M).add(80, "withdrawal", 0.3 * M).add(12, "els_redemption", 50 * M)
     # T002 김지혁: 예수금 4,000만원 45일째 + 채권형 펀드 만기 D-10 (상환 3,000만원)
     t002 = Account(0.5 * M).add(44, "deposit", 40 * M)
 
