@@ -7,6 +7,15 @@
 <meta name="description" content="사이로그: 쉬고 있는 예수금, 놓치기 쉬운 마감과 세금, 불안한 순간을 고객이 묻기 전에 먼저 알려 드리는 서비스. 유진투자증권 AX 공모전 프로토타입.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="사이로그">
+<meta property="og:title" content="사이로그 · 놓치고 있던 내 돈, 묻기 전에 먼저 알려 드려요">
+<meta property="og:description" content="쉬고 있는 예수금, 놓치기 쉬운 마감과 세금, 시장이 흔들린 다음 날까지. 내 계좌 기준으로 필요한 순간에 카카오톡으로 알려 드려요.">
+<meta property="og:image" content="https://eunsik3451.github.io/sleeping-deposit/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://eunsik3451.github.io/sleeping-deposit/landing.html">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 :root { --ink: #191F28; --sub: #4E5968; --faint: #8B95A1; --line: #E5E8EB; --blue: #3182F6; --blue-d: #1B64DA; --blue-bg: #EAF2FF; --bg2: #F9FAFB; --red: #F04452; }
 * { box-sizing: border-box; }
@@ -124,12 +133,45 @@ section.s.alt { background: var(--bg2); }
 .end .ctas { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 footer { padding: 36px 0 48px; color: var(--faint); font-size: 0.82rem; border-top: 1px solid var(--line); }
 footer p { margin: 0 0 6px; }
+/* 이런 분께 */
+.who { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.who div { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 24px; }
+.who b { display: block; font-size: 1.08rem; margin-bottom: 6px; }
+.who span { color: var(--sub); font-size: 0.93rem; }
+/* 카톡 / 앱 화면 전환 */
+.vis { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.vseg { display: inline-flex; background: #F2F4F6; border-radius: 12px; padding: 4px; }
+.vseg button { border: 0; background: none; font: inherit; font-weight: 700; font-size: 0.9rem; color: var(--sub); padding: 8px 16px; border-radius: 9px; cursor: pointer; }
+.vseg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.vis .feat-vis { width: 100%; }
+.v-app { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.mini-phone { width: 336px; height: 664px; background: #111; border-radius: 44px; padding: 12px; box-shadow: 0 24px 50px rgba(27,100,218,.16); }
+.mini-phone .fr { width: 312px; height: 640px; border-radius: 34px; overflow: hidden; background: #F2F4F6; }
+.mini-phone iframe { width: 390px; height: 800px; border: 0; transform: scale(0.8); transform-origin: 0 0; display: block; }
+.v-cap { margin: 0; color: var(--faint); font-size: 0.85rem; }
+[hidden] { display: none !important; }
+/* 전과 후 */
+.ba { max-width: 900px; margin: 0 auto; background: #fff; border: 1px solid var(--line); border-radius: 28px; overflow: hidden; }
+.ba-row { display: grid; grid-template-columns: 150px 1fr 1fr; border-top: 1px solid var(--line); }
+.ba-row:first-child { border-top: 0; }
+.ba-row > div { padding: 18px 20px; font-size: 0.95rem; }
+.ba-row .k { font-weight: 800; }
+.ba-row .b { color: var(--faint); }
+.ba-row .a { color: var(--ink); font-weight: 600; background: #F5F9FF; }
+.ba-row.h > div { font-size: 0.85rem; font-weight: 700; color: var(--sub); padding-top: 14px; padding-bottom: 14px; }
+.ba-row.h .a { color: var(--blue-d); }
+/* 사례 */
+.case { margin-top: 20px; background: #fff; border-radius: 22px; padding: 22px 26px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.case .tag { background: var(--blue-bg); color: var(--blue-d); font-weight: 800; border-radius: 10px; padding: 6px 10px; font-size: 0.85rem; }
+.case p { margin: 0; flex: 1; min-width: 260px; font-size: 1.02rem; }
+.case p b { color: var(--blue-d); }
+.case a { color: var(--blue); font-weight: 700; text-decoration: none; white-space: nowrap; }
 /* 반응형 */
 @media (max-width: 960px) {
   .hero .wrap, .feat, .money { grid-template-columns: minmax(0, 1fr); gap: 36px; }
   .feat.rev .feat-txt { order: 0; }
   .pains, .steps { grid-template-columns: minmax(0, 1fr); }
-  .pb, .promise { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pb, .promise, .who { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero h1 { font-size: 2.4rem; }
 }
 @media (max-width: 600px) {
@@ -138,7 +180,9 @@ footer p { margin: 0 0 6px; }
   .hero { padding: 44px 0 56px; } .hero h1 { font-size: 1.95rem; }
   section.s { padding: 64px 0; } .s-head h2, .end h2 { font-size: 1.65rem; }
   .feat h3 { font-size: 1.45rem; } .big b { font-size: 2.3rem; } .big { padding: 28px; }
-  .cards, .pb, .promise { grid-template-columns: minmax(0, 1fr); }
+  .cards, .pb, .promise, .who { grid-template-columns: minmax(0, 1fr); }
+  .ba-row { grid-template-columns: 1fr 1fr; } .ba-row .k { grid-column: 1 / -1; padding-bottom: 0; } .ba-row.h .k { display: none; }
+  .mini-phone { transform: scale(0.9); transform-origin: top center; margin-bottom: -66px; }
   .moments li { grid-template-columns: 88px 1fr; }
   .screen { height: 540px; }
 }
@@ -171,7 +215,17 @@ footer p { margin: 0 0 6px; }
   </div>
 </div></section>
 
-<section class="s" id="features"><div class="wrap">
+<section class="s"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">이런 분께 필요해요</p><h2>혹시 나도 해당될까요?</h2></div>
+  <div class="who">
+    <div><b>상환금·만기금을 받으신 분</b><span>ELS·펀드·채권이 끝나고 들어온 돈이 아직 예수금에 있다면</span></div>
+    <div><b>예수금을 오래 두신 분</b><span>쓸 계획 없이 몇 주, 몇 달째 그대로인 돈이 있다면</span></div>
+    <div><b>해외주식·연금저축 하시는 분</b><span>연말 양도세 공제, 세액공제 한도를 챙기고 싶다면</span></div>
+    <div><b>시장이 흔들리면 불안하신 분</b><span>큰 등락이 있을 때 내 계좌부터 알고 싶다면</span></div>
+  </div>
+</div></section>
+
+<section class="s alt" id="features"><div class="wrap">
   <div class="s-head"><p class="eyebrow">사이로그가 알려 드리는 것</p><h2>필요한 순간에, 내 계좌 기준으로</h2><p>알림을 누르면 바로 그 내용을 앱에서 확인하고, 원하면 그 자리에서 직접 진행할 수 있어요.</p></div>
 
   <div class="feat">
@@ -180,7 +234,9 @@ footer p { margin: 0 0 6px; }
       <ul class="moments"><li><b>입금 다음 날</b><span>상환금·배당금이 들어오면 바로</span></li><li><b>7일째</b><span>쉬는 돈과 지금까지 못 받은 이자</span></li>
         <li><b>RP 안내</b><span>얼마를 맡기면 1년에 얼마 더 받는지</span></li><li><b>매달</b><span>깨운 돈이 번 이자 리포트</span></li></ul>
       <span class="gain" id="gain1"></span></div>
-    <div class="feat-vis" data-msg="T_IDLE_UPDATE"></div>
+    <div class="vis" data-msg="T_IDLE_UPDATE"><div class="vseg"><button class="on" data-v="kk">카톡 말풍선</button><button data-v="app">앱 화면</button></div>
+      <div class="feat-vis v-kk"></div>
+      <div class="v-app" hidden><div class="mini-phone"><div class="fr"><iframe title="고객 앱 화면 미리보기"></iframe></div></div><p class="v-cap">카톡 버튼을 누르면 열리는 화면이에요. 직접 눌러 볼 수 있어요.</p></div></div>
   </div>
 
   <div class="feat rev">
@@ -189,7 +245,9 @@ footer p { margin: 0 0 6px; }
       <ul class="moments"><li><b>펀드·ELS 만기</b><span>상환 예정 금액과 날짜</span></li><li><b>유상증자 청약</b><span>청약가와 시세 차이, 마감일</span></li>
         <li><b>해외주식 양도세</b><span>연말 전, 기본공제 250만원 활용</span></li><li><b>연금저축</b><span>연말 세액공제 남은 한도</span></li></ul>
       <span class="gain" id="gain2"></span></div>
-    <div class="feat-vis" data-msg="T_PENSION"></div>
+    <div class="vis" data-msg="T_PENSION"><div class="vseg"><button class="on" data-v="kk">카톡 말풍선</button><button data-v="app">앱 화면</button></div>
+      <div class="feat-vis v-kk"></div>
+      <div class="v-app" hidden><div class="mini-phone"><div class="fr"><iframe title="고객 앱 화면 미리보기"></iframe></div></div><p class="v-cap">카톡 버튼을 누르면 열리는 화면이에요. 직접 눌러 볼 수 있어요.</p></div></div>
   </div>
 
   <div class="feat">
@@ -197,7 +255,20 @@ footer p { margin: 0 0 6px; }
       <p class="d">보유 종목이 하루 10% 넘게 움직이면, 다음 날 아침 내 계좌가 어떻게 됐는지 알려 드려요. 왜 움직였는지는 앱에서 볼 수 있어요.</p>
       <ul class="moments"><li><b>다음 날 아침</b><span>종가와 내 평가금액 변동</span></li><li><b>왜 움직였나</b><span>등락 이유 요약, 사고팔기 권유 없이</span></li>
         <li><b>담당 PB</b><span>궁금하면 바로 연결</span></li></ul></div>
-    <div class="feat-vis" data-msg="T_MOVE"></div>
+    <div class="vis" data-msg="T_MOVE"><div class="vseg"><button class="on" data-v="kk">카톡 말풍선</button><button data-v="app">앱 화면</button></div>
+      <div class="feat-vis v-kk"></div>
+      <div class="v-app" hidden><div class="mini-phone"><div class="fr"><iframe title="고객 앱 화면 미리보기"></iframe></div></div><p class="v-cap">카톡 버튼을 누르면 열리는 화면이에요. 직접 눌러 볼 수 있어요.</p></div></div>
+  </div>
+</div></section>
+
+<section class="s"><div class="wrap">
+  <div class="s-head"><p class="eyebrow">무엇이 달라지나요</p><h2>사이로그 전과 후</h2></div>
+  <div class="ba">
+    <div class="ba-row h"><div class="k"></div><div class="b">지금까지는</div><div class="a">사이로그와 함께</div></div>
+    <div class="ba-row"><div class="k">쉬는 예수금</div><div class="b">얼마를 못 받는지 모른 채 몇 달씩 그대로</div><div class="a">못 받은 이자와 더 받을 이자를 금액으로, 앱에서 바로 맡기기</div></div>
+    <div class="ba-row"><div class="k">마감·세금</div><div class="b">날짜가 지나고 나서야 알게 됨</div><div class="a">마감 전에 두 번, 돌려받을 금액과 함께</div></div>
+    <div class="ba-row"><div class="k">급락한 다음 날</div><div class="b">뉴스만 보고 내 계좌는 직접 찾아봄</div><div class="a">아침에 내 종목·내 평가금액 기준으로 먼저</div></div>
+    <div class="ba-row"><div class="k">담당 PB 상담</div><div class="b">전화하면 상황 설명부터 다시</div><div class="a">PB가 내 상황을 이미 알고, 약속한 날 먼저 연락</div></div>
   </div>
 </div></section>
 
@@ -212,6 +283,7 @@ footer p { margin: 0 0 6px; }
       <div class="card"><small>예시 고객 조은식님</small><b id="t1"></b><i>쉬는 상환금 이자 + 연금 세액공제</i></div>
     </div>
   </div>
+  <div class="case" id="case"></div>
   <details class="src"><summary>숫자는 이렇게 계산했어요</summary>
     <p>· 위탁자예수금: 유진투자증권 2026년 반기보고서(별도) — 2026년 6월 말 9,378억원, 상반기 평균 8,963억원. 고객 RP(CMA·RP) 1조 5,137억원은 차입부채(환매조건부채권매도)로 따로 잡혀 있어 포함되지 않아요.<br>
     · 금리 차이: 예탁금 이용료 연 0.60%(100만원 초과분, 홈페이지 공시)와 고객 RP 금리의 차이. 6월 말 고객 원화 RP 이자율 연 2.25~2.40%(반기보고서) ~ 챔피언CMA(RP형) 연 2.75%(홈페이지, 2026.8.28 기준)로 범위를 두었어요.<br>
@@ -252,6 +324,7 @@ footer p { margin: 0 0 6px; }
   <div class="s-head"><p class="eyebrow">자주 묻는 질문</p><h2>궁금한 점</h2></div>
   <div class="faq">
     <details><summary>알림이 너무 많이 오지 않나요?</summary><p>상품을 안내하는 알림은 일주일에 1건까지만 보내고, 밤 9시부터 아침 8시까지는 보내지 않아요. 입금·만기처럼 내 계좌의 사실을 알려 드리는 알림만 필요한 때에 따로 가요.</p></details>
+    <details><summary>알림을 끄고 싶으면 어떻게 하나요?</summary><p>앱의 설정 &gt; 알림 설정에서 언제든 끌 수 있어요. 상품 안내(광고) 알림에는 무료 수신거부 방법을 매번 함께 적어 드려요.</p></details>
     <details><summary>대신 사고팔아 주나요?</summary><p>아니요. 사이로그는 알려 드리기만 해요. RP에 맡기거나 청약하는 것은 고객님이 앱에서 본인 인증 후 직접 하고, 담당 PB도 대신 가입하지 않아요.</p></details>
     <details><summary>RP는 안전한가요?</summary><p>RP는 예금자보호 대상이 아니고, 수시 RP 금리는 바뀔 수 있어요. 위험등급과 상품설명서를 확인하고 직접 판단해 주세요. 알림과 앱 화면에도 늘 함께 안내해 드려요.</p></details>
     <details><summary>'쉬는 돈'은 어떻게 정하나요?</summary><p>최근 3개월 중 하루에 가장 많이 쓰신 금액과 결제 예정 금액은 남겨 두고, 그보다 많은 돈이 7일 넘게 그대로 있을 때 쉬는 돈으로 봐요. 매매에 쓸 돈을 건드리지 않도록요.</p></details>
@@ -297,7 +370,23 @@ footer p { margin: 0 0 6px; }
   const who = p => `<div class="kk-who"><span class="kk-ico">유진</span>${p.msg_type === "ad" ? "브랜드 메시지" : "알림톡"}</div>`;
   const chat = document.getElementById("heroChat");
   ["T_EVENT", "T_MOVE", "T_PENSION"].map(msg).filter(Boolean).forEach(p => chat.insertAdjacentHTML("beforeend", `<div class="msg">${who(p)}${bubble(p, false)}</div>`));
-  document.querySelectorAll(".feat-vis[data-msg]").forEach(el => { const p = msg(el.dataset.msg); el.innerHTML = p ? `<div>${who(p)}${bubble(p, true)}</div>` : ""; });
+  document.querySelectorAll(".vis[data-msg]").forEach(v => {
+    const p = msg(v.dataset.msg);
+    if (!p) { v.hidden = true; return; }
+    const kk = v.querySelector(".v-kk"), app = v.querySelector(".v-app"), fr = v.querySelector("iframe");
+    kk.innerHTML = `<div>${who(p)}${bubble(p, true)}</div>`;
+    v.querySelectorAll(".vseg button").forEach(b => (b.onclick = () => {
+      const isApp = b.dataset.v === "app";
+      v.querySelectorAll(".vseg button").forEach(x => x.classList.toggle("on", x === b));
+      kk.hidden = isApp; app.hidden = !isApp;
+      if (isApp && !fr.getAttribute("src")) fr.src = `app.html?c=${cid}&s=${encodeURIComponent(sheet(p))}`;   // 앱 화면은 누를 때만 불러온다
+    }));
+  });
+  const r1 = fs.find(f => f.rule === "R1"), caseEl = document.getElementById("case");
+  if (r1) caseEl.innerHTML = `<span class="tag">예시 고객 조은식님</span>
+    <p>예수금 ${man(r1.meta.idle_krw)}이 <b>${r1.meta.streak}일째</b> 쉬고 있어요. ${esc(r1.amount_label.replace("놓친 이자", ""))}놓친 이자는 약 ${man(r1.amount_krw)}, RP에 맡기면 <b>1년에 약 ${man(r1.annual_projection_krw)}</b>을 더 받아요.</p>
+    <a href="index.html#story">이야기 보기 ›</a>`;
+  else caseEl.hidden = true;
 })();
 </script>
 </body>
