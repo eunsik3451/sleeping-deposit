@@ -1299,7 +1299,7 @@
     }
     const sel = byDay[calm.day] || [];
     const groups = {};
-    sel.forEach(e => { const k = e.kind + "|" + (e.kind === "todo" ? "" : e.label); (groups[k] ||= { kind: e.kind, label: e.label, items: [] }).items.push(e); });
+    sel.forEach(e => { const k = e.kind + "|" + (e.kind === "todo" || e.kind === "R4" ? "" : e.label); (groups[k] ||= { kind: e.kind, label: e.label, items: [] }).items.push(e); });   // 만기·할 일은 고객이 달라도 한 묶음
     const dl = Math.round((new Date(calm.day + "T00:00:00") - today) / 864e5);
     const next14 = upcomingDays.filter(d => (new Date(d + "T00:00:00") - today) / 864e5 <= 14);
 
@@ -1459,7 +1459,7 @@
     const holds = {}; D.outbox.forEach(r => { if (r.hold) { const k = holdLabel(r.hold.split(":")[0]); holds[k] = (holds[k] || 0) + 1; } });
     const foundSum = D.customers.reduce((s, c) => s + (c.found ? c.found.found_krw : 0), 0);
     $app.innerHTML = `<h1>성과</h1>
-      <p class="lead">가상 고객 300명 기준으로, 얼마나 많은 돈이 쉬고 있고 알림이 실행까지 얼마나 이어지는지 봅니다.</p>
+      <p class="lead">가상 고객 ${D.customers.length}명 기준으로, 얼마나 많은 돈이 쉬고 있고 알림이 실행까지 얼마나 이어지는지 봅니다.</p>
       <div class="metrics">
         <div class="metric"><div class="k">예수금 활용률 (자동 RP ÷ 예수금+자동 RP)</div><div class="v">${(util * 100).toFixed(1)}%</div></div>
         <div class="metric"><div class="k">쉬는 돈이 있는 고객</div><div class="v">${new Set(r1.map(f => f.customer_id)).size}명</div></div>
