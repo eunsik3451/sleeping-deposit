@@ -1108,3 +1108,45 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .st-calc.earn .sc-big { margin: 0; font-size: 1.9rem; font-weight: 800; color: #1B64DA; }
 .st-calc.earn .sc-sub { margin: 2px 0 0; font-size: 0.85rem; color: #4E5968; }
 
+
+/* ══════════ 고객 분석 ══════════ */
+.ptags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; font-style: normal; }
+.ptags span { background: #F2F4F6; color: #4E5968; border-radius: 6px; padding: 1px 7px; font-size: 0.74rem; font-weight: 600; }
+.ptags span.on { background: #EAF2FF; color: #1B64DA; }
+.intbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: #F5F9FF; border-radius: 14px; padding: 12px 16px; margin: 0 0 12px; font-size: 0.92rem; }
+.intbar > b { color: #1B64DA; }
+.intbar .ev { background: #fff; border-radius: 8px; padding: 3px 9px; font-weight: 600; }
+.intbar .ev small { color: #8B95A1; font-weight: 500; margin-left: 4px; }
+.intbar .txt { margin-left: auto; }
+.psum { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; border: none; background: none; padding: 0; font: inherit; font-weight: 700; color: #1B64DA; cursor: pointer; text-align: left; }
+.psum span { display: flex; flex-wrap: wrap; gap: 4px; }
+.psum i { font-style: normal; background: #EAF2FF; color: #1B64DA; border-radius: 6px; padding: 1px 8px; font-size: 0.78rem; font-weight: 600; }
+.pf-head { margin-bottom: 16px; }
+.pf-head h2 { font-size: 1.45rem; margin: 6px 0 12px; word-break: keep-all; }
+.pf-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.pf-tags span { background: #EAF2FF; color: #1B64DA; border-radius: 8px; padding: 4px 10px; font-size: 0.86rem; font-weight: 700; }
+.pf-gap { margin: 14px 0 0; background: #FFF4D6; color: #7A5200; border-radius: 12px; padding: 10px 14px; font-size: 0.9rem; word-break: keep-all; }
+.pf-sec, .pf-ev, .pf-off { list-style: none; margin: 0; padding: 0; }
+.pf-sec li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid #F2F4F6; }
+.pf-sec li:first-child { border-top: 0; }
+.pf-sec b { display: block; }
+.pf-sec small { color: #8B95A1; font-size: 0.82rem; }
+.pf-sec em { font-style: normal; font-weight: 800; font-size: 1.15rem; color: #1B64DA; }
+.pf-kv { display: grid; grid-template-columns: 120px 1fr; gap: 10px 14px; margin: 0; }
+.pf-kv dt { color: #6B7684; font-size: 0.88rem; }
+.pf-kv dd { margin: 0; font-weight: 600; }
+.pf-ev li { display: grid; grid-template-columns: 70px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid #F2F4F6; }
+.pf-ev li:first-child { border-top: 0; }
+.pf-ev .d b { display: block; color: #1B64DA; font-size: 1.05rem; }
+.pf-ev small, .pf-off small { display: block; color: #8B95A1; font-size: 0.8rem; }
+.pf-ev i, .pf-off i { display: block; font-style: normal; color: #4E5968; font-size: 0.85rem; margin-top: 2px; word-break: keep-all; }
+.pf-off li { padding: 10px 0; border-top: 1px solid #F2F4F6; }
+.pf-off li:first-child { border-top: 0; }
+/* 고객 앱: 나의 투자 프로필 */
+.ap-sec { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.ap-sec span { background: #EAF2FF; color: #1B64DA; border-radius: 8px; padding: 5px 10px; font-size: 0.86rem; font-weight: 600; }
+.ap-sec b { margin-right: 4px; }
+.ap-line { margin: 0 0 6px; color: #4E5968; font-size: 0.88rem; }
+.ap-sub { margin: 12px 0 2px; font-weight: 700; font-size: 0.9rem; }
+.a-ico.sm { font-size: 0.72rem; font-weight: 800; }
+.a-go.ap-go { font-size: 0.82rem; font-weight: 700; color: #3182F6; white-space: nowrap; }

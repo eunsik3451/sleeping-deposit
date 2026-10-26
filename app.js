@@ -301,7 +301,7 @@
       return `<button class="a-row" data-sheet="item:${esc(f.finding_id)}"><span class="a-ico">${ITEM_ICON[f.rule]}</span>
         <span class="a-txt"><b>${esc(f.subtype_label)}</b><small>${esc(SHORT[f.rule])} · 마감 ${f.deadline.slice(5).replace("-", "/")}</small></span>
         <span class="a-amt"><b>+${man(f.amount_krw)}</b><small class="${dl <= 7 ? "due" : ""}">D-${dl}</small></span></button>`; }).join("")}</div>` : "";
-    return `${hero}${appCreditCard(cid)}${appStockCard(cid)}${chart}${idleRows}${itemRows}
+    return `${hero}${appCreditCard(cid)}${appStockCard(cid)}${appProfileCard(cid)}${chart}${idleRows}${itemRows}
       <p class="a-fine">참고용 정보이며 투자 자문이 아닙니다. 이자는 가정한 금리로 계산한 추정치로 실제와 다를 수 있습니다. 가입 전 상품설명서를 확인하세요. 고객·종목·상품명은 가상입니다.</p>`;
   }
 
@@ -621,6 +621,19 @@
       <button class="a-row" data-sheet="move:${esc(p.symbol)}"><span class="a-ico">${esc(p.name.slice(0, 1))}</span>
         <span class="a-txt"><b>${esc(p.name)}</b><small>${p.qty.toLocaleString("ko-KR")}주 · ${man(p.value_krw)}</small></span>
         <span class="a-amt"><b class="${p.chg_pct < 0 ? "dn" : "up"}">${pctTxt(p.chg_pct)}</b><small>${Math.abs(p.chg_pct) >= MK.big_move_pct ? "크게 움직였어요" : "어제"}</small></span></button>`).join("")}</div>`;
+  }
+
+  function appProfileCard(cid) {   // 고객 앱: 나의 투자 프로필 (PB용 메모·상품 방향은 보이지 않음)
+    const p = D.details[cid] && D.details[cid].profile;
+    if (!p || (!p.sectors.length && !p.events.length)) return "";
+    const STY = { "우량주 장기 보유": "우량주를 오래 들고 가는 편이에요", "우량주 중심": "우량주 중심으로 담고 있어요", "공격적 투자": "변동성 큰 종목에도 투자하는 편이에요",
+      "활발한 매매": "매매를 자주 하는 편이에요", "균형형": "여러 업종에 나눠 담고 있어요", "예수금 위주": "예수금 비중이 높은 편이에요", "보유 주식 없음": "아직 보유한 주식이 없어요" };
+    const ev = (D.events || []).filter(e => p.events.includes(e.id)).slice(0, 2);
+    return `<div class="a-card"><div class="a-title">나의 투자 프로필</div>
+      ${p.sectors.length ? `<div class="ap-sec">${p.sectors.slice(0, 3).map(x => `<span><b>${esc(x.name)}</b>${Math.round(x.pct * 100)}%</span>`).join("")}</div>` : ""}
+      <p class="ap-line">${STY[p.style] || ""} · 최근 90일 매매 ${p.trade_days}일</p>
+      ${ev.length ? `<div class="ap-sub">관심 분야 행사 소식</div>${ev.map(e => `<button class="a-row" data-done="${esc(e.title)} 참가 신청을 받았어요 (데모)"><span class="a-ico sm">${+e.date.slice(5, 7)}/${+e.date.slice(8)}</span>
+        <span class="a-txt"><b>${esc(e.title)}</b><small>${esc(e.place)} · ${e.time}</small></span><span class="a-go ap-go">신청 ›</span></button>`).join("")}` : ""}</div>`;
   }
 
   function appCreditCard(cid) {   // 고객 앱: 본인 신용 보유분
@@ -1720,33 +1733,88 @@
     </article>`;
   }
 
+  // ════════════════ 고객 분석 (PB용 '분석' 탭) ════════════════
+  // 보유 종목·거래 빈도·자산 구성으로 관심 분야와 투자 스타일을 보여 주고, 맞는 행사·상품 상담 방향을 정리한다
+  function profileTab(cid) {
+    const p = D.details[cid].profile, c = CUST[cid];
+    if (!p) return `<section class="panel"><p class="sub">분석 데이터가 없어요.</p></section>`;
+    const pc = x => `${Math.round(x * 100)}%`;
+    const ev = (D.events || []).filter(e => p.events.includes(e.id));
+    const top = p.sectors[0], same = top ? D.customers.filter(x => inView(x.id) && x.id !== cid && x.prof.tags.includes(top.name + " 관심")).length : 0;
+    const kv = [["거래 빈도", `최근 90일 중 ${p.trade_days}일 매매 · ${p.activity}`], ["우량주 비중", p.mix.stock ? pc(p.bluechip) : "–"],
+      ["변동성 큰 종목", p.mix.stock ? pc(p.volatile) : "–"], ["해외주식 비중", p.mix.stock ? pc(p.overseas) : "–"],
+      ["예수금 비중", `총자산의 ${pc(p.mix.cash_ratio)} · ${man(p.mix.cash)}`], ["신용", p.credit ? "신용으로 산 주식 있음" : "없음"], ["등록 투자성향", c.risk]];
+    const wd = d => "일월화수목금토"[new Date(d + "T00:00:00").getDay()];
+    return `<section class="panel pf-head"><p class="sub">고객 분석 · 보유 종목, 거래 빈도, 자산 구성으로 정리했어요</p>
+        <h2>${esc(p.summary)}</h2><div class="pf-tags">${p.tags.map(t => `<span>${esc(t)}</span>`).join("")}</div>
+        ${p.gap ? `<p class="pf-gap">${esc(p.gap)}</p>` : ""}</section>
+      <div class="ov-grid"><div class="col">
+        <section class="panel"><div class="bhead"><h2>관심 분야</h2><span class="sub">보유 주식 평가금액 기준</span></div>
+          ${p.sectors.length ? `<ul class="pf-sec">${p.sectors.map(x => `<li><span><b>${esc(x.name)}</b><small>${x.stocks.map(esc).join(" · ")}</small></span><em>${pc(x.pct)}</em></li>`).join("")}</ul>`
+            : `<p class="sub">보유한 주식이 없어요.</p>`}
+          ${same ? `<a class="link-sm" href="#clients" data-int="${esc(top.name)} 관심">${esc(top.name)}에 관심 있는 고객 ${same}명 더 보기 ›</a>` : ""}</section>
+        <section class="panel"><div class="bhead"><h2>투자 스타일</h2><span class="sub">${esc(p.style)}</span></div>
+          <dl class="pf-kv">${kv.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl></section>
+      </div><div class="col">
+        <section class="panel"><div class="bhead"><h2>맞춤 행사 안내</h2><span class="sub">${ev.length}건 · 가상 일정</span></div>
+          ${ev.length ? `<ul class="pf-ev">${ev.map(e => `<li><span class="d"><b>${+e.date.slice(5, 7)}/${+e.date.slice(8)}</b><small>${wd(e.date)} ${e.time}</small></span>
+            <span><b>${esc(e.title)}</b><small>${esc(e.place)}</small><i>${esc(e.desc)}</i></span></li>`).join("")}</ul>` : `<p class="sub">맞는 행사가 아직 없어요.</p>`}</section>
+        <section class="panel"><div class="bhead"><h2>상품 상담 방향</h2></div>
+          ${p.offers.length ? `<ul class="pf-off">${p.offers.map(o => `<li><b>${esc(o.t)}</b><small>${esc(o.why)}</small><i>${esc(o.note)}</i></li>`).join("")}</ul>` : `<p class="sub">지금 제안할 방향이 없어요.</p>`}
+          <p class="sub small">권유가 아니라 상담 방향이에요. 투자성향에 맞는 위험등급만 안내하고, 가입은 고객이 직접 해요.</p></section>
+      </div></div>`;
+  }
+
   // ════════════════ 고객 관리 ════════════════
-  let cm = { tab: "all", q: "", sort: "urgent" };
+  let cm = { tab: "all", q: "", sort: "urgent", tag: "" };
   function pageClientsMgmt() {
     const mine = D.customers.filter(c => inView(c.id)).map(c => ({ c, g: taskGroup(c.id), item: contactItems(c.id)[0], n: contactItems(c.id).length, lc: lastContact(c.id) }));
     const lcDays = x => x.lc ? x.lc.days : 9999, cashOf = x => (x.c.balance.KRW || { cash: 0 }).cash;
     const SORTS = { urgent: (a, b) => (a.g ? GROUPS.findIndex(g => g[0] === a.g) : 9) - (b.g ? GROUPS.findIndex(g => g[0] === b.g) : 9) || a.c.name.localeCompare(b.c.name),
-      contact: (a, b) => lcDays(b) - lcDays(a) || cashOf(b) - cashOf(a), cash: (a, b) => cashOf(b) - cashOf(a) };
+      contact: (a, b) => lcDays(b) - lcDays(a) || cashOf(b) - cashOf(a), cash: (a, b) => cashOf(b) - cashOf(a),
+      interest: (a, b) => secPct(b) - secPct(a) || cashOf(b) - cashOf(a) };
+    // 관심 분야 비중: 고른 태그가 '○○ 관심'이면 그 업종 비중, 아니면 가장 큰 업종 비중
+    function secPct(x) { const sec = cm.tag.endsWith(" 관심") ? cm.tag.slice(0, -3) : null, p = D.details[x.c.id].profile;
+      return sec ? ((p.sectors.find(s => s.name === sec) || { pct: 0 }).pct) : (x.c.prof.top_pct || 0); }
+    const tagCount = {};
+    mine.forEach(x => x.c.prof.tags.forEach(t => (tagCount[t] = (tagCount[t] || 0) + 1)));
+    const interestTags = Object.keys(tagCount).filter(t => t.endsWith(" 관심")).sort((a, b) => tagCount[b] - tagCount[a]);
+    const styleTags = Object.keys(tagCount).filter(t => !t.endsWith(" 관심")).sort((a, b) => tagCount[b] - tagCount[a]);
+    if (cm.tag && !tagCount[cm.tag]) cm.tag = "";
     const lists = { all: mine, todo: mine.filter(x => x.g), care: mine.filter(x => x.g === "later") };
     // 검색어가 바뀌면 목록만 다시 그린다 (입력칸을 다시 만들면 한글 조합이 끊겨 'ㅈㅗㅇ'처럼 풀어짐)
-    const rowsHtml = () => lists[cm.tab].filter(x => !cm.q || (x.c.id + x.c.name).includes(cm.q)).sort(SORTS[cm.sort])
+    const rowsHtml = () => lists[cm.tab].filter(x => (!cm.q || (x.c.id + x.c.name).includes(cm.q)) && (!cm.tag || x.c.prof.tags.includes(cm.tag))).sort(SORTS[cm.sort])
       .map(x => rowItem(x, x.c, x.c.balance.KRW || { cash: 0 })).join("") || `<li class="empty">해당하는 고객이 없어요</li>`;
     $app.innerHTML = `<div class="pg">
       <div class="pg-head"><div><h1>고객 관리</h1><p class="sub">${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 고객 ${mine.length}명</p></div></div>
       <div class="toolbar"><div class="seg">${[["all", "전체", lists.all.length], ["todo", "챙길 것 있음", lists.todo.length], ["care", "예수금이 오래 그대로", lists.care.length]]
         .map(([k, t, n]) => `<button class="${cm.tab === k ? "on" : ""}" data-tab="${k}">${t} <em>${n}</em></button>`).join("")}</div>
-        <select class="pill sortsel" id="cmsort" aria-label="정렬">${[["urgent", "급한 순"], ["contact", "연락 오래된 순"], ["cash", "예수금 많은 순"]]
+        <select class="pill sortsel" id="cmtag" aria-label="관심·성향">${[`<option value="">관심·성향 전체</option>`,
+          `<optgroup label="관심 분야">${interestTags.map(t => `<option value="${esc(t)}" ${cm.tag === t ? "selected" : ""}>${esc(t)} ${tagCount[t]}</option>`).join("")}</optgroup>`,
+          `<optgroup label="투자 스타일·상황">${styleTags.map(t => `<option value="${esc(t)}" ${cm.tag === t ? "selected" : ""}>${esc(t)} ${tagCount[t]}</option>`).join("")}</optgroup>`].join("")}</select>
+        <select class="pill sortsel" id="cmsort" aria-label="정렬">${[["urgent", "급한 순"], ["contact", "연락 오래된 순"], ["cash", "예수금 많은 순"], ["interest", "관심 분야 비중 순"]]
           .map(([k, t]) => `<option value="${k}" ${cm.sort === k ? "selected" : ""}>${t}</option>`).join("")}</select>
         <input class="pill" type="search" id="cmq" placeholder="이름이나 고객번호" value="${esc(cm.q)}"></div>
+      ${cm.tag ? intBar() : ""}
       <ul class="rows cm-rows">${rowsHtml()}</ul></div>`;
+    // 고른 관심·성향에 맞는 행사: 이 고객들에게 안내할 거리
+    function intBar() {
+      const key = cm.tag.endsWith(" 관심") ? cm.tag.slice(0, -3) : cm.tag;
+      const ev = (D.events || []).filter(e => e.tags.includes(key));
+      return `<div class="intbar"><b>${esc(cm.tag)}</b> 고객 ${tagCount[cm.tag]}명${ev.length ? ` · 안내할 행사 ${ev.map(e => `<span class="ev">${esc(e.title)} <small>${+e.date.slice(5, 7)}/${+e.date.slice(8)}</small></span>`).join("")}` : " · 맞는 행사가 아직 없어요"}
+        <button class="txt" id="cmclear">필터 지우기</button></div>`;
+    }
     function rowItem(x, c, b) {
         return `<li><a href="#client/${c.id}"><span class="ava">${esc(c.name.slice(0, 1))}</span>
-          <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${c.id} · ${esc(c.risk)}</small><i>${esc(x.item ? x.item.title : "챙길 것 없음")}</i></span>
+          <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${c.id} · ${esc(c.risk)}</small><i>${esc(x.item ? x.item.title : "챙길 것 없음")}</i>
+            <em class="ptags">${c.prof.tags.filter(t => t !== "거래 보통").slice(0, 3).map(t => `<span class="${t === cm.tag ? "on" : ""}">${esc(t)}</span>`).join("")}</em></span>
           ${x.g ? `<span class="tag ${tagCls(x.g)}">${GROUPS.find(g => g[0] === x.g)[1]}</span>` : "<span></span>"}
           <span class="lcd lv-${x.lc ? x.lc.level : "bad"}"><b>${x.lc ? (x.lc.days ? x.lc.days + "일" : "오늘") : "–"}</b><small>${x.lc && !x.lc.days ? "연락함" : "연락 없음"}</small></span>
           <span class="amt"><b>${man(b.cash)}</b><small>원화 예수금</small></span><span class="go">›</span></a></li>`; }
     $app.querySelectorAll("[data-tab]").forEach(b => (b.onclick = () => { cm.tab = b.dataset.tab; pageClientsMgmt(); }));
     $app.querySelector("#cmsort").onchange = e => { cm.sort = e.target.value; pageClientsMgmt(); };
+    $app.querySelector("#cmtag").onchange = e => { cm.tag = e.target.value; if (cm.tag && cm.tag.endsWith(" 관심")) cm.sort = "interest"; pageClientsMgmt(); };
+    const clr = $app.querySelector("#cmclear"); if (clr) clr.onclick = () => { cm.tag = ""; if (cm.sort === "interest") cm.sort = "urgent"; pageClientsMgmt(); };
     const inp = $app.querySelector("#cmq");
     inp.oninput = () => { cm.q = inp.value.trim(); $app.querySelector(".cm-rows").innerHTML = rowsHtml(); };
   }
@@ -1766,13 +1834,14 @@
     const alerts = D.outbox.filter(r => r.cid === cid).sort((a, b) => b.at.localeCompare(a.at));
     const consent = [c.consent_push && "앱 푸시", c.consent_kakao && "카카오톡"].filter(Boolean);
     const others = findingsOf(cid).filter(f => f.rule !== "R1");
-    const TABS = [["overview", "개요"], ["holdings", `보유 종목 ${pos.length}`], ["calls", `통화 ${calls.length}`], ["plan", "일정·알림"]];
+    const TABS = [["overview", "개요"], ["analysis", "분석"], ["holdings", `보유 종목 ${pos.length}`], ["calls", `통화 ${calls.length}`], ["plan", "일정·알림"]];
     const lines = lead ? keyLines(lead.script) : [];
     let body = "";
     if (cv.tab === "overview") body = `<div class="ov-grid"><div class="col">${contactCard(cid)}${diagnosisCard(cid)}</div><div class="col">
         ${D.details[cid].trend.start ? `<section class="panel"><div class="bhead"><h2>자산 잔고 추이</h2><span class="sub">최근 6개월 · 만원</span></div>${assetChart(cid)}</section>` : ""}
         ${others.length ? `<section class="panel"><div class="bhead"><h2>함께 챙길 것</h2></div><ul class="items">${others.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 ${f.deadline.slice(5).replace("-", "/")}` : ""}</small></span><em>${amtText(f)}</em></li>`).join("")}</ul></section>` : ""}
         <section class="panel"><div class="bhead"><h2>해야 할 일</h2><span class="sub">${openTodos.length}건</span></div><ul class="todo-list">${openTodos.map(t => `<li><label><input type="checkbox" data-done="${t.call}|${t.i}"> <span>${esc(t.text)}</span></label><em class="${t.due && t.due <= ymd(new Date()) ? "red" : ""}">${esc(t.dueLabel)}</em></li>`).join("") || `<li class="empty">통화에서 나온 할 일이 없어요</li>`}</ul></section></div></div>`;
+    else if (cv.tab === "analysis") body = profileTab(cid);
     else if (cv.tab === "holdings") body = pos.length ? `<section class="panel"><div class="bhead"><h2>보유 종목</h2><span class="sub">${MK.ref_date} 종가</span></div>
         <ul class="hold">${pos.sort((a, b) => b.value_krw - a.value_krw).map(p => { const b = credit.find(x => x.symbol === p.symbol);
           return `<li><span class="who"><b>${esc(p.name)}</b><small>${p.qty.toLocaleString("ko-KR")}주</small>${b ? `<span class="cg-tag ${stageCls(b.kind)}">신용 · ${STAGE[b.kind][0]}${b.kind === "margin_call" ? ` · ${man(b.shortfall_krw)} 부족` : b.kind !== "margin_safe" ? ` · 반대매매까지 −${(b.room * 100).toFixed(1)}%` : ""}</span>` : ""}</span>
@@ -1790,7 +1859,8 @@
       <a class="crumb" href="#clients">‹ 고객 관리</a>
       <section class="c360-top">
         <div class="c360-head"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
-          <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p></div>
+          <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p>
+            ${c.prof ? `<button class="psum" data-ctab="analysis">${esc(c.prof.summary)}<span>${c.prof.tags.filter(t => t !== "거래 보통").slice(0, 4).map(t => `<i>${esc(t)}</i>`).join("")}</span></button>` : ""}</div>
           ${contactBadge(cid)}</div>
         <div class="ckpis">${clientKpis(cid, { total, krw, usdB, pos, stock, loan, credit })}</div>
       </section>
@@ -1814,6 +1884,7 @@
     }));
     $app.querySelectorAll("[data-tst]").forEach(b => (b.onclick = () => { setTask(cid, b.dataset.tst === "undo" ? null : b.dataset.tst); toast(b.dataset.tst === "done" ? "완료했어요" : b.dataset.tst === "later" ? "내일로 미뤘어요" : "되돌렸어요"); pageClientTabs(cid); }));
     const up = $app.querySelector("#openUpload"); if (up) up.onclick = () => { cv.upload = true; pageClientTabs(cid); };
+    $app.querySelectorAll("[data-int]").forEach(b => (b.onclick = () => { cm.tag = b.dataset.int; cm.tab = "all"; cm.sort = "interest"; }));
   }
 
   // 카톡 알림 버튼의 &s= → 열 화면 (why·buy·item:발견번호, report). 자동 RP를 제안한 경우 buy는 auto로
