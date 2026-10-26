@@ -1253,3 +1253,11 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 /* 고객 앱: 아래 버튼 띠가 마지막 카드를 가리지 않게 */
 .app-scroll { padding-bottom: 150px; }
 .cm-head, .cm-row { grid-template-columns: 170px minmax(200px, 1fr) 105px 140px 140px 150px 56px; gap: 12px; }
+
+/* 일정 종류 색: 마감은 회색 농도로, PB 할 일만 파랑 (글자로 구분) */
+.ev.k-mat { background: #E5E8EB; color: #191F28; } .ev.k-rights { background: #ECEFF3; color: #333D4B; }
+.ev.k-tax { background: #F2F4F6; color: #4E5968; } .ev.k-isa { background: #F7F8FA; color: #6B7684; }
+.ev.k-todo { background: #E8F3FF; color: #1B64DA; }
+.grp-h .ev.k-mat, .cal-key .ev.k-mat { background: #4E5968; } .grp-h .ev.k-rights, .cal-key .ev.k-rights { background: #8B95A1; }
+.grp-h .ev.k-tax, .cal-key .ev.k-tax { background: #B0B8C1; } .grp-h .ev.k-isa, .cal-key .ev.k-isa { background: #C9CED6; } .grp-h .ev.k-todo, .cal-key .ev.k-todo { background: #3182F6; }
+.tablewrap td.nowrap { white-space: nowrap; } .tablewrap td.nowrap small { color: #8B95A1; }

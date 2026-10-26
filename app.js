@@ -1265,11 +1265,11 @@
 
   // ════════════════ 일정: 전체 고객 달력 ════════════════
   const EV_KIND = {
-    R2: ["해외주식 올해 마지막 매도일", "세금을 줄이려는 고객은 이날까지 매도해야 올해 결제돼요. 매도 권유가 아니라 일정 안내예요.", "s-due"],
-    R3: ["유상증자 청약 마감", "청약하지 않으면 신주를 받지 못해요. 마감 전날까지 일정만 알려 주세요.", "s-move"],
-    R4: ["펀드·ELS 만기", "상환금이 예수금으로 들어와요. 만기 전에 상환금 계획을 여쭤보세요.", "s-call"],
-    R5: ["ISA 올해 납입 한도 기준일", "남은 한도는 이월되지만, 일찍 넣을수록 비과세로 투자하는 기간이 길어요. 원금 손실·예금자보호 미적용 안내와 함께.", "s-warn"],
-    todo: ["PB 할 일 (통화 후속)", "통화에서 약속한 일이에요.", "s-todo"],
+    R2: ["해외주식 올해 마지막 매도일", "세금을 줄이려는 고객은 이날까지 매도해야 올해 결제돼요. 매도 권유가 아니라 일정 안내예요.", "k-tax"],
+    R3: ["유상증자 청약 마감", "청약하지 않으면 신주를 받지 못해요. 마감 전날까지 일정만 알려 주세요.", "k-rights"],
+    R4: ["펀드·ELS 만기", "상환금이 예수금으로 들어와요. 만기 전에 상환금 계획을 여쭤보세요.", "k-mat"],
+    R5: ["ISA 올해 납입 한도 기준일", "남은 한도는 이월되지만, 일찍 넣을수록 비과세로 투자하는 기간이 길어요. 원금 손실·예금자보호 미적용 안내와 함께.", "k-isa"],
+    todo: ["PB 할 일 (통화 후속)", "통화에서 약속한 일이에요.", "k-todo"],
   };
   let calm = { month: null, day: null };
   function allEvents() {
@@ -1304,7 +1304,7 @@
     const next14 = upcomingDays.filter(d => (new Date(d + "T00:00:00") - today) / 864e5 <= 14);
 
     $app.innerHTML = `<div class="pg">
-      <div class="pg-head"><div><h1>일정</h1><p class="sub">모든 고객의 마감과 PB 할 일을 한 달력에서 봐요. 날짜를 누르면 누가 어떤 일정인지 나와요.</p></div></div>
+      <div class="pg-head"><div><h1>일정</h1><p class="sub">마감과 PB 할 일 · 날짜를 누르면 고객이 나와요</p></div></div>
       <div class="cal-wrap">
         <section class="panel calbig">
           <div class="cal-head"><button class="txt" data-mon="-1">‹</button><b>${y}년 ${m + 1}월</b><button class="txt" data-mon="1">›</button>
@@ -1431,11 +1431,11 @@
     if (!obSel || !view.find(r => r.id === obSel)) obSel = view[0] && view[0].id;
     const sel = all.find(r => r.id === obSel);
     $app.innerHTML = `<h1>보낸 알림</h1>
-      <p class="lead">최근 30일 동안 매일 배치를 돌려 만든 발송함입니다. 실제로 보내지 않고, 수신 동의·야간 제한(21시~8시)·주 1회 빈도 제한·중복 방지를 적용한 결과만 쌓습니다.</p>
+      <p class="lead">최근 30일 발송함 · 실제 발송 없이 동의·야간·빈도·중복 규칙을 적용한 결과</p>
       <div class="filters">${[["", "전체"], ["held", "보류된 것만"], ["ad", "광고성만"], ["pb", "PB 통화만"], ["P002", "P002 상환금"], ["P003", "P003 장기방치"]].map(([k, t]) => `<button class="chip ${obF === k ? "on" : ""}" data-f="${k}">${t}</button>`).join("")}
         <span class="muted">${view.length.toLocaleString("ko-KR")}건</span></div>
       <div class="split"><div class="tablewrap"><table><thead><tr><th>예정 시각</th><th>고객</th><th>알림</th><th>채널</th><th>성격</th><th>상태</th><th>보류 사유</th></tr></thead>
-        <tbody>${view.map(r => `<tr class="click ${r.id === obSel ? "sel" : ""}" data-id="${esc(r.id)}"><td class="small">${r.at}</td><td>${r.cid} ${esc(CUST[r.cid].name)}</td>
+        <tbody>${view.map(r => `<tr class="click ${r.id === obSel ? "sel" : ""}" data-id="${esc(r.id)}"><td class="small">${r.at}</td><td class="nowrap"><b>${esc(CUST[r.cid].name)}</b> <small>${r.cid}</small></td>
           <td class="small">${esc(TRIG[r.trigger] || r.trigger)}</td><td class="small">${chName(r)}</td><td class="small">${r.msg_type === "ad" ? badge("광고성", "accent") : "정보성"}</td>
           <td class="small">${ST[r.status] || r.status}</td><td class="small">${esc(holdLabel(r.hold))}</td></tr>`).join("")}</tbody></table></div>
       <div>${sel ? `<div class="card"><div class="pv-label">${sel.cid} ${esc(CUST[sel.cid].name)} · ${esc(TRIG[sel.trigger] || sel.trigger)}</div>
@@ -1459,7 +1459,7 @@
     const holds = {}; D.outbox.forEach(r => { if (r.hold) { const k = holdLabel(r.hold.split(":")[0]); holds[k] = (holds[k] || 0) + 1; } });
     const foundSum = D.customers.reduce((s, c) => s + (c.found ? c.found.found_krw : 0), 0);
     $app.innerHTML = `<h1>성과</h1>
-      <p class="lead">가상 고객 ${D.customers.length}명 기준으로, 얼마나 많은 돈이 쉬고 있고 알림이 실행까지 얼마나 이어지는지 봅니다.</p>
+      <p class="lead">가상 고객 ${D.customers.length}명 · 쉬는 돈과 알림 성과</p>
       <div class="metrics">
         <div class="metric"><div class="k">예수금 활용률 (자동 RP ÷ 예수금+자동 RP)</div><div class="v">${(util * 100).toFixed(1)}%</div></div>
         <div class="metric"><div class="k">쉬는 돈이 있는 고객</div><div class="v">${new Set(r1.map(f => f.customer_id)).size}명</div></div>
@@ -1471,7 +1471,7 @@
         <div class="tablewrap"><table><thead><tr><th>유형</th><th class="num">고객 수</th><th class="num">90일 놓친 이자</th><th class="num">1년 더 받을 이자</th><th class="num">쉬는 돈</th></tr></thead>
         <tbody>${g1.map(([k, x]) => `<tr><td>${k}</td><td class="num">${x.n.size}명</td><td class="num">${man(x.v)}</td><td class="num">${man(x.a)}</td><td class="num">${man(x.idle)}</td></tr>`).join("")}</tbody></table></div></div>
       <h2>함께 챙길 항목 — 세금·권리·만기·ISA</h2>
-      <div class="split"><div class="card">${bars(g2.map(([k, x]) => [k, x.v]), man, "var(--s-auto)")}</div>
+      <div class="split"><div class="card">${bars(g2.map(([k, x]) => [k, x.v]), man)}</div>
         <div class="tablewrap"><table><thead><tr><th>항목</th><th class="num">고객 수</th><th class="num">금액 합계</th></tr></thead>
         <tbody>${g2.map(([k, x]) => `<tr><td>${k}</td><td class="num">${x.n.size}명</td><td class="num">${man(x.v)}</td></tr>`).join("")}</tbody></table></div></div>
       <h2>알림 퍼널 (최근 30일, 시뮬레이션)</h2>
@@ -1480,7 +1480,7 @@
         <div class="tablewrap"><table><thead><tr><th>채널</th><th class="num">생성</th><th class="num">발송</th><th class="num">열람</th><th class="num">실행</th></tr></thead>
         <tbody>${fun.map(r => `<tr><td>${r[0]}</td>${r.slice(1).map(v => `<td class="num">${v}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
       <h2>보류·변경 사유</h2>
-      <div class="card">${bars(Object.entries(holds).sort((a, b) => b[1] - a[1]), v => v + "건", "var(--s-idle)")}
+      <div class="card">${bars(Object.entries(holds).sort((a, b) => b[1] - a[1]), v => v + "건")}
         <p class="muted small">광고 동의 없음은 PB 통화로 돌린 건, 야간은 다음 날 오전으로 미룬 건, 빈도 제한은 다음 주로 이월한 건입니다.</p></div>`;
   }
 
@@ -1694,7 +1694,7 @@
     $app.innerHTML = `<div class="pg tasks">
       <div class="pg-head"><div><h1>오늘 할 일</h1><p class="sub">오늘 꼭 할 일 <b>${done} / ${core.length}</b> 완료 · 지금 바로 + 오늘 중</p></div><div class="pbar slim"><i style="width:${core.length ? done / core.length * 100 : 100}%"></i></div></div>
       ${GROUPS.map(([k, t, d]) => { const list = active.filter(x => x.g === k); if (!list.length) return "";
-        return `<h2 class="sec"><span class="dot g-${k}"></span>${t} <small>${list.length}명</small></h2><div class="tcards">${list.map(taskCard).join("")}</div>`; }).join("") || `<div class="panel"><p class="sub">남은 할 일이 없어요.</p></div>`}
+        return `<h2 class="sec"><span class="dot g-${k}"></span>${t} <small>${list.length}명</small></h2><div class="tcards">${list.map(t => taskCard(t)).join("")}</div>`; }).join("") || `<div class="panel"><p class="sub">남은 할 일이 없어요.</p></div>`}
       ${later.length ? `<h2 class="sec muted">내일로 미룬 고객 <small>${later.length}명</small></h2><div class="tcards">${later.map(t => taskCard(t, true)).join("")}</div>` : ""}
       ${finished.length ? `<h2 class="sec muted">완료 <small>${finished.length}명</small></h2><div class="tcards">${finished.map(t => taskCard(t, true)).join("")}</div>` : ""}
     </div>`;
