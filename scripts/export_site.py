@@ -339,6 +339,10 @@ def main():
     for p_ in (market["positions"] if market else []):
         pos_by.setdefault(p_["customer_id"], []).append(p_)
     flows_by = dict(tuple(data["cash_flows"].groupby("customer_id")))
+    prod_by = {}
+    for r in data["maturities"].itertuples():
+        prod_by.setdefault(r.customer_id, []).append({"name": r.product_name, "kind": r.kind, "amount": int(r.expected_amount_krw),
+                                                      "maturity": f"{pd.Timestamp(r.maturity_date):%Y-%m-%d}"})
     empty_flows = data["cash_flows"].iloc[0:0]
     for cid in ctx.customers.index:
         c = ctx.customer(cid)
@@ -388,6 +392,7 @@ def main():
             "findings": [{**finding_dict(f), "script": pb_script(f, c, cfg, gen, A)["body"]} for f in fs],
             "previews": pv,
             "profile": prof,
+            "products": prod_by.get(cid, []),
             **({"kakao_test": kakao_test(fs, c, cfg, gen, A, tail) + [{**m, "was": "kakao"} for m in moves]}
                if str(cid).startswith("T") else {}),
             "stock": (lambda s: [round(x / 1e4) for x in s] if s is not None else None)(
