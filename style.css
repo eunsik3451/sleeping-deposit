@@ -1189,3 +1189,13 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .cm-row .lcd { text-align: right; } .cm-row .lcd b { font-size: 0.9rem; }
 @media (max-width: 1250px) { .cm-head, .cm-row { grid-template-columns: 190px minmax(0, 1fr) 150px 150px 64px; } .cm-head :nth-child(3), .cm-row .num:nth-child(3), .cm-head :nth-child(6), .cm-row .pf { display: none; } }
 @media (max-width: 760px) { .cm-head, .cm-row { grid-template-columns: minmax(0, 1fr) 130px 56px; } .cm-head :nth-child(2), .cm-row .st, .cm-head :nth-child(5), .cm-row .num:nth-child(5) { display: none; } .cm-list { padding: 0 14px; } }
+
+/* 도넛 그래프 */
+.donut { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.donut svg { flex-shrink: 0; }
+.dlg { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 200px; display: grid; gap: 6px; }
+.dlg li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 0.88rem; }
+.dlg i { width: 10px; height: 10px; border-radius: 3px; display: block; }
+.dlg b { display: block; } .dlg small { display: block; color: #8B95A1; font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dlg em { font-style: normal; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.dlg em small { display: inline; margin-left: 6px; color: #8B95A1; font-weight: 500; }

@@ -1733,6 +1733,42 @@
     </article>`;
   }
 
+  // ════════════════ 도넛 그래프 (자산 구성·업종 구성) ════════════════
+  // 색은 항목마다 고정(순위 아님), 조각 사이 2px 틈, 범례에 금액·비중을 늘 함께 써서 색만으로 읽지 않게. 6조각 넘으면 '기타'로 묶음
+  const PAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6"];
+  const ASSET_COLOR = { "국내 주식": PAL[0], "해외 주식": PAL[1], "원화 예수금": PAL[2], "예수금 자동 RP": PAL[3], "달러 예수금": PAL[4], "펀드·ELS": PAL[5] };
+  const SECTOR_COLOR = { "반도체": PAL[0], "2차전지": PAL[1], "바이오": PAL[2], "방산·조선·원전": PAL[3], "AI·빅테크": PAL[4], "인터넷·플랫폼": PAL[5], "자동차": PAL[6] };
+  function donut(parts, { center = "", sub = "", maxParts = 6, pctOnly = false } = {}) {
+    let ps = parts.filter(p => p.value > 0).sort((a, b) => b.value - a.value);
+    if (ps.length > maxParts) { const rest = ps.slice(maxParts - 1); ps = ps.slice(0, maxParts - 1).concat([{ label: "기타", value: rest.reduce((s, p) => s + p.value, 0), color: "#8B95A1", note: rest.map(p => p.label).join(" · ") }]); }
+    const total = ps.reduce((s, p) => s + p.value, 0);
+    if (!total) return `<p class="sub">표시할 자산이 없어요.</p>`;
+    const r = 54, cx = 72, cy = 72, C = 2 * Math.PI * r, gap = 2;
+    let off = 0;
+    const arcs = ps.map(p => { const len = C * p.value / total, dash = Math.max(0.5, len - (ps.length > 1 ? gap : 0));
+      const s = `<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${p.color}" stroke-width="22" stroke-dasharray="${dash.toFixed(2)} ${(C - dash).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"><title>${esc(p.label)} ${pctOnly ? "" : man(p.value) + " "}(${Math.round(p.value / total * 100)}%)</title></circle>`;
+      off += len; return s; }).join("");
+    return `<div class="donut"><svg viewBox="0 0 144 144" width="144" height="144" role="img" aria-label="${esc(center)} 구성">${arcs}
+        <text x="72" y="68" text-anchor="middle" font-size="12" fill="#6B7684">${esc(sub)}</text><text x="72" y="86" text-anchor="middle" font-size="${center.length > 7 ? 11 : 14}" font-weight="700" fill="#191F28">${esc(center)}</text></svg>
+      <ul class="dlg">${ps.map(p => `<li><i style="background:${p.color}"></i><span><b>${esc(p.label)}</b>${p.note ? `<small>${esc(p.note)}</small>` : ""}</span><em>${pctOnly ? "" : man(p.value)}<small>${Math.round(p.value / total * 100)}%</small></em></li>`).join("")}</ul></div>`;
+  }
+  // 자산 구성: 국내·해외 주식, 원화 예수금, 자동 RP, 달러 예수금, 펀드·ELS(만기 예정 상환액 기준)
+  function assetMix(cid) {
+    const c = CUST[cid], krw = c.balance.KRW || { cash: 0, auto_rp: 0 }, usd = c.balance.USD;
+    const pos = MK ? MK.positions.filter(p => p.customer_id === cid) : [];
+    const kr = pos.filter(p => p.currency === "KRW").reduce((s, p) => s + p.value_krw, 0), us = pos.filter(p => p.currency !== "KRW").reduce((s, p) => s + p.value_krw, 0);
+    const prods = (D.details[cid].products || []), fund = prods.reduce((s, p) => s + p.amount, 0);
+    const parts = [["국내 주식", kr], ["해외 주식", us], ["원화 예수금", krw.cash], ["예수금 자동 RP", krw.auto_rp || 0], ["달러 예수금", usd ? usd.cash * usd.rate : 0],
+      ["펀드·ELS", fund]].map(([label, value]) => ({ label, value, color: ASSET_COLOR[label], note: label === "펀드·ELS" ? prods.map(p => p.name).join(" · ") : "" }));
+    const total = parts.reduce((s, p) => s + p.value, 0);
+    return { html: donut(parts, { center: man(total), sub: "총자산" }), total, fund, prods };
+  }
+  function sectorMix(cid) {
+    const p = D.details[cid].profile;
+    const parts = p.sectors.map(s => ({ label: s.name, value: Math.round(s.pct * 1000), color: SECTOR_COLOR[s.name] || "#8B95A1", note: s.stocks.join(" · ") }));
+    return donut(parts, { center: p.sectors.length ? p.sectors[0].name : "–", sub: "가장 큰 업종", pctOnly: true });
+  }
+
   // ════════════════ 고객 분석 (PB용 '분석' 탭) ════════════════
   // 보유 종목·거래 빈도·자산 구성으로 관심 분야와 투자 스타일을 보여 주고, 맞는 행사·상품 상담 방향을 정리한다
   function profileTab(cid) {
@@ -1749,9 +1785,9 @@
         <h2>${esc(p.summary)}</h2><div class="pf-tags">${p.tags.map(t => `<span>${esc(t)}</span>`).join("")}</div>
         ${p.gap ? `<p class="pf-gap">${esc(p.gap)}</p>` : ""}</section>
       <div class="ov-grid"><div class="col">
-        <section class="panel"><div class="bhead"><h2>관심 분야</h2><span class="sub">보유 주식 평가금액 기준</span></div>
-          ${p.sectors.length ? `<ul class="pf-sec">${p.sectors.map(x => `<li><span><b>${esc(x.name)}</b><small>${x.stocks.map(esc).join(" · ")}</small></span><em>${pc(x.pct)}</em></li>`).join("")}</ul>`
-            : `<p class="sub">보유한 주식이 없어요.</p>`}
+        <section class="panel"><div class="bhead"><h2>자산 구성</h2><span class="sub">${MK ? MK.ref_date.slice(5).replace("-", "/") + " 종가" : ""}</span></div>${assetMix(cid).html}</section>
+        <section class="panel"><div class="bhead"><h2>보유 주식 업종</h2><span class="sub">평가금액 기준</span></div>
+          ${p.sectors.length ? sectorMix(cid) : `<p class="sub">보유한 주식이 없어요.</p>`}
           ${same ? `<a class="link-sm" href="#clients" data-int="${esc(top.name)} 관심">${esc(top.name)}에 관심 있는 고객 ${same}명 더 보기 ›</a>` : ""}</section>
         <section class="panel"><div class="bhead"><h2>투자 스타일</h2><span class="sub">${esc(p.style)}</span></div>
           <dl class="pf-kv">${kv.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl></section>
@@ -1778,7 +1814,8 @@
       const r1 = findingsOf(c.id).find(f => f.rule === "R1" && f.currency === "KRW");
       const worst = MK ? MK.credit.filter(b => b.customer_id === c.id && b.kind !== "margin_safe").sort((a, b) => a.room - b.room)[0] : null;
       const items = contactItems(c.id);
-      return { c, g: taskGroup(c.id), item: items[0], n: items.length, lc: lastContact(c.id), cash, krwCash: krw.cash, stock, delta, total: cash + stock,
+      const fund = (D.details[c.id].products || []).reduce((a, p) => a + p.amount, 0);
+      return { c, g: taskGroup(c.id), item: items[0], n: items.length, lc: lastContact(c.id), cash, krwCash: krw.cash, stock, delta, total: cash + stock + fund,
         idle: r1 ? r1.meta.idle_krw : 0, streak: r1 ? r1.meta.streak : 0, worst };
     });
     const cnt = {}; all.forEach(x => x.g && (cnt[x.g] = (cnt[x.g] || 0) + 1));
@@ -1835,7 +1872,8 @@
     const krw = c.balance.KRW || { cash: 0, auto_rp: 0 }, usdB = c.balance.USD;
     const pos = MK ? MK.positions.filter(p => p.customer_id === cid) : [], credit = MK ? MK.credit.filter(b => b.customer_id === cid) : [];
     const stock = pos.reduce((s, p) => s + p.value_krw, 0), loan = pos.reduce((s, p) => s + p.credit_loan_krw, 0);
-    const total = krw.cash + (krw.auto_rp || 0) + (usdB ? usdB.cash * usdB.rate : 0) + stock;
+    const fundAmt = (D.details[cid].products || []).reduce((a, p) => a + p.amount, 0);   // 펀드·ELS(만기 예정 상환액)도 총자산에
+    const total = krw.cash + (krw.auto_rp || 0) + (usdB ? usdB.cash * usdB.rate : 0) + stock + fundAmt;
     const calls = callsOf(cid), last = calls[0];
     const openTodos = calls.flatMap(cl => cl.todos.map((t, i) => ({ ...t, call: cl.id, i, done: todoDone(cl, i) }))).filter(t => !t.done).sort((a, b) => (a.due || "9").localeCompare(b.due || "9"));
     const alerts = D.outbox.filter(r => r.cid === cid).sort((a, b) => b.at.localeCompare(a.at));
@@ -1849,13 +1887,15 @@
         ${others.length ? `<section class="panel"><div class="bhead"><h2>함께 챙길 것</h2></div><ul class="items">${others.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 ${f.deadline.slice(5).replace("-", "/")}` : ""}</small></span><em>${amtText(f)}</em></li>`).join("")}</ul></section>` : ""}
         <section class="panel"><div class="bhead"><h2>해야 할 일</h2><span class="sub">${openTodos.length}건</span></div><ul class="todo-list">${openTodos.map(t => `<li><label><input type="checkbox" data-done="${t.call}|${t.i}"> <span>${esc(t.text)}</span></label><em class="${t.due && t.due <= ymd(new Date()) ? "red" : ""}">${esc(t.dueLabel)}</em></li>`).join("") || `<li class="empty">통화에서 나온 할 일이 없어요</li>`}</ul></section></div></div>`;
     else if (cv.tab === "analysis") body = profileTab(cid);
-    else if (cv.tab === "holdings") body = pos.length ? `<section class="panel"><div class="bhead"><h2>보유 종목</h2><span class="sub">${MK.ref_date} 종가</span></div>
+    else if (cv.tab === "holdings") body = `<div class="ov-grid"><div class="col"><section class="panel"><div class="bhead"><h2>자산 구성</h2><span class="sub">주식·예수금·상품을 한눈에</span></div>${assetMix(cid).html}</section>
+        ${(D.details[cid].products || []).length ? `<section class="panel"><div class="bhead"><h2>펀드·ELS</h2></div><ul class="pf-sec">${D.details[cid].products.map(x => `<li><span><b>${esc(x.name)}</b><small>${esc(x.kind)} · 만기 ${x.maturity.slice(5).replace("-", "/")}</small></span><em>${man(x.amount)}</em></li>`).join("")}</ul></section>` : ""}</div>
+        <div class="col">` + (pos.length ? `<section class="panel"><div class="bhead"><h2>보유 종목</h2><span class="sub">${MK.ref_date} 종가</span></div>
         <ul class="hold">${pos.sort((a, b) => b.value_krw - a.value_krw).map(p => { const b = credit.find(x => x.symbol === p.symbol);
           return `<li><span class="who"><b>${esc(p.name)}</b><small>${p.qty.toLocaleString("ko-KR")}주</small>${b ? `<span class="cg-tag ${stageCls(b.kind)}">신용 · ${STAGE[b.kind][0]}${b.kind === "margin_call" ? ` · ${man(b.shortfall_krw)} 부족` : b.kind !== "margin_safe" ? ` · 반대매매까지 −${(b.room * 100).toFixed(1)}%` : ""}</span>` : ""}</span>
             <span class="amt"><b>${man(p.value_krw)}</b><small class="${p.chg_pct < 0 ? "dn" : "up"}">${pctTxt(p.chg_pct)}</small></span>
             <span class="amt"><b class="${p.pnl_krw < 0 ? "dn" : "up"}">${p.pnl_krw < 0 ? "−" : "+"}${man(Math.abs(p.pnl_krw))}</b><small>매입 후 손익</small></span></li>`; }).join("")}</ul>
         ${credit.filter(b => b.kind !== "margin_safe").map(b => `<h3>${esc(b.name)} 신용 · 반대매매까지</h3>${creditGauge(b)}${ratioTrend(b)}`).join("")}</section>`
-      : `<section class="panel"><p class="sub">보유 종목이 없어요.</p></section>`;
+      : `<section class="panel"><p class="sub">보유 종목이 없어요.</p></section>`) + `</div></div>`;
     else if (cv.tab === "calls") body = `<div class="ov-grid"><div class="col"><section class="panel"><div class="bhead"><h2>최근 통화 요약</h2>${last ? `<span class="pill-tag ${last.ai ? "ai" : ""}">${last.ai ? "AI 요약 · PB 확인 전" : "PB 확인 완료"}</span>` : ""}</div>${last ? callSummary(last, calls) : `<p class="sub">아직 분석한 통화가 없어요.</p>`}</section></div>
         <div class="col"><section class="panel"><div class="bhead"><h2>통화 녹음 분석</h2></div>${callPanel(cid)}</section></div></div>`;
     else body = `<div class="ov-grid"><div class="col"><section class="panel"><div class="bhead"><h2>케어 일정</h2></div>${calendar(cid)}</section></div>
