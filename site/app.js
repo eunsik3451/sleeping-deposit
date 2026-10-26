@@ -156,7 +156,7 @@
   }
 
   // ── 항목 공통 표기 (고객 앱·PB 화면 같이 씀) ──
-  const SHORT = { R1: "1년 RP 이자", R2: "양도세 절세", R3: "청약 차이", R4: "만기 상환 예정", R5: "연금 세액공제" };
+  const SHORT = { R1: "1년 RP 이자", R2: "양도세 절세", R3: "청약 차이", R4: "만기 상환 예정", R5: "ISA 비과세" };
   // 화면에 보이는 금액: 만기는 상환 예정 금액, 나머지는 더 받을 수 있는 돈
   const amtText = f => f.rule === "R4" ? man(f.meta.expected) : `+${man(amountOf(f))}`;
   const amtNote = f => f.rule === "R4" ? `그대로 두면 한 달에 약 ${man(f.amount_krw)} 이자를 못 받아요` : "";
@@ -173,7 +173,7 @@
       case "tax_deduction_fill": return `해외주식 공제 ${man(m.deduction_left)} 남음 · D-${dl}`;
       case "rights_offer": return `${m.stock} 유상증자 청약 마감 D-${dl}`;
       case "maturity": return `${m.product_name} 만기 D-${dl}`;
-      case "pension_credit": return `연금저축 한도 ${man(m.remain)} 남음 · D-${dl}`;
+      case "isa_tax_free": return `ISA 올해 한도 ${man(m.remain)} 남음`;
       default: return f.title;
     }
   }
@@ -181,7 +181,7 @@
   // ════════════════ ① 고객 앱 화면 ════════════════
   // 휴대폰 안에는 고객이 실제로 보는 앱만, 설명·데모 도구는 휴대폰 밖 발표자 패널에.
   let cx = { cid: null, scene: "lock", sheet: null, step: 0, ans: [] };
-  const ITEM_ICON = { R2: "세", R3: "청", R4: "만", R5: "연" };
+  const ITEM_ICON = { R2: "세", R3: "청", R4: "만", R5: "ISA" };
 
   function customerOrder() {
     const amt = {};
@@ -236,7 +236,7 @@
     if (firstPush(cid)) g.push("잠금화면 알림을 눌러 앱 열기");
     if (r1) g.push(r1.recommendation.product_id === "AUTO_RP" ? "매매가 잦아 예수금 자동 RP만 안내 (매수할 때 자동으로 빠짐)" : "하단 버튼으로 RP 맡기기 또는 예수금 자동 RP 신청");
     if (fs.some(f => f.currency === "USD")) g.push("달러는 환전 없이 외화 RP로");
-    if (fs.some(f => f.rule !== "R1")) g.push("'함께 챙길 것'에서 세금·청약·만기·연금 항목 눌러 보기");
+    if (fs.some(f => f.rule !== "R1")) g.push("'함께 챙길 것'에서 세금·청약·만기·ISA 항목 눌러 보기");
     if (foundOf(cid)) g.push("예수금 자동 RP 이용 중: 깨운 뒤 받은 이자 확인");
     if (MK && MK.credit.some(b => b.customer_id === cid)) g.push("'신용으로 산 주식'에서 반대매매까지 남은 하락 폭 확인 (반대매매 전에 미리 알 수 있음)");
     g.push("'근거 보기'로 계산 방법 확인");
@@ -402,13 +402,13 @@
       R2: () => [["올해 실현이익", won(m.realized)], ["평가손실 / 평가이익", `${won(m.loss)} / ${won(m.gain)}`], ["올해 마지막 매도일", `${f.deadline} (D-${dl})`]],
       R3: () => [["보유 → 청약 가능", `${m.qty.toLocaleString("ko-KR")}주 → ${m.shares.toLocaleString("ko-KR")}주`], ["청약가 / 현재가", `${won(m.issue_price)} / ${won(m.now)}`], ["청약 기간", `${m.start} ~ ${f.deadline}`]],
       R4: () => [["만기일", `${f.deadline} (D-${dl})`], ["상환 예정 금액", man(m.expected)], ["한 달 그대로 두면", `약 ${man(f.amount_krw)} 못 받음`]],
-      R5: () => [["올해 납입 / 한도", `${man(m.paid)} / ${man(m.limit)}`], ["남은 한도", man(m.remain)], ["마감", `${f.deadline} 납입분까지 (D-${dl})`]],
+      R5: () => [["올해 납입 / 한도", `${man(m.paid)} / ${man(m.limit)}`], ["남은 한도", `${man(m.remain)} (다음 해로 이월)`], ["비과세", `순이익 ${man(m.tax_free)}까지 (${m.kind}) · 넘는 이익 ${pct(m.over_rate)}`], ["의무가입", `${m.min_years}년`]],
     })[f.rule]();
     const note = { R2: "매도를 권하는 안내가 아니에요. 다른 증권사 손익은 빠져 있어요.",
       R3: "청약 여부는 직접 판단해 주세요. 주가가 바뀌면 차이도 달라져요.",
       R4: "다시 투자할지는 직접 정하세요. 정하기 전까지는 예수금 자동 RP로 이자를 받을 수 있어요.",
-      R5: "연금저축계좌는 펀드·ETF 등에 투자해 원금 손실이 날 수 있고 예금자보호 대상이 아니에요." }[f.rule];
-    const go = { R2: "보유 종목 손익 보기", R3: "청약하러 가기", R4: "만기 후 계획 정하기", R5: "연금저축 입금하기" }[f.rule];
+      R5: "ISA에 담는 주식·펀드·ETF는 원금 손실이 날 수 있고 예금자보호 대상이 아니에요. 의무가입 기간 전에 해지하면 비과세를 못 받을 수 있어요." }[f.rule];
+    const go = { R2: "보유 종목 손익 보기", R3: "청약하러 가기", R4: "만기 후 계획 정하기", R5: "ISA 입금하기" }[f.rule];
     return `<p class="s-sub">${esc(f.subtype_label)} · D-${dl}</p><h3>${esc(f.title)}</h3>
       <p class="h-label">${esc(f.amount_label)}</p><p class="s-big">+${man(f.amount_krw)}</p>
       ${rows.map(([k, v]) => `<div class="s-kv"><span>${k}</span><b>${esc(v)}</b></div>`).join("")}
@@ -451,7 +451,7 @@
     ["세금", "해외주식 양도세 (손실 상계)", "평가손실을 올해 확정하지 않아 더 내는 양도세", "올해 유진 계좌 해외주식 실현이익 250만원 초과 + 평가손실 종목", "보유 종목 손익 확인, PB 절세 상담 (매도 권유 아님)", "발견 즉시 + 마지막 매도일 D-7 (정보성)", "P001"],
     ["세금", "해외주식 기본공제 남음", "쓰지 않고 넘어가는 기본공제 250만원", "올해 실현이익 250만원 미만 + 평가이익 종목", "보유 종목 손익 확인, PB 절세 상담 (매도 권유 아님)", "발견 즉시 + 마지막 매도일 D-7 (정보성)", "P004"],
     ["권리", "유상증자 청약 권리", "청약하지 않으면 받지 못하는 신주 (현재가 기준 청약가와의 차이)", "보유 종목의 유상증자 청약 일정 + 현재가 > 청약가", "앱에서 청약 내용 확인 (청약 권유 아님)", "청약 14일 전 발견 즉시 + 마감 D-7 (정보성)", "P001"],
-    ["세금", "연금저축 세액공제 한도 남음", "올해 채우지 않은 한도만큼 못 돌려받는 세금 (13.2%, 총급여 낮으면 16.5%)", "10~12월, 유진 연금저축 올해 납입액이 600만원 미만", "앱에서 직접 입금 (광고성: 수신 동의 필요, 원금 손실 가능·예금자보호 대상 아님 고지)", "10월부터 발견 즉시 + 연말 D-7 (광고성)", "P002"],
+    ["세금", "ISA 비과세 한도 활용", "ISA 순이익 비과세 한도(일반형 200만원·서민형 400만원) × 일반 계좌 세율 15.4% = 아낄 수 있는 세금(최대)", "10~12월, 유진 ISA 올해 납입액이 연 한도 2,000만원 미만 (안 쓴 한도는 이월)", "앱에서 직접 입금 (광고성: 수신 동의 필요, 원금 손실 가능·예금자보호 대상 아님·의무가입 3년 고지)", "10월부터 발견 즉시 + 연말 D-7 (광고성)", "P002"],
     ["만기", "펀드·ELS 만기", "상환금이 예수금으로 쉬는 동안의 이자 (한 달 기준)", "보유 펀드·ELS 만기 14일 전", "만기 후 계획 미리 정하기 · 예수금 자동 RP · PB 상담 (재투자 권유 아님)", "만기 14일 전 + D-7 (정보성)", "P003"],
   ];
   function pageItems() {
@@ -480,7 +480,7 @@
   function todo(f) {   // PB가 할 일 한 문장
     if (f.rule === "R1") return "쉬는 예수금으로 이자 받는 방법을 알려 주세요";
     return { R2: "연내 마지막 매도일 전에 해외주식 세금을 알려 주세요", R3: `청약 마감(D-${daysLeft(f.deadline)}) 전에 알려 주세요`,
-      R4: "만기 뒤 상환금을 어떻게 쓸지 여쭤 보세요", R5: "연금저축 남은 한도를 알려 주세요" }[f.rule];
+      R4: "만기 뒤 상환금을 어떻게 쓸지 여쭤 보세요", R5: "ISA 남은 한도와 비과세 혜택을 알려 주세요" }[f.rule];
   }
 
   function pbCustomers() {
@@ -702,7 +702,7 @@
       const dl = daysLeft(f.deadline);
       if (dl < 0 || dl > days) return;
       const key = `${f.deadline}|${f.subtype}|${f.rule === "R3" ? f.meta.stock : f.rule === "R4" ? "" : ""}`;
-      (by[key] ||= { date: f.deadline, dl, label: f.rule === "R3" ? `${f.meta.stock} 유상증자 청약 마감` : f.rule === "R4" ? "펀드·ELS 만기" : f.rule === "R2" ? "해외주식 올해 마지막 매도일" : f.rule === "R5" ? "연금저축 올해 납입 마감" : f.subtype_label, cids: new Set(), sum: 0 });
+      (by[key] ||= { date: f.deadline, dl, label: f.rule === "R3" ? `${f.meta.stock} 유상증자 청약 마감` : f.rule === "R4" ? "펀드·ELS 만기" : f.rule === "R2" ? "해외주식 올해 마지막 매도일" : f.rule === "R5" ? "ISA 올해 납입 한도 기준일" : f.subtype_label, cids: new Set(), sum: 0 });
       by[key].cids.add(c.id); by[key].sum += f.rule === "R4" ? f.meta.expected : f.amount_krw; by[key].r4 = f.rule === "R4";
     }));
     return Object.values(by).sort((a, b) => a.dl - b.dl);
@@ -1261,7 +1261,7 @@
     R2: ["해외주식 올해 마지막 매도일", "세금을 줄이려는 고객은 이날까지 매도해야 올해 결제돼요. 매도 권유가 아니라 일정 안내예요.", "s-due"],
     R3: ["유상증자 청약 마감", "청약하지 않으면 신주를 받지 못해요. 마감 전날까지 일정만 알려 주세요.", "s-move"],
     R4: ["펀드·ELS 만기", "상환금이 예수금으로 들어와요. 만기 전에 상환금 계획을 여쭤보세요.", "s-call"],
-    R5: ["연금저축 올해 납입 마감", "남은 한도를 채우면 세액공제를 더 받아요. 원금 손실·예금자보호 미적용 안내와 함께.", "s-warn"],
+    R5: ["ISA 올해 납입 한도 기준일", "남은 한도는 이월되지만, 일찍 넣을수록 비과세로 투자하는 기간이 길어요. 원금 손실·예금자보호 미적용 안내와 함께.", "s-warn"],
     todo: ["PB 할 일 (통화 후속)", "통화에서 약속한 일이에요.", "s-todo"],
   };
   let calm = { month: null, day: null };
@@ -1288,7 +1288,7 @@
       const kinds = {}; list.forEach(e => (kinds[e.kind] ||= new Set()).add(e.cid));
       const past = key < ymd(today);
       cells += `<button class="cd ${key === ymd(today) ? "today" : ""} ${key === calm.day ? "sel" : ""} ${past ? "past" : ""}" data-day="${key}">
-        <span class="dn">${d}</span>${Object.entries(kinds).map(([k, s]) => `<span class="ev ${EV_KIND[k][2]}">${({ R2: "양도세", R3: "청약", R4: "만기", R5: "연금", todo: "할 일" })[k]} ${s.size}</span>`).join("")}</button>`;
+        <span class="dn">${d}</span>${Object.entries(kinds).map(([k, s]) => `<span class="ev ${EV_KIND[k][2]}">${({ R2: "양도세", R3: "청약", R4: "만기", R5: "ISA", todo: "할 일" })[k]} ${s.size}</span>`).join("")}</button>`;
     }
     const sel = byDay[calm.day] || [];
     const groups = {};
@@ -1463,7 +1463,7 @@
       <div class="split"><div class="card">${bars(g1.map(([k, x]) => [k, x.a]), man)}</div>
         <div class="tablewrap"><table><thead><tr><th>유형</th><th class="num">고객 수</th><th class="num">90일 놓친 이자</th><th class="num">1년 더 받을 이자</th><th class="num">쉬는 돈</th></tr></thead>
         <tbody>${g1.map(([k, x]) => `<tr><td>${k}</td><td class="num">${x.n.size}명</td><td class="num">${man(x.v)}</td><td class="num">${man(x.a)}</td><td class="num">${man(x.idle)}</td></tr>`).join("")}</tbody></table></div></div>
-      <h2>함께 챙길 항목 — 세금·권리·만기·연금</h2>
+      <h2>함께 챙길 항목 — 세금·권리·만기·ISA</h2>
       <div class="split"><div class="card">${bars(g2.map(([k, x]) => [k, x.v]), man, "var(--s-auto)")}</div>
         <div class="tablewrap"><table><thead><tr><th>항목</th><th class="num">고객 수</th><th class="num">금액 합계</th></tr></thead>
         <tbody>${g2.map(([k, x]) => `<tr><td>${k}</td><td class="num">${x.n.size}명</td><td class="num">${man(x.v)}</td></tr>`).join("")}</tbody></table></div></div>
@@ -1570,7 +1570,7 @@
     const pos = MK ? MK.positions.filter(p => p.customer_id === cid) : [], big = pos.find(p => Math.abs(p.chg_pct) >= MK.big_move_pct);
     const D0 = s => new Date(s + "T00:00:00"), addD = (s, n) => ymd(new Date(D0(s).getTime() + n * 864e5));
     const md = s => `${D0(s).getMonth() + 1}/${D0(s).getDate()}(${"일월화수목금토"[D0(s).getDay()]})`;
-    const sheet = p => ({ T_EVENT: `why:${p.fid}`, T_IDLE_FIRST: `why:${p.fid}`, T_IDLE_UPDATE: `buy:${p.fid}`, T_PENSION: `item:${p.fid}`,
+    const sheet = p => ({ T_EVENT: `why:${p.fid}`, T_IDLE_FIRST: `why:${p.fid}`, T_IDLE_UPDATE: `buy:${p.fid}`, T_ISA: `item:${p.fid}`,
       T_MOVE: `move:${p.sym}` }[p.trigger]);
     const bubble = p => {
       if (!p) return "";
@@ -1602,15 +1602,15 @@
       r1 && { date: "맡긴 뒤 매달", tag: "예시", key: true, title: "맡긴 뒤에는, 깨운 돈이 이자를 얼마나 벌었는지 매달 알려 줘요",
         earn: true, before: "RP에 넣어 둔 돈이 얼마를 벌었는지 따로 찾아보지 않으면 알 수 없었어요.",
         behind: "매월 1일 '깨운 뒤 받은 이자' 알림. 출금하거나 주식을 사면 RP에서 자동으로 빠져요(예수금 자동 RP)." },
-      r5 && { date: "연말 전", tag: `마감 ${r5.deadline.slice(5).replace("-", "/")}`, title: "놓치기 쉬운 연말 세액공제도 먼저 챙겨요",
-        msg: msg("T_PENSION"), before: "12월 31일이 지나고 나서야 한도를 못 채운 걸 알았어요.",
-        behind: "마감 7일 전에 한 번 더 알려요." },
+      r5 && { date: "연말 전", tag: `ISA 남은 한도 ${man(r5.meta.remain)}`, title: `ISA 비과세 한도로 세금을 최대 약 ${man(r5.amount_krw)} 아낄 수 있다고 알려 줘요`,
+        msg: msg("T_ISA"), before: "ISA 한도가 남은 줄 모르고, 일반 계좌에서 이자·배당 세금을 그대로 냈어요.",
+        behind: "연말 전에 한 번 더 알려요. 입금과 상품 선택은 고객이 앱에서 직접 해요." },
       big && { date: md(addD(big.trade_date, 1)) + " 아침", tag: "시장 급락", title: `${big.name}가 하루 ${pctTxt(big.chg_pct)} 움직인 다음 날 아침, 내 계좌 기준으로 알려 줘요`,
         msg: msg("T_MOVE"), before: "뉴스로 '폭락' 소식만 보고, 내 계좌가 어떻게 됐는지는 앱을 열어 직접 찾아봐야 했어요.",
         behind: "같은 시각 PB 화면 '지금 바로'에 이 고객과 등락 이유·통화 문구가 올라가요." },
       call && { date: md(call.result.call_date), tag: "고객이 PB에게 전화", title: "전화를 받은 PB는 이미 고객 상황을 다 알고 있어요",
         quote: call.result.headline, before: "PB가 계좌를 하나씩 열어 보며 상황을 파악하느라, 상담이 길어지고 놓치는 게 생겼어요.",
-        behind: `쉬는 상환금·보유 손실·연금 한도가 한 화면에. 통화가 끝나면 녹음 요약과 할 일 ${call.todos.length}건이 일정에 들어가요.` },
+        behind: `쉬는 상환금·보유 손실·ISA 한도가 한 화면에. 통화가 끝나면 녹음 요약과 할 일 ${call.todos.length}건이 일정에 들어가요.` },
       promises && { date: promises.filter(n => n.date).map(n => md(n.date)).join(" · "), tag: "약속한 날", title: "약속한 날, 약속한 대로",
         list: promises, before: "PB가 바쁘면 '알아봐 드릴게요'가 흐지부지되기도 했어요.",
         behind: "통화에서 나온 약속은 PB '일정'에 들어가 그날 '오늘 할 일'로 떠요." },
@@ -1623,7 +1623,7 @@
           고객이 겪는 순간을 시간 순서로 따라가 봐요. 각 카톡의 버튼을 누르면 고객이 보게 될 앱 화면이 열려요.</p></div>
       <div class="st-kpis">
         ${rp ? `<div class="hi"><small>쉬는 돈 깨우면 (1년)</small><b>+${man(r1.annual_projection_krw)}</b><i>${man(rp.amt)}을 ${esc(rp.prod.name)}에 맡기면</i></div>` : ""}
-        <div><small>놓치기 쉬운 돈까지 합치면 (1년)</small><b>+${man(extraYear)}</b><i>쉬는 돈 이자 + 연금 세액공제</i></div>
+        <div><small>놓치기 쉬운 돈까지 합치면 (1년)</small><b>+${man(extraYear)}</b><i>쉬는 돈 이자 + ISA 비과세</i></div>
         <div><small>고객이 먼저 받은 안내</small><b>${steps.filter(s => s.msg).length}번</b><i>묻기 전에, 필요한 때에</i></div>
         <div><small>통화에서 한 약속</small><b>${call ? call.todos.length : 0}건 → 일정</b><i>잊히지 않게</i></div>
       </div>
@@ -1766,57 +1766,64 @@
   }
 
   // ════════════════ 고객 관리 ════════════════
-  let cm = { tab: "all", q: "", sort: "urgent", tag: "" };
+  // 한눈에 보고 분류하는 표: 상태 칩(지금 바로·오늘 중·이번 주·시간 날 때) + 관심 분야 칩 + 검색. 정렬은 표 머리글을 눌러서
+  // 줄마다 상황 · 총자산 · 예수금(쉬는 돈) · 주식(어제 변동·신용) · 관심·스타일 · 마지막 연락
+  let cm = { g: "", sec: "", q: "", sort: "urgent", dir: -1 };
   function pageClientsMgmt() {
-    const mine = D.customers.filter(c => inView(c.id)).map(c => ({ c, g: taskGroup(c.id), item: contactItems(c.id)[0], n: contactItems(c.id).length, lc: lastContact(c.id) }));
-    const lcDays = x => x.lc ? x.lc.days : 9999, cashOf = x => (x.c.balance.KRW || { cash: 0 }).cash;
-    const SORTS = { urgent: (a, b) => (a.g ? GROUPS.findIndex(g => g[0] === a.g) : 9) - (b.g ? GROUPS.findIndex(g => g[0] === b.g) : 9) || a.c.name.localeCompare(b.c.name),
-      contact: (a, b) => lcDays(b) - lcDays(a) || cashOf(b) - cashOf(a), cash: (a, b) => cashOf(b) - cashOf(a),
-      interest: (a, b) => secPct(b) - secPct(a) || cashOf(b) - cashOf(a) };
-    // 관심 분야 비중: 고른 태그가 '○○ 관심'이면 그 업종 비중, 아니면 가장 큰 업종 비중
-    function secPct(x) { const sec = cm.tag.endsWith(" 관심") ? cm.tag.slice(0, -3) : null, p = D.details[x.c.id].profile;
-      return sec ? ((p.sectors.find(s => s.name === sec) || { pct: 0 }).pct) : (x.c.prof.top_pct || 0); }
-    const tagCount = {};
-    mine.forEach(x => x.c.prof.tags.forEach(t => (tagCount[t] = (tagCount[t] || 0) + 1)));
-    const interestTags = Object.keys(tagCount).filter(t => t.endsWith(" 관심")).sort((a, b) => tagCount[b] - tagCount[a]);
-    const styleTags = Object.keys(tagCount).filter(t => !t.endsWith(" 관심")).sort((a, b) => tagCount[b] - tagCount[a]);
-    if (cm.tag && !tagCount[cm.tag]) cm.tag = "";
-    const lists = { all: mine, todo: mine.filter(x => x.g), care: mine.filter(x => x.g === "later") };
-    // 검색어가 바뀌면 목록만 다시 그린다 (입력칸을 다시 만들면 한글 조합이 끊겨 'ㅈㅗㅇ'처럼 풀어짐)
-    const rowsHtml = () => lists[cm.tab].filter(x => (!cm.q || (x.c.id + x.c.name).includes(cm.q)) && (!cm.tag || x.c.prof.tags.includes(cm.tag))).sort(SORTS[cm.sort])
-      .map(x => rowItem(x, x.c, x.c.balance.KRW || { cash: 0 })).join("") || `<li class="empty">해당하는 고객이 없어요</li>`;
-    $app.innerHTML = `<div class="pg">
-      <div class="pg-head"><div><h1>고객 관리</h1><p class="sub">${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 고객 ${mine.length}명</p></div></div>
-      <div class="toolbar"><div class="seg">${[["all", "전체", lists.all.length], ["todo", "챙길 것 있음", lists.todo.length], ["care", "예수금이 오래 그대로", lists.care.length]]
-        .map(([k, t, n]) => `<button class="${cm.tab === k ? "on" : ""}" data-tab="${k}">${t} <em>${n}</em></button>`).join("")}</div>
-        <select class="pill sortsel" id="cmtag" aria-label="관심·성향">${[`<option value="">관심·성향 전체</option>`,
-          `<optgroup label="관심 분야">${interestTags.map(t => `<option value="${esc(t)}" ${cm.tag === t ? "selected" : ""}>${esc(t)} ${tagCount[t]}</option>`).join("")}</optgroup>`,
-          `<optgroup label="투자 스타일·상황">${styleTags.map(t => `<option value="${esc(t)}" ${cm.tag === t ? "selected" : ""}>${esc(t)} ${tagCount[t]}</option>`).join("")}</optgroup>`].join("")}</select>
-        <select class="pill sortsel" id="cmsort" aria-label="정렬">${[["urgent", "급한 순"], ["contact", "연락 오래된 순"], ["cash", "예수금 많은 순"], ["interest", "관심 분야 비중 순"]]
-          .map(([k, t]) => `<option value="${k}" ${cm.sort === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+    const all = D.customers.filter(c => inView(c.id)).map(c => {
+      const krw = c.balance.KRW || { cash: 0, auto_rp: 0 }, usd = c.balance.USD;
+      const pos = MK ? MK.positions.filter(p => p.customer_id === c.id) : [];
+      const stock = pos.reduce((s, p) => s + p.value_krw, 0), delta = pos.reduce((s, p) => s + p.day_delta_krw, 0);
+      const cash = krw.cash + (krw.auto_rp || 0) + (usd ? usd.cash * usd.rate : 0);
+      const r1 = findingsOf(c.id).find(f => f.rule === "R1" && f.currency === "KRW");
+      const worst = MK ? MK.credit.filter(b => b.customer_id === c.id && b.kind !== "margin_safe").sort((a, b) => a.room - b.room)[0] : null;
+      const items = contactItems(c.id);
+      return { c, g: taskGroup(c.id), item: items[0], n: items.length, lc: lastContact(c.id), cash, krwCash: krw.cash, stock, delta, total: cash + stock,
+        idle: r1 ? r1.meta.idle_krw : 0, streak: r1 ? r1.meta.streak : 0, worst };
+    });
+    const cnt = {}; all.forEach(x => x.g && (cnt[x.g] = (cnt[x.g] || 0) + 1));
+    const secCnt = {};   // 업종 관심만 (절세 관심 같은 상황 태그는 제외) — 분석 탭과 같은 기준(비중 30% 이상)
+    all.forEach(x => D.details[x.c.id].profile.sectors.filter(sec => sec.pct >= 0.3).forEach(sec => (secCnt[sec.name] = (secCnt[sec.name] || 0) + 1)));
+    const sectors = Object.entries(secCnt).sort((a, b) => b[1] - a[1]);
+    if (cm.sec && !secCnt[cm.sec]) cm.sec = "";
+    const secPct = x => (D.details[x.c.id].profile.sectors.find(s => s.name === cm.sec) || { pct: 0 }).pct;
+    const lcDays = x => x.lc ? x.lc.days : 9999;
+    const KEY = { urgent: x => -((x.g ? GROUPS.findIndex(g => g[0] === x.g) : 9)), total: x => x.total, cash: x => x.krwCash, stock: x => x.stock,
+      contact: x => lcDays(x), interest: x => cm.sec ? secPct(x) : (x.c.prof.top_pct || 0) };
+    const sorted = () => all.filter(x => (!cm.g || x.g === cm.g) && (!cm.sec || x.c.prof.tags.includes(cm.sec + " 관심")) && (!cm.q || (x.c.id + x.c.name).includes(cm.q)))
+      .sort((a, b) => (KEY[cm.sort](b) - KEY[cm.sort](a)) * -cm.dir || a.c.name.localeCompare(b.c.name));
+    const sum = k => all.reduce((s, x) => s + x[k], 0), idleN = all.filter(x => x.idle).length;
+    const COLS = [["", "고객"], ["", "상황"], ["total", "총자산"], ["cash", "예수금"], ["stock", "주식"], ["interest", "관심·스타일"], ["contact", "연락"]];
+    const arrow = k => cm.sort === k ? (cm.dir < 0 ? " ↓" : " ↑") : "";
+    const head = () => `<li class="cm-head">${COLS.map(([k, t]) => k ? `<button class="${cm.sort === k ? "on" : ""}" data-sort="${k}">${t}${arrow(k)}</button>` : `<span>${t}</span>`).join("")}</li>`;
+    const row = x => { const c = x.c, p = c.prof, top = p.top && p.top_pct >= 0.3 ? `${p.top} ${Math.round(p.top_pct * 100)}%` : "";
+      return `<li><a class="cm-row" href="#client/${c.id}">
+        <span class="who"><span class="ava">${esc(c.name.slice(0, 1))}</span><span><b>${esc(c.name)}</b><small>${c.age}세 · ${esc(c.risk)}</small></span></span>
+        <span class="st">${x.g ? `<i class="tag ${tagCls(x.g)}">${GROUPS.find(g => g[0] === x.g)[1]}</i>` : ""}<span>${esc(x.item ? x.item.title : "챙길 것 없음")}${x.n > 1 ? ` <small>외 ${x.n - 1}</small>` : ""}</span></span>
+        <span class="num"><b>${man(x.total)}</b></span>
+        <span class="num"><b>${man(x.krwCash)}</b><small class="${x.idle ? "idle" : ""}">${x.idle ? `쉬는 돈 ${man(x.idle)} · ${x.streak}일` : c.auto ? "자동 RP 이용" : ""}</small></span>
+        <span class="num"><b>${x.stock ? man(x.stock) : "–"}</b><small>${x.stock ? `<i class="${x.delta < 0 ? "dn" : "up"}">${x.delta < 0 ? "−" : "+"}${man(Math.abs(x.delta))}</i>` : ""}${x.worst ? ` <i class="cg-tag ${stageCls(x.worst.kind)}">신용 ${STAGE[x.worst.kind][0]}</i>` : ""}</small></span>
+        <span class="pf"><b>${esc(top || p.style)}</b><small>${esc(top ? p.style : p.tags.filter(t => !t.endsWith(" 관심") && !t.startsWith("거래")).slice(0, 2).join(" · "))}</small></span>
+        <span class="lcd lv-${x.lc ? x.lc.level : "bad"}"><b>${x.lc ? (x.lc.days ? x.lc.days + "일" : "오늘") : "–"}</b></span></a></li>`; };
+    const list = () => { const r = sorted(); return head() + (r.map(row).join("") || `<li class="empty">해당하는 고객이 없어요</li>`); };
+    const ev = cm.sec ? (D.events || []).filter(e => e.tags.includes(cm.sec)) : [];
+    $app.innerHTML = `<div class="pg cmp">
+      <div class="pg-head"><div><h1>고객 관리</h1>
+        <p class="sub">${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 ${all.length}명 · 총자산 ${man(sum("total"))} · 예수금 ${man(sum("krwCash"))} · 쉬는 돈 ${man(sum("idle"))} (${idleN}명)</p></div>
         <input class="pill" type="search" id="cmq" placeholder="이름이나 고객번호" value="${esc(cm.q)}"></div>
-      ${cm.tag ? intBar() : ""}
-      <ul class="rows cm-rows">${rowsHtml()}</ul></div>`;
-    // 고른 관심·성향에 맞는 행사: 이 고객들에게 안내할 거리
-    function intBar() {
-      const key = cm.tag.endsWith(" 관심") ? cm.tag.slice(0, -3) : cm.tag;
-      const ev = (D.events || []).filter(e => e.tags.includes(key));
-      return `<div class="intbar"><b>${esc(cm.tag)}</b> 고객 ${tagCount[cm.tag]}명${ev.length ? ` · 안내할 행사 ${ev.map(e => `<span class="ev">${esc(e.title)} <small>${+e.date.slice(5, 7)}/${+e.date.slice(8)}</small></span>`).join("")}` : " · 맞는 행사가 아직 없어요"}
-        <button class="txt" id="cmclear">필터 지우기</button></div>`;
-    }
-    function rowItem(x, c, b) {
-        return `<li><a href="#client/${c.id}"><span class="ava">${esc(c.name.slice(0, 1))}</span>
-          <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${c.id} · ${esc(c.risk)}</small><i>${esc(x.item ? x.item.title : "챙길 것 없음")}</i>
-            <em class="ptags">${c.prof.tags.filter(t => t !== "거래 보통").slice(0, 3).map(t => `<span class="${t === cm.tag ? "on" : ""}">${esc(t)}</span>`).join("")}</em></span>
-          ${x.g ? `<span class="tag ${tagCls(x.g)}">${GROUPS.find(g => g[0] === x.g)[1]}</span>` : "<span></span>"}
-          <span class="lcd lv-${x.lc ? x.lc.level : "bad"}"><b>${x.lc ? (x.lc.days ? x.lc.days + "일" : "오늘") : "–"}</b><small>${x.lc && !x.lc.days ? "연락함" : "연락 없음"}</small></span>
-          <span class="amt"><b>${man(b.cash)}</b><small>원화 예수금</small></span><span class="go">›</span></a></li>`; }
-    $app.querySelectorAll("[data-tab]").forEach(b => (b.onclick = () => { cm.tab = b.dataset.tab; pageClientsMgmt(); }));
-    $app.querySelector("#cmsort").onchange = e => { cm.sort = e.target.value; pageClientsMgmt(); };
-    $app.querySelector("#cmtag").onchange = e => { cm.tag = e.target.value; if (cm.tag && cm.tag.endsWith(" 관심")) cm.sort = "interest"; pageClientsMgmt(); };
-    const clr = $app.querySelector("#cmclear"); if (clr) clr.onclick = () => { cm.tag = ""; if (cm.sort === "interest") cm.sort = "urgent"; pageClientsMgmt(); };
-    const inp = $app.querySelector("#cmq");
-    inp.oninput = () => { cm.q = inp.value.trim(); $app.querySelector(".cm-rows").innerHTML = rowsHtml(); };
+      <div class="chips">${[["", "전체", all.length], ...GROUPS.map(([k, t]) => [k, t, cnt[k] || 0])].map(([k, t, n]) => `<button class="chip ${cm.g === k ? "on" : ""}" data-g="${k}">${t} <em>${n}</em></button>`).join("")}</div>
+      <div class="chips sec"><span class="lbl">관심 분야</span>${sectors.map(([s, n]) => `<button class="chip ${cm.sec === s ? "on" : ""}" data-sec="${esc(s)}">${esc(s)} <em>${n}</em></button>`).join("")}
+        ${ev.length ? `<span class="evs">안내할 행사 ${ev.map(e => `<i>${esc(e.title)} <small>${+e.date.slice(5, 7)}/${+e.date.slice(8)}</small></i>`).join("")}</span>` : ""}</div>
+      <ul class="cm-list">${list()}</ul></div>`;
+    const bind = () => {
+      $app.querySelectorAll("[data-sort]").forEach(b => (b.onclick = () => { const k = b.dataset.sort; if (cm.sort === k) cm.dir = -cm.dir; else { cm.sort = k; cm.dir = -1; } redraw(); }));
+    };
+    const redraw = () => { $app.querySelector(".cm-list").innerHTML = list(); bind(); };
+    bind();
+    $app.querySelectorAll("[data-g]").forEach(b => (b.onclick = () => { cm.g = b.dataset.g; pageClientsMgmt(); }));
+    $app.querySelectorAll("[data-sec]").forEach(b => (b.onclick = () => { cm.sec = cm.sec === b.dataset.sec ? "" : b.dataset.sec; cm.sort = cm.sec ? "interest" : "urgent"; cm.dir = -1; pageClientsMgmt(); }));
+    const inp = $app.querySelector("#cmq");   // 검색은 목록만 다시 그린다 (입력칸을 다시 만들면 한글 조합이 끊김)
+    inp.oninput = () => { cm.q = inp.value.trim(); redraw(); };
   }
 
   // ════════════════ 고객 페이지 (할 일 띠 + 탭) ════════════════
@@ -1884,7 +1891,7 @@
     }));
     $app.querySelectorAll("[data-tst]").forEach(b => (b.onclick = () => { setTask(cid, b.dataset.tst === "undo" ? null : b.dataset.tst); toast(b.dataset.tst === "done" ? "완료했어요" : b.dataset.tst === "later" ? "내일로 미뤘어요" : "되돌렸어요"); pageClientTabs(cid); }));
     const up = $app.querySelector("#openUpload"); if (up) up.onclick = () => { cv.upload = true; pageClientTabs(cid); };
-    $app.querySelectorAll("[data-int]").forEach(b => (b.onclick = () => { cm.tag = b.dataset.int; cm.tab = "all"; cm.sort = "interest"; }));
+    $app.querySelectorAll("[data-int]").forEach(b => (b.onclick = () => { cm.sec = b.dataset.int.replace(" 관심", ""); cm.g = ""; cm.sort = "interest"; cm.dir = -1; }));
   }
 
   // 카톡 알림 버튼의 &s= → 열 화면 (why·buy·item:발견번호, report). 자동 RP를 제안한 경우 buy는 auto로

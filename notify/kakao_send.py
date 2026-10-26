@@ -460,7 +460,7 @@ def main():
         s = sub.add_parser(name)
         s.add_argument("--id", help="발송함 메시지 id")
         s.add_argument("--cid", default="T001", help="고객번호 (--id 없을 때, 기본 T001)")
-        s.add_argument("--label", default="", help="오늘 카톡 미리보기 이름 일부 (예: 이자, 입금, 연금)")
+        s.add_argument("--label", default="", help="오늘 카톡 미리보기 이름 일부 (예: 이자, 입금, ISA)")
         if name in ("send-me", "send-friend", "send-all"):
             s.add_argument("--card", action="store_true", help="이미지 카드로 보내기 (200자 넘는 알림)")
             s.add_argument("--rich", action="store_true", help="알림톡처럼: 피드형(보낸 곳·항목 표·큰 숫자 이미지)")

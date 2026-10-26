@@ -1,4 +1,4 @@
-"""R2 해외주식 양도세, R3 유상증자 권리, R4 펀드·ELS 만기 + 알림. R5 연금저축 + 알림. 공개매수는 다루지 않는다."""
+"""R2 해외주식 양도세, R3 유상증자 권리, R4 펀드·ELS 만기 + 알림. R5 ISA 비과세 + 알림. 공개매수는 다루지 않는다."""
 import sys
 from pathlib import Path
 
@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from engine.config import load_config  # noqa: E402
-from engine.rules import maturity, overseas_tax, pension, rights_offer  # noqa: E402
+from engine.rules import isa, maturity, overseas_tax, rights_offer  # noqa: E402
 from engine.runner import make_context, run  # noqa: E402
 from messages import validator  # noqa: E402
 from messages.generator import TemplateGenerator  # noqa: E402
@@ -81,16 +81,17 @@ def test_r4_maturity(cfg):
 
 # ── R5 ──
 
-def test_r5_pension_examples(cfg):
-    row = pd.Series({"paid_ytd_krw": 2 * M})
-    assert pension.evaluate(row, CUST, cfg, A).amount_krw == 528_000
-    assert pension.evaluate(row, {**CUST, "income_band": "low"}, cfg, A).amount_krw == 660_000
+def test_r5_isa_examples(cfg):
+    row = pd.Series({"paid_ytd_krw": 5 * M})
+    f = isa.evaluate(row, CUST, cfg, A)
+    assert f.amount_krw == 308_000 and f.meta["remain"] == 15 * M            # 일반형 비과세 200만원 × 15.4%
+    assert isa.evaluate(row, {**CUST, "income_band": "low"}, cfg, A).amount_krw == 616_000   # 서민형 400만원 × 15.4%
 
 
 def test_r5_only_q4_and_below_limit(cfg):
-    assert pension.evaluate(pd.Series({"paid_ytd_krw": 2 * M}), CUST, cfg, pd.Timestamp("2026-09-30")) is None
-    assert pension.evaluate(pd.Series({"paid_ytd_krw": 6 * M}), CUST, cfg, A) is None
-    assert pension.evaluate(None, CUST, cfg, A) is None                                        # 연금저축 계좌 없음
+    assert isa.evaluate(pd.Series({"paid_ytd_krw": 5 * M}), CUST, cfg, pd.Timestamp("2026-09-30")) is None
+    assert isa.evaluate(pd.Series({"paid_ytd_krw": 20 * M}), CUST, cfg, A) is None          # 올해 한도를 다 채움
+    assert isa.evaluate(None, CUST, cfg, A) is None                                           # ISA 계좌 없음
 
 
 # ── 데모 페르소나 + 알림 ──
@@ -113,7 +114,7 @@ def test_demo_personas_have_items(demo):
     assert item(r, "P004", "R2").amount_krw == 330_000
     assert item(r, "P001", "R3").amount_krw == 1_250_000
     assert item(r, "P003", "R4").amount_krw == 88_356
-    assert item(r, "P002", "R5").amount_krw == 528_000
+    assert item(r, "P002", "R5").amount_krw == 308_000          # ISA 일반형 비과세 200만원 × 15.4%
 
 
 def test_deadline_items_ranked_first(demo):
@@ -157,8 +158,8 @@ def test_demo_outbox_has_item_alerts(cfg, demo):
     ob = backfill(start, as_of, ctx, cfg, empty_outbox(), data["action_log"], gen, run_time_for=demo_run_time_for(start))
     trig = set(ob.trigger)
     assert {"T_TAX", "T_RIGHTS", "T_MATURITY"} <= trig
-    assert "T_PENSION" in trig and "T_TENDER" not in trig
-    pens = ob[(ob.trigger == "T_PENSION") & ob.channel.isin(["push", "kakao"])]
+    assert "T_ISA" in trig and "T_TENDER" not in trig
+    pens = ob[(ob.trigger == "T_ISA") & ob.channel.isin(["push", "kakao"])]
     assert pens.title.str.startswith("(광고)").all()
     p3 = ob[(ob.customer_id == "P003") & (ob.trigger == "T_MATURITY")]
     assert set(p3.channel) == {"kakao", "pb_queue"}

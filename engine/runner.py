@@ -6,7 +6,7 @@ import pandas as pd
 from engine.cash.idle import build_accounts, found_money
 from engine.priority import sort_findings
 from engine.adapter import SCHEMA
-from engine.rules import idle_cash, maturity, overseas_tax, pension, rights_offer
+from engine.rules import idle_cash, isa, maturity, overseas_tax, rights_offer
 
 
 @dataclass
@@ -60,7 +60,7 @@ def auto_on_dates_from_log(action_log: pd.DataFrame) -> dict:
     return out
 
 
-EXTRA_TABLES = ("overseas_tax_ytd", "pension_accounts", "holdings", "rights_offers", "maturities")
+EXTRA_TABLES = ("overseas_tax_ytd", "isa_accounts", "holdings", "rights_offers", "maturities")
 
 
 def make_context(data: dict, accounts=None) -> Context:
@@ -105,7 +105,7 @@ def run(ctx: Context, cfg, as_of=None) -> RunResult:
     for cid in ctx.customers.index:
         customer = ctx.customer(cid)
         for f in (overseas_tax.evaluate(ctx.row_of("overseas_tax_ytd", cid, as_of.year), customer, cfg, as_of),
-                  pension.evaluate(ctx.row_of("pension_accounts", cid, as_of.year), customer, cfg, as_of),
+                  isa.evaluate(ctx.row_of("isa_accounts", cid, as_of.year), customer, cfg, as_of),
                   *rights_offer.evaluate(ctx.rows_of("holdings", cid), ctx.extra.get("rights_offers"),
                                          customer, cfg, as_of),
                   *maturity.evaluate(ctx.rows_of("maturities", cid), customer, cfg, as_of)):

@@ -55,7 +55,7 @@ overseas_tax_ytd:
   unrealized_loss_krw: unrealized_loss_krw
   unrealized_gain_krw: unrealized_gain_krw
 
-pension_accounts:
+isa_accounts:
   customer_id: customer_id
   year: year
   paid_ytd_krw: paid_ytd_krw

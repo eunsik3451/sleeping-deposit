@@ -262,15 +262,15 @@ DEMO_RIGHTS = {"offer_id": "RO1", "symbol": "999991", "name": "가상바이오",
 def extra_tables(customers: pd.DataFrame, segments: dict, as_of, seed) -> dict:
     rng = np.random.default_rng(seed)
     year = as_of.year
-    tax, pens, hold = [], [], []
+    tax, isa, hold = [], [], []
 
     # 페르소나: 스펙 부록 A의 예시값 그대로
     tax.append({"customer_id": "P001", "year": year, "realized_gain_krw": 10 * M,
                 "unrealized_loss_krw": 4 * M, "unrealized_gain_krw": 0})            # → 880,000원
     tax.append({"customer_id": "P004", "year": year, "realized_gain_krw": 1 * M,
                 "unrealized_loss_krw": 0, "unrealized_gain_krw": 5 * M})            # → 330,000원
-    pens.append({"customer_id": "P002", "year": year, "paid_ytd_krw": 2 * M})       # → 528,000원
-    pens.append({"customer_id": "T001", "year": year, "paid_ytd_krw": 2 * M})       # 남은 한도 400만원 → 528,000원
+    isa.append({"customer_id": "P002", "year": year, "paid_ytd_krw": 8 * M})        # 일반형 남은 한도 1,200만원 → 308,000원
+    isa.append({"customer_id": "T001", "year": year, "paid_ytd_krw": 5 * M})        # 일반형 남은 한도 1,500만원 → 308,000원
     hold.append({"customer_id": "P001", "symbol": DEMO_RIGHTS["symbol"], "name": DEMO_RIGHTS["name"],
                  "qty": 2000, "current_price": DEMO_RIGHTS["market_price"]})        # 500주 × 2,500원 → 1,250,000원
     mat = [{"customer_id": "P003", "holding_id": "H-P003-1", "product_name": "가상 채권형펀드 3호", "kind": "펀드",
@@ -289,8 +289,8 @@ def extra_tables(customers: pd.DataFrame, segments: dict, as_of, seed) -> dict:
                         "unrealized_loss_krw": krw(rng.uniform(0, 8 * M)) if rng.random() < 0.6 else 0,
                         "unrealized_gain_krw": krw(rng.uniform(0, 10 * M)) if rng.random() < 0.6 else 0})
         if rng.random() < (0.30 if 30 <= age < 65 else 0.10):
-            pens.append({"customer_id": cid, "year": year, "paid_ytd_krw": int(rng.choice(
-                [0, 1.2 * M, 2.4 * M, 3.6 * M, 4.8 * M, 6 * M], p=[0.15, 0.2, 0.2, 0.15, 0.1, 0.2]))})
+            isa.append({"customer_id": cid, "year": year, "paid_ytd_krw": int(rng.choice(
+                [0, 3 * M, 6 * M, 10 * M, 15 * M, 20 * M], p=[0.15, 0.2, 0.2, 0.15, 0.1, 0.2]))})
         if rng.random() < 0.03:
             hold.append({"customer_id": cid, "symbol": DEMO_RIGHTS["symbol"], "name": DEMO_RIGHTS["name"],
                          "qty": int(rng.integers(5, 200)) * 10, "current_price": DEMO_RIGHTS["market_price"]})
@@ -305,7 +305,7 @@ def extra_tables(customers: pd.DataFrame, segments: dict, as_of, seed) -> dict:
                             "name": DEMO_RIGHTS["name"], "issue_price": DEMO_RIGHTS["issue_price"],
                             "ratio": DEMO_RIGHTS["ratio"],
                             "sub_start": as_of + pd.Timedelta(days=4), "sub_end": as_of + pd.Timedelta(days=5)}])
-    return {"overseas_tax_ytd": pd.DataFrame(tax), "pension_accounts": pd.DataFrame(pens), "holdings": pd.DataFrame(hold), "rights_offers": offers,
+    return {"overseas_tax_ytd": pd.DataFrame(tax), "isa_accounts": pd.DataFrame(isa), "holdings": pd.DataFrame(hold), "rights_offers": offers,
             "maturities": pd.DataFrame(mat)}
 
 

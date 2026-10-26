@@ -28,12 +28,12 @@ from notify.policy import ad_title, has_consent  # noqa: E402
 from notify.triggers import ITEM_TRIGGERS, key_of  # noqa: E402
 
 OUT = ROOT / "site" / "data.js"
-PERSONAS = {"P001": "매매대기 + 달러 + 유상증자", "P002": "ELS 상환금 · 연금저축", "P003": "장기방치 · 펀드 만기",
-            "P004": "예수금 자동 RP 이용 중", "T001": "테스트 · ELS 상환금 · 연금저축", "T002": "테스트 · 장기방치 · 펀드 만기"}
+PERSONAS = {"P001": "매매대기 + 달러 + 유상증자", "P002": "ELS 상환금 · ISA", "P003": "장기방치 · 펀드 만기",
+            "P004": "예수금 자동 RP 이용 중", "T001": "테스트 · ELS 상환금 · ISA", "T002": "테스트 · 장기방치 · 펀드 만기"}
 TRIGGER_LABELS = {"T_EVENT": "입금 다음 날 알림", "T_IDLE_FIRST": "처음 알림", "T_IDLE_UPDATE": "이자 안내(재알림)",
                   "T_REASSESS": "진단 만료 안내", "T_MONTHLY": "월간 리포트", "T_FOUND": "깨운 예수금 이자 알림",
                   "T_TAX": "해외주식 세금 안내", "T_RIGHTS": "유상증자 청약 안내", "T_MATURITY": "만기 안내",
-                  "T_PENSION": "연금저축 세액공제 안내", "T_MOVE": "보유 종목 큰 변동"}
+                  "T_ISA": "ISA 비과세 안내", "T_MOVE": "보유 종목 큰 변동"}
 
 
 def jsonable(x):

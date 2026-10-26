@@ -30,7 +30,7 @@ def main():
     model = WhisperModel(a.model, device="cpu", compute_type="int8")
     segs, info = model.transcribe(str(src), language="ko", vad_filter=True, beam_size=5,
                                   condition_on_previous_text=False,
-                                  initial_prompt="유진투자증권 PB 상담 통화. 예수금, RP, CMA, 예탁금 이용료, ELS, 펀드 만기, 유상증자 청약, 양도세, 연금저축, 신용, 반대매매.")
+                                  initial_prompt="유진투자증권 PB 상담 통화. 예수금, RP, CMA, 예탁금 이용료, ELS, 펀드 만기, 유상증자 청약, 양도세, ISA, 연금저축, 신용, 반대매매.")
     lines = [f"[{s.start:6.1f}s] {s.text.strip()}" for s in segs]
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     out = ROOT / "data" / "calls" / a.cid / stamp

@@ -17,10 +17,10 @@ SUBTYPE_LABELS = {
     "tax_deduction_fill": "해외주식 공제 채우기",
     "rights_offer": "유상증자 청약",
     "maturity": "펀드·ELS 만기",
-    "pension_credit": "연금저축 세액공제",
+    "isa_tax_free": "ISA 비과세",
 }
 
-RULE_LABELS = {"R1": "예수금 활용", "R2": "해외주식 양도세", "R3": "권리 안내", "R4": "만기 안내", "R5": "연금저축"}
+RULE_LABELS = {"R1": "예수금 활용", "R2": "해외주식 양도세", "R3": "권리 안내", "R4": "만기 안내", "R5": "ISA 비과세"}
 
 ACTION_TYPES = ("rp_buy", "reassess", "pb_consult")
 CHANNELS = ("push", "kakao", "pb_queue", "monthly_report")

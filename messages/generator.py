@@ -116,7 +116,8 @@ class TemplateGenerator(MessageGenerator):
         elif f.rule == "R4":
             v.update(product_name=m["product_name"], kind=m["kind"], expected=man(m["expected"]))
         elif f.rule == "R5":
-            v.update(paid=man(m["paid"]), limit=man(m["limit"]), remain=man(m["remain"]))
+            v.update(paid=man(m["paid"]), limit=man(m["limit"]), remain=man(m["remain"]), tax_free=man(m["tax_free"]),
+                     over_rate=pct(m["over_rate"]), min_years=f"{m['min_years']}년", kind=m["kind"])
         return v
 
     @staticmethod

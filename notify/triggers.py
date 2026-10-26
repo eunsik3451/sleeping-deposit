@@ -93,9 +93,9 @@ def from_findings(result, ctx, history, cfg) -> list:
     return out
 
 
-# R2~R5: (트리거, 메시지 성격). R5 연금저축은 납입 유도라 광고성, 나머지는 정보성
+# R2~R5: (트리거, 메시지 성격). R5 ISA는 입금 유도라 광고성, 나머지는 정보성
 ITEM_TRIGGERS = {"R2": ("T_TAX", "info"), "R3": ("T_RIGHTS", "info"), "R4": ("T_MATURITY", "info"),
-                 "R5": ("T_PENSION", "ad")}
+                 "R5": ("T_ISA", "ad")}
 
 
 def item_due(state, f, as_of, cfg) -> bool:

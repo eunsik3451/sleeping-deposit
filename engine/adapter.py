@@ -53,8 +53,8 @@ SCHEMA = {
         "dates": [],
         "bools": [],
     },
-    "pension_accounts": {
-        "file": "demo/pension_accounts.csv",
+    "isa_accounts": {
+        "file": "demo/isa_accounts.csv",
         "columns": ["customer_id", "year", "paid_ytd_krw"],
         "dates": [],
         "bools": [],
