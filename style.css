@@ -1199,3 +1199,46 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .dlg b { display: block; } .dlg small { display: block; color: #8B95A1; font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dlg em { font-style: normal; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 .dlg em small { display: inline; margin-left: 6px; color: #8B95A1; font-weight: 500; }
+
+/* ══════════ UI 정리: 색은 파랑(누를 수 있는 것)·빨강(지금 바로)·회색만 ══════════ */
+.tag.s-due, .tag.s-idle, .tag.s-info, .tag.s-plain, .tag.s-care, .tag.s-todo, .tag.s-watch { background: #F2F4F6; color: #4E5968; }
+.tag.s-call, .tag.s-warn, .tag.s-move { background: #FFEBEE; color: #D22030; }
+.side-nav nav a.nav-story, .side-nav nav a.nav-story.on { color: inherit; background: none; font-weight: 500; }
+.side-nav nav a.sm { color: #8B95A1; }
+.side-nav nav a.sm.on { color: #1B64DA; background: #E8F3FF; }
+/* 메인 */
+.home h1 { margin-bottom: 12px; }
+.hchips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 18px; }
+.hchips a { text-decoration: none; color: #4E5968; background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 0.88rem; font-weight: 600; }
+.hchips a b { color: #191F28; margin-left: 2px; }
+.hchips a.hot { background: #FFEBEE; color: #D22030; } .hchips a.hot b { color: #D22030; }
+.hchips .sub { margin-left: 6px; }
+.next-panel .next-c { margin-top: 6px; }
+.next-todo { margin: 10px 2px 14px; font-weight: 600; color: #1B64DA; }
+.mk-one { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 16px; text-decoration: none; color: inherit; }
+.mk-one .mk-l { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mk-one .mk-l > span { color: #4E5968; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-one em { font-style: normal; font-weight: 700; white-space: nowrap; }
+.mk-one .mk-r { color: #1B64DA; font-weight: 700; white-space: nowrap; }
+/* 오늘 할 일 */
+.tasks .pg-head { display: flex; flex-direction: column; gap: 8px; }
+.pbar.slim { width: 320px; height: 6px; margin: 0 0 6px; }
+.tc-todo-s { display: block; font-style: normal; color: #1B64DA; font-weight: 600; font-size: 0.86rem; margin-top: 2px; }
+.tc-head .tc-more { color: #1B64DA; font-weight: 600; }
+.tcard .tc-acts { padding-top: 2px; }
+/* 고객 상세: 오늘 할 일 한 줄 */
+.today-row { margin-top: 14px; padding: 14px 0 0 16px; border-top: 1px solid #F2F4F6; border-left: 4px solid #C9CED6; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 20px; align-items: center; }
+.today-row.hot { border-left-color: #F04452; }
+.tr-main { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+.tr-main b { display: block; font-size: 1.02rem; } .tr-main small { color: #4E5968; }
+.tr-lines { grid-column: 1 / -1; }
+.tr-lines summary { cursor: pointer; color: #1B64DA; font-weight: 600; font-size: 0.88rem; }
+.tr-lines .klines { margin-top: 8px; }
+/* 시장 이슈 요약(접힘) */
+.mk-sum .hm-head { font-size: 1rem; margin: 2px 0 8px; }
+.mk-sum .mini-hist summary { color: #1B64DA; font-weight: 600; cursor: pointer; }
+@media (max-width: 760px) { .today-row { grid-template-columns: minmax(0, 1fr); } .mk-one { flex-direction: column; align-items: flex-start; } .mk-one .mk-l { flex-wrap: wrap; } }
+.cstrip.lv-mid .cs-dot, .lcd.lv-mid b, .cbadge.lv-mid .cb-num b { color: #4E5968; } .cstrip.lv-mid .cs-dot { background: #C9CED6; } .cbadge.lv-mid { background: #F2F4F6; }
+.tasks .pg-head { align-items: flex-start; }
+.mk-one .mk-l > b { white-space: nowrap; }
+.dot.g-today, .dot.g-week { background: #8B95A1; } .dot.g-later { background: #C9CED6; }
