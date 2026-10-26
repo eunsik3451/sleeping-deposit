@@ -1252,3 +1252,4 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 @media (max-width: 1250px) { .cm-head, .cm-row { grid-template-columns: 180px minmax(200px, 1fr) 150px 150px 60px; } }
 /* 고객 앱: 아래 버튼 띠가 마지막 카드를 가리지 않게 */
 .app-scroll { padding-bottom: 150px; }
+.cm-head, .cm-row { grid-template-columns: 170px minmax(200px, 1fr) 105px 140px 140px 150px 56px; gap: 12px; }
