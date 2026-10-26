@@ -1195,6 +1195,13 @@
       title: headline(f), todo: todo(f), script: f.script, reason: "", sources: [], gauge: null, amount: `${amtText(f)} ${SHORT[f.rule]}`, note: amtNote(f), contact: !!PB_BY_FID[f.finding_id] }));
     return out;
   }
+  // 연락 항목 하나의 펼침 내용: 보조 설명 → 신용 게이지 → 왜 움직였나(출처) → 단계별 통화 문구
+  function ciBody(it) {
+    return `<div class="ci-body">${it.note ? `<p class="ci-note">${esc(it.note)}</p>` : ""}
+      ${it.gauge ? creditGauge(it.gauge) : ""}
+      ${it.reason ? `<h4>${it.why}</h4><p class="mv-why">${esc(it.reason)}</p>${it.sources.length ? `<p class="src">${it.sources.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title.split(":")[0])}</a>`).join(" · ")}</p>` : ""}` : ""}
+      <h4>이렇게 말해 보세요</h4><ol class="steps">${scriptSteps(it.script || "").map(([k, t]) => `<li><span>${esc(k)}</span><p>${esc(t)}</p></li>`).join("")}</ol></div>`;
+  }
   function contactCard(cid) {
     const items = contactItems(cid);
     if (!items.length) return "";
@@ -1524,13 +1531,13 @@
   }
   // 꼭 알아야 할 것: 위험·마감·쉬는 돈(엔진 순서) → 고객과 약속한 일 → 지난 통화 → 주의할 점. 최대 5개
   function mustKnow(cid, items, openTodos, last, consent) {
-    const out = items.slice(0, 3).map(it => ({ tag: it.tag, cls: it.cls, t: it.title, d: it.todo }));
+    const out = items.slice(0, 3).map(it => ({ tag: it.tag, cls: it.cls, t: it.title, d: it.todo, body: ciBody(it) }));
     openTodos.slice(0, 1).forEach(t => out.push({ tag: t.due ? `약속 D-${Math.max(0, daysLeft(t.due))}` : "약속", cls: "s-due", t: t.text, d: "지난 통화에서 고객과 약속한 일" }));
     if (last) { const r = last.ai ? last.result : last; const h = r.headline || r.summary || "";
       if (h) out.push({ tag: "지난 통화", cls: "s-info", t: String(h).split(/(?<=다\.)\s/)[0], d: String(last.ai ? (r.call_date || last.at) : last.at).slice(0, 10) }); }
     if (!consent.length) out.push({ tag: "주의", cls: "s-info", t: "광고 수신 동의가 없어요", d: "상품 안내는 문자·알림 대신 전화로만" });
     if (!out.length) return "";
-    return `<section class="must"><h2>그 밖에 알아야 할 것</h2><ol>${out.slice(0, 5).map(o => `<li><span class="tag ${o.cls}">${esc(o.tag)}</span><div><b>${esc(o.t)}</b><small>${esc(o.d)}</small></div></li>`).join("")}</ol></section>`;
+    return `<section class="must"><h2>그 밖에 알아야 할 것</h2><ol>${out.slice(0, 5).map(o => `<li><span class="tag ${o.cls}">${esc(o.tag)}</span><div><b>${esc(o.t)}</b><small>${esc(o.d)}</small>${o.body ? `<details class="tr-lines"><summary>통화 문구 보기</summary>${o.body}</details>` : ""}</div></li>`).join("")}</ol></section>`;
   }
 
   const PB_LIST = [...new Set(D.customers.map(c => c.pb))].sort();
@@ -1864,7 +1871,8 @@
     const TABS = [["overview", "개요"], ["analysis", "분석"], ["holdings", `보유 종목 ${pos.length}`], ["calls", `통화 ${calls.length}`], ["plan", "일정·알림"]];
     const lines = lead ? keyLines(lead.script) : [];
     let body = "";
-    if (cv.tab === "overview") body = mustKnow(cid, lead ? items.slice(1) : items, openTodos, last, consent) + `<div class="ov-grid"><div class="col">${contactCard(cid)}${diagnosisCard(cid)}</div><div class="col">
+    const diagHtml = cv.tab === "overview" ? diagnosisCard(cid) : "";   // 쉬는 예수금 진단이 없으면 개요 탭은 한 열로
+    if (cv.tab === "overview") body = mustKnow(cid, lead ? items.slice(1) : items, openTodos, last, consent) + `<div class="ov-grid${diagHtml ? "" : " one"}">${diagHtml ? `<div class="col">${diagHtml}</div>` : ""}<div class="col">
         ${D.details[cid].trend.start ? `<section class="panel"><div class="bhead"><h2>자산 잔고 추이</h2><span class="sub">최근 6개월 · 만원</span></div>${assetChart(cid)}</section>` : ""}
         ${others.length ? `<section class="panel"><div class="bhead"><h2>함께 챙길 것</h2></div><ul class="items">${others.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 ${f.deadline.slice(5).replace("-", "/")}` : ""}</small></span><em>${amtText(f)}</em></li>`).join("")}</ul></section>` : ""}
         <section class="panel"><div class="bhead"><h2>해야 할 일</h2><span class="sub">${openTodos.length}건</span></div><ul class="todo-list">${openTodos.map(t => `<li><label><input type="checkbox" data-done="${t.call}|${t.i}"> <span>${esc(t.text)}</span></label><em class="${t.due && t.due <= ymd(new Date()) ? "red" : ""}">${esc(t.dueLabel)}</em></li>`).join("") || `<li class="empty">통화에서 나온 할 일이 없어요</li>`}</ul></section></div></div>`;
@@ -1896,7 +1904,7 @@
           <div class="tr-main"><span class="tag ${tagCls(g)}">${g ? GROUPS.find(x => x[0] === g)[1] : "참고"}</span><div><b>${esc(lead.title)}</b><small>${esc(lead.todo)}</small></div></div>
           <div class="ab-acts">${st ? `<span class="sub">${st === "done" ? "오늘 완료" : "내일 다시"}</span><button class="txt" data-tst="undo">되돌리기</button>`
             : `<button class="cta sm" data-callnow>전화 걸기</button>${kakaoLocal && kakaoLocal.cids[cid] ? `<button class="ghost sm" data-ctab="plan">카톡 보내기</button>` : ""}<button class="ghost sm" data-tst="done">완료</button><button class="txt" data-tst="later">내일로</button>`}</div>
-          ${lines.length ? `<details class="tr-lines"><summary>통화 문구 보기</summary><dl class="klines inline">${lines.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl></details>` : ""}
+          <details class="tr-lines"><summary>통화 문구 보기</summary>${ciBody(lead)}</details>
         </div>` : ""}
       </section>
       <nav class="ctabs">${TABS.map(([k, t]) => `<button class="${cv.tab === k ? "on" : ""}" data-ctab="${k}">${t}</button>`).join("")}</nav>

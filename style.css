@@ -1242,3 +1242,6 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .tasks .pg-head { align-items: flex-start; }
 .mk-one .mk-l > b { white-space: nowrap; }
 .dot.g-today, .dot.g-week { background: #8B95A1; } .dot.g-later { background: #C9CED6; }
+.tr-lines .ci-body { margin-top: 10px; }
+.must .tr-lines summary { font-size: 0.84rem; margin-top: 4px; }
+.ov-grid.one { grid-template-columns: minmax(0, 1fr); }
