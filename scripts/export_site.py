@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from engine.cash.suitability import RISK_GRADE_LABEL  # noqa: E402
 from engine.fmt import man  # noqa: E402
 from engine.config import load_config  # noqa: E402
+from engine import profile as cust_profile  # noqa: E402
 from engine.models import SUBTYPE_LABELS  # noqa: E402
 from engine.runner import make_context, run  # noqa: E402
 from generate_demo_data import generate  # noqa: E402
@@ -331,6 +332,14 @@ def main():
     month_start = A.replace(day=1)
     prev_end = month_start - pd.Timedelta(days=1)
     customers, details = [], {}
+    # 고객 분석 재료: 업종·종목 유형(universe), 맞춤 행사(가상 일정), 고객별 보유 종목·현금 흐름
+    universe = pd.read_csv(ROOT / "data" / "market" / "universe.csv", dtype=str)
+    events = json.loads((ROOT / "data" / "events.json").read_text(encoding="utf-8"))["events"]
+    pos_by = {}
+    for p_ in (market["positions"] if market else []):
+        pos_by.setdefault(p_["customer_id"], []).append(p_)
+    flows_by = dict(tuple(data["cash_flows"].groupby("customer_id")))
+    empty_flows = data["cash_flows"].iloc[0:0]
     for cid in ctx.customers.index:
         c = ctx.customer(cid)
         fs = res.for_customer(cid)
@@ -360,7 +369,11 @@ def main():
             if acct.has(A):
                 k = acct.pos(A)
                 bal[acct.currency] = {"cash": float(acct.cash[k]), "auto_rp": float(acct.auto_rp[k]), "rate": float(acct.rate[k])}
+        prof = cust_profile.build(cid, c, pos_by.get(cid, []), flows_by.get(cid, empty_flows), bal, fs, universe, events, cfg, A)
         customers.append({
+            "prof": {"tags": prof["tags"], "style": prof["style"], "summary": prof["summary"],
+                     "top": prof["sectors"][0]["name"] if prof["sectors"] else None,
+                     "top_pct": prof["sectors"][0]["pct"] if prof["sectors"] else 0, "events": prof["events"]},
             "balance": bal,
             "id": cid, "name": c["name"], "age": A.year - int(c["birth_year"]), "risk": c["risk_profile"],
             "diag": f"{diag:%Y-%m-%d}", "diag_valid": (A - diag).days <= cfg["suitability"]["risk_profile_valid_days"],
@@ -374,6 +387,7 @@ def main():
         details[cid] = {
             "findings": [{**finding_dict(f), "script": pb_script(f, c, cfg, gen, A)["body"]} for f in fs],
             "previews": pv,
+            "profile": prof,
             **({"kakao_test": kakao_test(fs, c, cfg, gen, A, tail) + [{**m, "was": "kakao"} for m in moves]}
                if str(cid).startswith("T") else {}),
             "stock": (lambda s: [round(x / 1e4) for x in s] if s is not None else None)(
@@ -426,6 +440,7 @@ def main():
         "trigger_labels": TRIGGER_LABELS,
         "market": market,
         "calls": ai_calls(),
+        "events": events,
     }
     OUT.parent.mkdir(exist_ok=True)
     text = json.dumps(jsonable(site), ensure_ascii=False, separators=(",", ":"))

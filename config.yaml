@@ -67,6 +67,17 @@ market:                          # 시장 이슈 알림 (보유 종목 큰 등�
   watch_drop: 0.20               # 이보다 작으면 주의. 안전 복귀 금액도 이 기준
   base_lag_days: 60              # 가상 보유 수량을 정하는 기준: 기준일 60거래일 전 종가에 매입했다고 가정
 
+profile:                         # 고객 분석 (engine/profile.py)
+  activity_days: 90              # 거래 빈도를 세는 기간
+  active_trade_days: 8           # 이 날수 이상 매매하면 '활발'
+  some_trade_days: 2             # 이 날수 이상이면 '보통', 아래면 '적음'
+  sector_interest: 0.3           # 보유 주식 중 이 비중 이상인 업종을 '관심 분야'로
+  bluechip_ratio: 0.7            # 우량주 비중 이 이상이면 우량주 중심
+  volatile_ratio: 0.5            # 고변동·레버리지 비중 이 이상이면 공격적
+  overseas_ratio: 0.3            # 해외주식 비중 이 이상이면 '해외주식'
+  cash_heavy_krw: 10000000       # 예수금 이 이상 +
+  cash_ratio: 0.5                # 총자산 중 예수금 비중 이 이상이면 '예수금 많음'
+
 priority:
   urgent_days: 7
   max_cards_customer: 3
