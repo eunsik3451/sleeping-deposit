@@ -1261,3 +1261,17 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .grp-h .ev.k-mat, .cal-key .ev.k-mat { background: #4E5968; } .grp-h .ev.k-rights, .cal-key .ev.k-rights { background: #8B95A1; }
 .grp-h .ev.k-tax, .cal-key .ev.k-tax { background: #B0B8C1; } .grp-h .ev.k-isa, .cal-key .ev.k-isa { background: #C9CED6; } .grp-h .ev.k-todo, .cal-key .ev.k-todo { background: #3182F6; }
 .tablewrap td.nowrap { white-space: nowrap; } .tablewrap td.nowrap small { color: #8B95A1; }
+
+/* 오늘 할 일: 진행 상황 크게, 하루 마감 요약, 완료 카드 체크 */
+.tk-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 14px; flex-wrap: wrap; }
+.tk-prog { min-width: 320px; background: #fff; border-radius: 16px; padding: 14px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.tk-prog .n { margin: 0; font-size: 1rem; color: #4E5968; } .tk-prog .n b { font-size: 1.7rem; color: #191F28; }
+.tk-prog .n small { margin-left: 6px; color: #8B95A1; font-size: .8rem; }
+.tk-prog .pbar { margin: 8px 0 6px; } .tk-prog > small { color: #8B95A1; font-size: .8rem; }
+.tk-done { display: flex; flex-direction: column; gap: 4px; background: #E8F3FF; color: #1B64DA; border-radius: 16px; padding: 16px 20px; margin: 0 0 18px; }
+.tk-done span { color: #4E5968; font-size: .88rem; }
+.tcard.st-done .ava { background: #3182F6; color: #fff; }
+/* 고객 앱: 장기로 놓치는 돈 */
+.hero .h-long { margin: 6px 0 0; font-size: .82rem; color: #4E5968; }
+/* 시장 이슈 신용 정렬 */
+.cr-sort { margin: 0 0 8px; }

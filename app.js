@@ -282,6 +282,7 @@
     } else if (r1) {
       hero = `<div class="hero"><p class="h-sub">${esc(c.name)}님,<br><b>${esc(r1.title)}</b></p>
         <p class="h-label">깨우면 1년에</p><p class="h-big">+${man(idles.reduce((s, f) => s + f.annual_projection_krw, 0))}</p>
+        <p class="h-long">그대로 두면 10년에 약 ${man(idles.reduce((s, f) => s + f.annual_projection_krw, 0) * 10)}, 20년에 약 ${man(idles.reduce((s, f) => s + f.annual_projection_krw, 0) * 20)}을 못 받아요</p>
         <button class="h-meta link" data-sheet="why:${esc(r1.finding_id)}">${idles.length === 1 ? esc(idles[0].amount_label.replace("놓친", "못 받은")) : "지난 90일 못 받은 이자"} ${man(idles.reduce((s, f) => s + f.amount_krw, 0))} · 근거 보기 ›</button>
 </div>`;
     } else if (items.length) {
@@ -1090,7 +1091,7 @@
   }
 
   // ════════════════ 시장 이슈: ① 어제(지난 거래일) 시장 ② 내 고객 보유 종목 움직임 ③ 평가금 변동 큰 고객 ④ 신용 위험 ════════════════
-  let mkv = { open: null, all: false };
+  let mkv = { open: null, all: false, csort: "ratio", csafe: false };
   // 시장 요약은 지난 거래일 마감 기준: 기준일 전날이면 '어제', 주말·휴일을 건너뛰었으면 '지난 거래일'
   const mkDay = () => { const r = new Date(MK.ref_date + "T00:00:00"); return (AS_OF - r) / 864e5 === 1 ? "어제" : "지난 거래일"; };
   const mkDate = () => { const r = new Date(MK.ref_date + "T00:00:00"); return `${r.getMonth() + 1}/${r.getDate()}(${"일월화수목금토"[r.getDay()]})`; };
@@ -1125,7 +1126,11 @@
     const byCust = {};
     pos.forEach(p => { const c = (byCust[p.customer_id] ||= { cid: p.customer_id, delta: 0, value: 0, items: [] }); c.delta += p.day_delta_krw; c.value += p.value_krw; c.items.push(p); });
     const movers = Object.values(byCust).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 10);
-    const credit = MK.credit.filter(b => b.kind !== "margin_safe" && inView(b.customer_id)).sort((a, b) => a.room - b.room);
+    const custTotal = cid => { const c = CUST[cid], k = c.balance.KRW || { cash: 0, auto_rp: 0 }, u = c.balance.USD;
+      return k.cash + (k.auto_rp || 0) + (u ? u.cash * u.rate : 0) + MK.positions.filter(p => p.customer_id === cid).reduce((s, p) => s + p.value_krw, 0); };
+    const creditAll = MK.credit.filter(b => inView(b.customer_id)).map(b => ({ ...b, share: b.credit_loan_krw / Math.max(1, custTotal(b.customer_id)) }));
+    const credit = creditAll.filter(b => mkv.csafe || b.kind !== "margin_safe")
+      .sort(mkv.csort === "share" ? (a, b) => b.share - a.share : (a, b) => a.ratio - b.ratio);
     const myDelta = pos.reduce((s, p) => s + p.day_delta_krw, 0), myValue = pos.reduce((s, p) => s + p.value_krw, 0);
     const sign = v => (v < 0 ? "−" : "+") + man(Math.abs(v));
 
@@ -1159,11 +1164,13 @@
       </section>
 
       <section class="panel">
-        <div class="bhead"><h2>신용 위험</h2><span class="sub">반대매매가 나기 전에 · 위험 ${MK.credit.filter(b => b.kind === "margin_call").length} · 경고 ${MK.credit.filter(b => b.kind === "margin_warn").length} · 주의 ${MK.credit.filter(b => b.kind === "margin_watch").length}</span></div>
+        <div class="bhead"><h2>신용 위험</h2><span class="sub">반대매매가 나기 전에 · 위험 ${creditAll.filter(b => b.kind === "margin_call").length} · 경고 ${creditAll.filter(b => b.kind === "margin_warn").length} · 주의 ${creditAll.filter(b => b.kind === "margin_watch").length} · 안전 ${creditAll.filter(b => b.kind === "margin_safe").length}</span></div>
+        <div class="chips cr-sort"><button class="chip ${mkv.csort !== "share" ? "on" : ""}" data-csort="ratio">담보비율 낮은 순</button><button class="chip ${mkv.csort === "share" ? "on" : ""}" data-csort="share">신용 비중 높은 순</button>
+          <button class="chip ${mkv.csafe ? "on" : ""}" data-csafe="1">안전까지 전체 ${creditAll.length}건</button></div>
         <ul class="rows compact">${credit.map(b => { const c = CUST[b.customer_id]; return `<li><a href="#client/${b.customer_id}"><span class="ava sm ${b.kind === "margin_call" || b.kind === "margin_warn" ? "warn" : ""}">${esc(c.name.slice(0, 1))}</span>
-          <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${esc(b.name)}</small><i>담보비율 ${ratioTxt(b.ratio)} · 기준가 ${won(b.trigger_price)}</i></span>
+          <span class="who"><b>${esc(c.name)}</b><small>${c.age}세 · ${esc(b.name)}</small><i>담보비율 ${ratioTxt(b.ratio)} · 신용 ${man(b.credit_loan_krw)}(자산의 ${Math.round(b.share * 100)}%) · 기준가 ${won(b.trigger_price)}</i></span>
           <span class="tag ${stageCls(b.kind)}">${STAGE[b.kind][0]}</span>
-          <span class="amt"><b class="${b.kind === "margin_call" ? "red" : "amber"}">${b.kind === "margin_call" ? man(b.shortfall_krw) : `−${(b.room * 100).toFixed(1)}%`}</b><small>${b.kind === "margin_call" ? "부족 담보" : "반대매매까지"}</small></span><span class="go">›</span></a></li>`; }).join("") || `<li class="empty">위험·경고·주의 고객이 없어요</li>`}</ul>
+          <span class="amt"><b class="${b.kind === "margin_call" ? "red" : b.kind === "margin_safe" ? "" : "amber"}">${b.kind === "margin_call" ? man(b.shortfall_krw) : `−${(b.room * 100).toFixed(1)}%`}</b><small>${b.kind === "margin_call" ? "부족 담보" : "반대매매까지"}</small></span><span class="go">›</span></a></li>`; }).join("") || `<li class="empty">위험·경고·주의 고객이 없어요</li>`}</ul>
       </section>
 
       <section class="panel mk-sum">
@@ -1173,6 +1180,8 @@
       </section></div>`;
     $app.querySelectorAll("[data-sym]").forEach(b => (b.onclick = () => { mkv.open = mkv.open === b.dataset.sym ? "__none" : b.dataset.sym; pageMarket(); }));
     $app.querySelector("#symAll").onclick = () => { mkv.all = !mkv.all; pageMarket(); };
+    $app.querySelectorAll("[data-csort]").forEach(b => (b.onclick = () => { mkv.csort = b.dataset.csort; pageMarket(); }));
+    $app.querySelectorAll("[data-csafe]").forEach(b => (b.onclick = () => { mkv.csafe = !mkv.csafe; pageMarket(); }));
   }
 
   // ════════════════ 고객 페이지: 오늘 연락할 내용 ════════════════
@@ -1526,7 +1535,7 @@
     if (usdB) k.push(["달러", usd(usdB.cash), ""]);
     k.push(["주식", pos.length ? man(stock) : "–", pos.length ? `어제 <span class="${day < 0 ? "dn" : "up"}">${day < 0 ? "−" : "+"}${man(Math.abs(day))}</span>` : ""]);
     if (loan) k.push(["신용", man(loan), worst ? `<em class="bad">${esc(STAGE[worst.kind][0])} · ${esc(worst.name)}</em>` : "안전"]);
-    if (extra) k.push(["더 받을 수 있는 돈", `+${man(extra)}`, "1년 RP 이자·세금 등"]);
+    if (extra) k.push(["더 받을 수 있는 돈", `+${man(extra)}`, r1 ? `RP 이자만 10년이면 약 ${man(r1.annual_projection_krw * 10)}` : "세금·청약 등"]);
     return k.map(([t, v, s]) => `<div><span>${t}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`).join("");
   }
   // 꼭 알아야 할 것: 위험·마감·쉬는 돈(엔진 순서) → 고객과 약속한 일 → 지난 통화 → 주의할 점. 최대 5개
@@ -1691,8 +1700,12 @@
     const done = core.filter(t => t.st === "done").length;
     const active = tasks.filter(t => !t.st), finished = tasks.filter(t => t.st === "done"), later = tasks.filter(t => t.st === "later");
     if (tk.open && !active.some(t => t.c.id === tk.open)) tk.open = null;   // 카드는 접힌 상태가 기본, 누르면 통화 문구가 펼쳐진다
+    const restWeek = active.filter(t => t.g === "week" || t.g === "later").length;
     $app.innerHTML = `<div class="pg tasks">
-      <div class="pg-head"><div><h1>오늘 할 일</h1><p class="sub">오늘 꼭 할 일 <b>${done} / ${core.length}</b> 완료 · 지금 바로 + 오늘 중</p></div><div class="pbar slim"><i style="width:${core.length ? done / core.length * 100 : 100}%"></i></div></div>
+      <div class="tk-top"><div><h1>오늘 할 일</h1><p class="sub">찾는 일은 사이로그가 끝냈어요. 위에서부터 연락하고 체크만 하세요.</p></div>
+        <div class="tk-prog"><p class="n"><b>${done}</b> / ${core.length}명 <small>오늘 꼭 연락할 고객 완료</small></p><div class="pbar"><i style="width:${core.length ? done / core.length * 100 : 100}%"></i></div>
+          <small>완료 ${finished.length} · 내일로 ${later.length} · 이번 주·시간 날 때 ${restWeek}</small></div></div>
+      ${core.length && done === core.length ? `<div class="tk-done"><b>오늘 꼭 연락할 고객을 모두 챙겼어요 ✓</b><span>완료 ${finished.length}명 · 내일로 ${later.length}명 · 이번 주에 남은 고객 ${restWeek}명</span></div>` : ""}
       ${GROUPS.map(([k, t, d]) => { const list = active.filter(x => x.g === k); if (!list.length) return "";
         return `<h2 class="sec"><span class="dot g-${k}"></span>${t} <small>${list.length}명</small></h2><div class="tcards">${list.map(t => taskCard(t)).join("")}</div>`; }).join("") || `<div class="panel"><p class="sub">남은 할 일이 없어요.</p></div>`}
       ${later.length ? `<h2 class="sec muted">내일로 미룬 고객 <small>${later.length}명</small></h2><div class="tcards">${later.map(t => taskCard(t, true)).join("")}</div>` : ""}
@@ -1701,13 +1714,16 @@
     $app.querySelectorAll("[data-open]").forEach(b => (b.onclick = () => { tk.open = tk.open === b.dataset.open ? "__" : b.dataset.open; pageTasks(); }));
     $app.querySelectorAll("[data-call]").forEach(b => (b.onclick = e => { e.stopPropagation(); callNow(b.dataset.call); if (tk.open !== b.dataset.call) { tk.open = b.dataset.call; pageTasks(); } }));
     $app.querySelectorAll("[data-tst]").forEach(b => (b.onclick = e => { e.stopPropagation(); const [cid, st] = b.dataset.tst.split("|");
-      setTask(cid, st === "undo" ? null : st); toast(st === "done" ? "완료했어요" : st === "later" ? "내일로 미뤘어요" : "되돌렸어요"); pageTasks(); }));
+      setTask(cid, st === "undo" ? null : st);
+      const nx = st === "undo" ? null : myTasks().find(t => !t.st);   // 완료·미루면 다음 고객 카드를 바로 펼친다
+      if (nx) tk.open = nx.c.id;
+      toast(st === "done" ? `완료했어요${nx ? ` · 다음은 ${CUST[nx.c.id].name}님` : ""}` : st === "later" ? "내일로 미뤘어요" : "되돌렸어요"); pageTasks(); }));
   }
   function taskCard(t, compact) {
     const it = t.item, open = !compact && tk.open === t.c.id, cid = t.c.id;
     const lines = it ? keyLines(it.script) : [];
     return `<article class="tcard ${open ? "open" : ""} ${t.st ? "st-" + t.st : ""}">
-      <button class="tc-head" data-open="${cid}"><span class="ava">${esc(t.c.name.slice(0, 1))}</span>
+      <button class="tc-head" data-open="${cid}"><span class="ava">${t.st === "done" ? "✓" : esc(t.c.name.slice(0, 1))}</span>
         <span class="who"><b>${esc(t.c.name)}</b><small>${t.c.age}세${t.n > 1 ? ` · 외 ${t.n - 1}건` : ""}</small><i>${esc(it ? it.title : "")}</i>${it && !open ? `<em class="tc-todo-s">${esc(it.todo)}</em>` : ""}</span>
         ${it && it.amount ? `<span class="tc-amt">${esc(it.amount.split(" ")[0])}<small>${esc(it.amount.split(" ").slice(1).join(" "))}</small></span>` : "<span></span>"}
         <span class="tc-more">${compact ? "" : open ? "접기 ⌃" : "통화 문구 ⌄"}</span></button>
@@ -1805,7 +1821,8 @@
       const items = contactItems(c.id);
       const fund = (D.details[c.id].products || []).reduce((a, p) => a + p.amount, 0);
       return { c, g: taskGroup(c.id), item: items[0], n: items.length, lc: lastContact(c.id), cash, krwCash: krw.cash, stock, delta, total: cash + stock + fund,
-        idle: r1 ? r1.meta.idle_krw : 0, streak: r1 ? r1.meta.streak : 0, worst };
+        idle: r1 ? r1.meta.idle_krw : 0, streak: r1 ? r1.meta.streak : 0, worst,
+        cratio: MK && MK.credit.some(b => b.customer_id === c.id) ? Math.min(...MK.credit.filter(b => b.customer_id === c.id).map(b => b.ratio)) : null };
     });
     const cnt = {}; all.forEach(x => x.g && (cnt[x.g] = (cnt[x.g] || 0) + 1));
     const secCnt = {};   // 업종 관심만 (절세 관심 같은 상황 태그는 제외) — 분석 탭과 같은 기준(비중 30% 이상)
@@ -1815,8 +1832,8 @@
     const secPct = x => (D.details[x.c.id].profile.sectors.find(s => s.name === cm.sec) || { pct: 0 }).pct;
     const lcDays = x => x.lc ? x.lc.days : 9999;
     const KEY = { urgent: x => -((x.g ? GROUPS.findIndex(g => g[0] === x.g) : 9)), total: x => x.total, cash: x => x.krwCash, stock: x => x.stock,
-      contact: x => lcDays(x), interest: x => cm.sec ? secPct(x) : (x.c.prof.top_pct || 0) };
-    const sorted = () => all.filter(x => (!cm.g || x.g === cm.g) && (!cm.sec || x.c.prof.tags.includes(cm.sec + " 관심")) && (!cm.q || (x.c.id + x.c.name).includes(cm.q)))
+      contact: x => lcDays(x), interest: x => cm.sec ? secPct(x) : (x.c.prof.top_pct || 0), credit: x => x.cratio == null ? 99 : x.cratio };
+    const sorted = () => all.filter(x => (!cm.g || (cm.g === "credit" ? x.cratio != null : x.g === cm.g)) && (!cm.sec || x.c.prof.tags.includes(cm.sec + " 관심")) && (!cm.q || (x.c.id + x.c.name).includes(cm.q)))
       .sort((a, b) => (KEY[cm.sort](b) - KEY[cm.sort](a)) * -cm.dir || a.c.name.localeCompare(b.c.name));
     const sum = k => all.reduce((s, x) => s + x[k], 0), idleN = all.filter(x => x.idle).length;
     const COLS = [["", "고객"], ["", "상황"], ["total", "총자산"], ["cash", "예수금"], ["stock", "주식"], ["interest", "관심·스타일"], ["contact", "연락"]];
@@ -1835,9 +1852,10 @@
     const ev = cm.sec ? (D.events || []).filter(e => e.tags.includes(cm.sec)) : [];
     $app.innerHTML = `<div class="pg cmp">
       <div class="pg-head"><div><h1>고객 관리</h1>
-        <p class="sub">${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 ${all.length}명 · 총자산 ${man(sum("total"))} · 예수금 ${man(sum("krwCash"))} · 쉬는 돈 ${man(sum("idle"))} (${idleN}명)</p></div>
+        <p class="sub">PB 지정·개인정보 제공 동의 고객 · ${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 ${all.length}명 · 총자산 ${man(sum("total"))} · 예수금 ${man(sum("krwCash"))} · 쉬는 돈 ${man(sum("idle"))} (${idleN}명)</p></div>
         <input class="pill" type="search" id="cmq" placeholder="이름이나 고객번호" value="${esc(cm.q)}"></div>
-      <div class="chips">${[["", "전체", all.length], ...GROUPS.map(([k, t]) => [k, t, cnt[k] || 0])].map(([k, t, n]) => `<button class="chip ${cm.g === k ? "on" : ""}" data-g="${k}">${t} <em>${n}</em></button>`).join("")}</div>
+      <div class="chips">${[["", "전체", all.length], ...GROUPS.map(([k, t]) => [k, t, cnt[k] || 0])].map(([k, t, n]) => `<button class="chip ${cm.g === k ? "on" : ""}" data-g="${k}">${t} <em>${n}</em></button>`).join("")}
+        <button class="chip ${cm.g === "credit" ? "on" : ""}" data-g="credit">신용 사용 <em>${all.filter(x => x.cratio != null).length}</em></button></div>
       <div class="chips sec"><span class="lbl">관심 분야</span>${sectors.map(([s, n]) => `<button class="chip ${cm.sec === s ? "on" : ""}" data-sec="${esc(s)}">${esc(s)} <em>${n}</em></button>`).join("")}
         ${ev.length ? `<span class="evs">안내할 행사 ${ev.map(e => `<i>${esc(e.title)} <small>${+e.date.slice(5, 7)}/${+e.date.slice(8)}</small></i>`).join("")}</span>` : ""}</div>
       <ul class="cm-list">${list()}</ul></div>`;
@@ -1846,7 +1864,8 @@
     };
     const redraw = () => { $app.querySelector(".cm-list").innerHTML = list(); bind(); };
     bind();
-    $app.querySelectorAll("[data-g]").forEach(b => (b.onclick = () => { cm.g = b.dataset.g; pageClientsMgmt(); }));
+    $app.querySelectorAll("[data-g]").forEach(b => (b.onclick = () => { cm.g = b.dataset.g;
+      if (cm.g === "credit") { cm.sort = "credit"; cm.dir = 1; } else if (cm.sort === "credit") { cm.sort = "urgent"; cm.dir = -1; } pageClientsMgmt(); }));
     $app.querySelectorAll("[data-sec]").forEach(b => (b.onclick = () => { cm.sec = cm.sec === b.dataset.sec ? "" : b.dataset.sec; cm.sort = cm.sec ? "interest" : "urgent"; cm.dir = -1; pageClientsMgmt(); }));
     const inp = $app.querySelector("#cmq");   // 검색은 목록만 다시 그린다 (입력칸을 다시 만들면 한글 조합이 끊김)
     inp.oninput = () => { cm.q = inp.value.trim(); redraw(); };
@@ -1871,10 +1890,9 @@
     const TABS = [["overview", "개요"], ["analysis", "분석"], ["holdings", `보유 종목 ${pos.length}`], ["calls", `통화 ${calls.length}`], ["plan", "일정·알림"]];
     const lines = lead ? keyLines(lead.script) : [];
     let body = "";
-    const diagHtml = cv.tab === "overview" ? diagnosisCard(cid) : "";   // 쉬는 예수금 진단이 없으면 개요 탭은 한 열로
-    if (cv.tab === "overview") body = mustKnow(cid, lead ? items.slice(1) : items, openTodos, last, consent) + `<div class="ov-grid${diagHtml ? "" : " one"}">${diagHtml ? `<div class="col">${diagHtml}</div>` : ""}<div class="col">
-        ${D.details[cid].trend.start ? `<section class="panel"><div class="bhead"><h2>자산 잔고 추이</h2><span class="sub">최근 6개월 · 만원</span></div>${assetChart(cid)}</section>` : ""}
-        ${others.length ? `<section class="panel"><div class="bhead"><h2>함께 챙길 것</h2></div><ul class="items">${others.map(f => `<li class="static"><span><b>${esc(headline(f))}</b><small>${SHORT[f.rule]}${f.deadline ? ` · 마감 ${f.deadline.slice(5).replace("-", "/")}` : ""}</small></span><em>${amtText(f)}</em></li>`).join("")}</ul></section>` : ""}
+    // 개요: 그 밖에 알아야 할 것 → 자산 잔고 추이 | 해야 할 일 (쉬는 돈·세금 항목은 머리 카드와 '그 밖에'에서 통화 문구까지)
+    const trendOn = D.details[cid].trend.start;
+    if (cv.tab === "overview") body = mustKnow(cid, lead ? items.slice(1) : items, openTodos, last, consent) + `<div class="ov-grid${trendOn ? "" : " one"}">${trendOn ? `<div class="col"><section class="panel"><div class="bhead"><h2>자산 잔고 추이</h2><span class="sub">최근 6개월 · 만원</span></div>${assetChart(cid)}</section></div>` : ""}<div class="col">
         <section class="panel"><div class="bhead"><h2>해야 할 일</h2><span class="sub">${openTodos.length}건</span></div><ul class="todo-list">${openTodos.map(t => `<li><label><input type="checkbox" data-done="${t.call}|${t.i}"> <span>${esc(t.text)}</span></label><em class="${t.due && t.due <= ymd(new Date()) ? "red" : ""}">${esc(t.dueLabel)}</em></li>`).join("") || `<li class="empty">통화에서 나온 할 일이 없어요</li>`}</ul></section></div></div>`;
     else if (cv.tab === "analysis") body = profileTab(cid);
     else if (cv.tab === "holdings") body = `<div class="ov-grid"><div class="col"><section class="panel"><div class="bhead"><h2>자산 구성</h2><span class="sub">주식·예수금·상품을 한눈에</span></div>${assetMix(cid).html}</section>
