@@ -1275,3 +1275,33 @@ body.custapp .device { position: static; height: min(820px, calc(100vh - 48px));
 .hero .h-long { margin: 6px 0 0; font-size: .82rem; color: #4E5968; }
 /* 시장 이슈 신용 정렬 */
 .cr-sort { margin: 0 0 8px; }
+
+/* 고객 관리 요약 카드 — 누르면 아래 목록이 걸러짐 */
+.cm-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 4px 0 14px; }
+.cm-kpi { text-align: left; background: #fff; border: 2px solid transparent; border-radius: 20px; padding: 18px 20px; cursor: pointer; font: inherit; color: inherit; }
+.cm-kpi:hover { border-color: #E5E8EB; }
+.cm-kpi.on { border-color: #3182F6; }
+.cm-kpi span { display: block; color: #6B7684; font-size: 0.86rem; font-weight: 600; }
+.cm-kpi b { display: block; font-size: 1.7rem; font-weight: 800; letter-spacing: -0.5px; margin: 6px 0 4px; }
+.cm-kpi small { display: block; color: #6B7684; font-size: 0.8rem; }
+.cm-kpi.warn b { color: #B8860B; }
+.cm-note { margin-left: 8px; color: #6B7684; font-size: 0.8rem; }
+.st.idle-st small { display: block; color: #1B64DA; font-weight: 600; margin-top: 2px; }
+@media (max-width: 900px) { .cm-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* 고객 상세: 분석 프로필 카드 */
+.c360-prof { position: relative; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px 28px; margin-top: 16px; padding: 20px 22px; background: #F4F8FF; border-radius: 18px; }
+.c360-prof .cp-lbl { display: inline-block; font-size: 0.78rem; font-weight: 700; color: #1B64DA; margin-bottom: 6px; }
+.c360-prof h2 { margin: 0 0 10px; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.3px; line-height: 1.4; }
+.cp-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.cp-tags i { font-style: normal; font-size: 0.82rem; font-weight: 600; color: #1B64DA; background: #fff; border-radius: 8px; padding: 4px 10px; }
+.cp-gap { margin: 10px 0 0; color: #C27800; font-weight: 600; font-size: 0.88rem; }
+.cp-off { margin: 12px 0 0; font-size: 0.9rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cp-off span { color: #6B7684; font-weight: 600; margin-right: 4px; }
+.cp-off em { color: #B0B8C1; font-style: normal; }
+.cp-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin: 0; align-content: center; }
+.cp-facts dt { color: #6B7684; font-size: 0.8rem; }
+.cp-facts dd { margin: 2px 0 0; font-weight: 700; font-size: 1rem; }
+.cp-more { position: absolute; top: 16px; right: 18px; background: none; border: 0; color: #1B64DA; font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer; }
+@media (max-width: 900px) { .c360-prof { grid-template-columns: 1fr; } }
+.cp-facts { padding-top: 18px; }

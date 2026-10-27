@@ -1776,6 +1776,21 @@
 
   // ════════════════ 고객 분석 (PB용 '분석' 탭) ════════════════
   // 보유 종목·거래 빈도·자산 구성으로 관심 분야와 투자 스타일을 보여 주고, 맞는 행사·상품 상담 방향을 정리한다
+  function profCard(cid) {
+    const p = D.details[cid].profile;
+    if (!p) return "";
+    const pc = x => `${Math.round(x * 100)}%`, top = p.sectors[0];
+    const facts = [["관심 업종", top ? `${top.name} ${pc(top.pct)}` : "보유 주식 없음"], ["투자 스타일", p.style],
+      ["예수금 비중", pc(p.mix.cash_ratio)], ["거래", `90일 중 ${p.trade_days}일 · ${p.activity}`]];
+    const offers = p.offers.filter(o => !o.t.startsWith("쉬는 예수금")).slice(0, 2);   // 쉬는 돈은 아래 할 일·KPI에서 따로 보여 줌
+    return `<div class="c360-prof">
+      <div class="cp-main"><span class="cp-lbl">고객 분석</span><h2>${esc(p.summary)}</h2>
+        <div class="cp-tags">${p.tags.filter(t => t !== "거래 보통").map(t => `<i>${esc(t)}</i>`).join("")}</div>
+        ${p.gap ? `<p class="cp-gap">${esc(p.gap)}</p>` : ""}
+        ${offers.length ? `<p class="cp-off"><span>상담 방향</span>${offers.map(o => `<b>${esc(o.t)}</b>`).join("<em>·</em>")}</p>` : ""}</div>
+      <dl class="cp-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
+      <button class="cp-more" data-ctab="analysis">분석 자세히 ›</button></div>`;
+  }
   function profileTab(cid) {
     const p = D.details[cid].profile, c = CUST[cid];
     if (!p) return `<section class="panel"><p class="sub">분석 데이터가 없어요.</p></section>`;
@@ -1810,6 +1825,8 @@
   // 한눈에 보고 분류하는 표: 상태 칩(지금 바로·오늘 중·이번 주·시간 날 때) + 관심 분야 칩 + 검색. 정렬은 표 머리글을 눌러서
   // 줄마다 상황 · 총자산 · 예수금(쉬는 돈) · 주식(어제 변동·신용) · 관심·스타일 · 마지막 연락
   let cm = { g: "", sec: "", q: "", sort: "urgent", dir: -1 };
+  // 쉬는 돈 유형별로 PB가 할 활용 상담 (대신 사고팔지 않음 — 고객이 직접 결정)
+  const IDLE_USE = { "장기방치형": "쓸 계획부터 여쭤보고 성향에 맞는 상품 상담", "매매대기형": "매수 대기 자금 · 예수금 자동 RP 안내", "이벤트유입형": "만기·상환금 입금 · 재투자 방향 상담" };
   function pageClientsMgmt() {
     const all = D.customers.filter(c => inView(c.id)).map(c => {
       const krw = c.balance.KRW || { cash: 0, auto_rp: 0 }, usd = c.balance.USD;
@@ -1821,7 +1838,7 @@
       const items = contactItems(c.id);
       const fund = (D.details[c.id].products || []).reduce((a, p) => a + p.amount, 0);
       return { c, g: taskGroup(c.id), item: items[0], n: items.length, lc: lastContact(c.id), cash, krwCash: krw.cash, stock, delta, total: cash + stock + fund,
-        idle: r1 ? r1.meta.idle_krw : 0, streak: r1 ? r1.meta.streak : 0, worst,
+        idle: r1 ? r1.meta.idle_krw : 0, streak: r1 ? r1.meta.streak : 0, r1, worst,
         cratio: MK && MK.credit.some(b => b.customer_id === c.id) ? Math.min(...MK.credit.filter(b => b.customer_id === c.id).map(b => b.ratio)) : null };
     });
     const cnt = {}; all.forEach(x => x.g && (cnt[x.g] = (cnt[x.g] || 0) + 1));
@@ -1832,17 +1849,24 @@
     const secPct = x => (D.details[x.c.id].profile.sectors.find(s => s.name === cm.sec) || { pct: 0 }).pct;
     const lcDays = x => x.lc ? x.lc.days : 9999;
     const KEY = { urgent: x => -((x.g ? GROUPS.findIndex(g => g[0] === x.g) : 9)), total: x => x.total, cash: x => x.krwCash, stock: x => x.stock,
-      contact: x => lcDays(x), interest: x => cm.sec ? secPct(x) : (x.c.prof.top_pct || 0), credit: x => x.cratio == null ? 99 : x.cratio };
-    const sorted = () => all.filter(x => (!cm.g || (cm.g === "credit" ? x.cratio != null : x.g === cm.g)) && (!cm.sec || x.c.prof.tags.includes(cm.sec + " 관심")) && (!cm.q || (x.c.id + x.c.name).includes(cm.q)))
+      contact: x => lcDays(x), interest: x => cm.sec ? secPct(x) : (x.c.prof.top_pct || 0), credit: x => x.cratio == null ? 99 : x.cratio, idle: x => x.idle, streak: x => x.streak, year: x => x.r1 ? x.r1.annual_projection_krw : 0 };
+    const isGrp = k => GROUPS.some(g => g[0] === k);
+    const pass = x => !cm.g || (cm.g === "credit" ? x.cratio != null : cm.g === "idle" ? x.idle > 0 : cm.g === "contact" ? !!x.g : x.g === cm.g);
+    const sorted = () => all.filter(x => pass(x) && (!cm.sec || x.c.prof.tags.includes(cm.sec + " 관심")) && (!cm.q || (x.c.id + x.c.name).includes(cm.q)))
       .sort((a, b) => (KEY[cm.sort](b) - KEY[cm.sort](a)) * -cm.dir || a.c.name.localeCompare(b.c.name));
     const sum = k => all.reduce((s, x) => s + x[k], 0), idleN = all.filter(x => x.idle).length;
+    const idleYear = all.reduce((s, x) => s + (x.r1 ? x.r1.annual_projection_krw : 0), 0), idleMiss = all.reduce((s, x) => s + (x.r1 ? x.r1.amount_krw : 0), 0);
+    const conN = all.filter(x => x.g).length, crN = all.filter(x => x.cratio != null).length, crBad = all.filter(x => x.worst).length;
+    const card = (k, t, big, small, cls = "") => `<button class="cm-kpi ${cls} ${(cm.g === k || (k === "contact" && isGrp(cm.g))) ? "on" : ""}" data-g="${k}"><span>${t}</span><b>${big}</b><small>${small}</small></button>`;
+    const subChips = cm.g === "idle" ? `<div class="chips"><span class="lbl">정렬</span>${[["idle", "쉬는 돈 큰 순"], ["streak", "오래 쉰 순"], ["year", "1년 이자 큰 순"]].map(([k, t]) => `<button class="chip ${cm.sort === k ? "on" : ""}" data-isort="${k}">${t}</button>`).join("")}<span class="cm-note">쉬는 돈은 고객이 쓸 계획을 먼저 확인하고, 성향에 맞는 활용 방법을 상담해요 · 대신 사고팔지 않아요</span></div>`
+      : (cm.g === "contact" || isGrp(cm.g)) ? `<div class="chips">${[["contact", "전체", conN], ...GROUPS.map(([k, t]) => [k, t, cnt[k] || 0])].map(([k, t, n]) => `<button class="chip ${cm.g === k ? "on" : ""}" data-g="${k}">${t} <em>${n}</em></button>`).join("")}</div>` : "";
     const COLS = [["", "고객"], ["", "상황"], ["total", "총자산"], ["cash", "예수금"], ["stock", "주식"], ["interest", "관심·스타일"], ["contact", "연락"]];
     const arrow = k => cm.sort === k ? (cm.dir < 0 ? " ↓" : " ↑") : "";
     const head = () => `<li class="cm-head">${COLS.map(([k, t]) => k ? `<button class="${cm.sort === k ? "on" : ""}" data-sort="${k}">${t}${arrow(k)}</button>` : `<span>${t}</span>`).join("")}</li>`;
     const row = x => { const c = x.c, p = c.prof, top = p.top && p.top_pct >= 0.3 ? `${p.top} ${Math.round(p.top_pct * 100)}%` : "";
       return `<li><a class="cm-row" href="#client/${c.id}">
         <span class="who"><span class="ava">${esc(c.name.slice(0, 1))}</span><span><b>${esc(c.name)}</b><small>${c.age}세 · ${esc(c.risk)}</small></span></span>
-        <span class="st">${x.g ? `<i class="tag ${tagCls(x.g)}">${GROUPS.find(g => g[0] === x.g)[1]}</i>` : ""}<span>${esc(x.item ? x.item.title : "챙길 것 없음")}${x.n > 1 ? ` <small>외 ${x.n - 1}</small>` : ""}</span></span>
+        ${cm.g === "idle" && x.r1 ? `<span class="st idle-st"><i class="tag s-idle">${esc(x.r1.subtype_label.replace("형", ""))}</i><span><b>${x.streak}일째 쉬는 중</b> · 놓친 이자 ${man(x.r1.amount_krw)}<small>${esc(IDLE_USE[x.r1.subtype_label] || "활용 방법 상담")}</small></span></span>` : `<span class="st">${x.g ? `<i class="tag ${tagCls(x.g)}">${GROUPS.find(g => g[0] === x.g)[1]}</i>` : ""}<span>${esc(x.item ? x.item.title : "챙길 것 없음")}${x.n > 1 ? ` <small>외 ${x.n - 1}</small>` : ""}</span></span>`}
         <span class="num"><b>${man(x.total)}</b></span>
         <span class="num"><b>${man(x.krwCash)}</b><small class="${x.idle ? "idle" : ""}">${x.idle ? `쉬는 돈 ${man(x.idle)} · ${x.streak}일` : c.auto ? "자동 RP 이용" : ""}</small></span>
         <span class="num"><b>${x.stock ? man(x.stock) : "–"}</b><small>${x.stock ? `<i class="${x.delta < 0 ? "dn" : "up"}">${x.delta < 0 ? "−" : "+"}${man(Math.abs(x.delta))}</i>` : ""}${x.worst ? ` <i class="cg-tag ${stageCls(x.worst.kind)}">신용 ${STAGE[x.worst.kind][0]}</i>` : ""}</small></span>
@@ -1852,10 +1876,10 @@
     const ev = cm.sec ? (D.events || []).filter(e => e.tags.includes(cm.sec)) : [];
     $app.innerHTML = `<div class="pg cmp">
       <div class="pg-head"><div><h1>고객 관리</h1>
-        <p class="sub">PB 지정·개인정보 제공 동의 고객 · ${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 ${all.length}명 · 총자산 ${man(sum("total"))} · 예수금 ${man(sum("krwCash"))} · 쉬는 돈 ${man(sum("idle"))} (${idleN}명)</p></div>
+        <p class="sub">PB 지정·개인정보 제공 동의 고객 · ${S.pbSel === "ALL" ? "전체 PB" : S.pbSel} 담당 ${all.length}명</p></div>
         <input class="pill" type="search" id="cmq" placeholder="이름이나 고객번호" value="${esc(cm.q)}"></div>
-      <div class="chips">${[["", "전체", all.length], ...GROUPS.map(([k, t]) => [k, t, cnt[k] || 0])].map(([k, t, n]) => `<button class="chip ${cm.g === k ? "on" : ""}" data-g="${k}">${t} <em>${n}</em></button>`).join("")}
-        <button class="chip ${cm.g === "credit" ? "on" : ""}" data-g="credit">신용 사용 <em>${all.filter(x => x.cratio != null).length}</em></button></div>
+      <div class="cm-kpis">${card("", "관리 자산", man(sum("total")), `고객 ${all.length}명 · 예수금 ${man(sum("krwCash"))}`)}${card("idle", "쉬는 돈", man(sum("idle")), `${idleN}명 · 1년이면 이자 약 ${man(idleYear)}`, "warn")}${card("contact", "연락이 필요한 고객", conN + "명", `지금 바로 ${cnt.now || 0} · 오늘 중 ${cnt.today || 0} · 이번 주 ${cnt.week || 0}`)}${card("credit", "신용 사용", crN + "명", `반대매매 주의 ${crBad}명`)}</div>
+      ${subChips}
       <div class="chips sec"><span class="lbl">관심 분야</span>${sectors.map(([s, n]) => `<button class="chip ${cm.sec === s ? "on" : ""}" data-sec="${esc(s)}">${esc(s)} <em>${n}</em></button>`).join("")}
         ${ev.length ? `<span class="evs">안내할 행사 ${ev.map(e => `<i>${esc(e.title)} <small>${+e.date.slice(5, 7)}/${+e.date.slice(8)}</small></i>`).join("")}</span>` : ""}</div>
       <ul class="cm-list">${list()}</ul></div>`;
@@ -1865,7 +1889,8 @@
     const redraw = () => { $app.querySelector(".cm-list").innerHTML = list(); bind(); };
     bind();
     $app.querySelectorAll("[data-g]").forEach(b => (b.onclick = () => { cm.g = b.dataset.g;
-      if (cm.g === "credit") { cm.sort = "credit"; cm.dir = 1; } else if (cm.sort === "credit") { cm.sort = "urgent"; cm.dir = -1; } pageClientsMgmt(); }));
+      if (cm.g === "credit") { cm.sort = "credit"; cm.dir = 1; } else if (cm.g === "idle") { cm.sort = "idle"; cm.dir = -1; } else if (["credit", "idle", "streak", "year"].includes(cm.sort)) { cm.sort = "urgent"; cm.dir = -1; } pageClientsMgmt(); }));
+    $app.querySelectorAll("[data-isort]").forEach(b => (b.onclick = () => { cm.sort = b.dataset.isort; cm.dir = -1; pageClientsMgmt(); }));
     $app.querySelectorAll("[data-sec]").forEach(b => (b.onclick = () => { cm.sec = cm.sec === b.dataset.sec ? "" : b.dataset.sec; cm.sort = cm.sec ? "interest" : "urgent"; cm.dir = -1; pageClientsMgmt(); }));
     const inp = $app.querySelector("#cmq");   // 검색은 목록만 다시 그린다 (입력칸을 다시 만들면 한글 조합이 끊김)
     inp.oninput = () => { cm.q = inp.value.trim(); redraw(); };
@@ -1914,9 +1939,9 @@
       <a class="crumb" href="#clients">‹ 고객 관리</a>
       <section class="c360-top">
         <div class="c360-head"><span class="ava lg">${esc(c.name.slice(0, 1))}</span>
-          <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · ${consent.length ? "광고 동의 " + consent.join("·") : "광고 미동의 · PB 연락만"} · 담당 ${c.pb}</p>
-            ${c.prof ? `<button class="psum" data-ctab="analysis">${esc(c.prof.summary)}<span>${c.prof.tags.filter(t => t !== "거래 보통").slice(0, 4).map(t => `<i>${esc(t)}</i>`).join("")}</span></button>` : ""}</div>
+          <div class="c360-id"><h1>${esc(c.name)}님 <small>${cid}</small></h1><p class="sub">${c.age}세 · ${esc(c.risk)} · 담당 ${c.pb}</p></div>
           ${contactBadge(cid)}</div>
+        ${profCard(cid)}
         <div class="ckpis">${clientKpis(cid, { total, krw, usdB, pos, stock, loan, credit })}</div>
         ${lead ? `<div class="today-row ${g === "now" ? "hot" : ""}">
           <div class="tr-main"><span class="tag ${tagCls(g)}">${g ? GROUPS.find(x => x[0] === g)[1] : "참고"}</span><div><b>${esc(lead.title)}</b><small>${esc(lead.todo)}</small></div></div>
