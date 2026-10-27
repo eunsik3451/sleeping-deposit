@@ -376,7 +376,7 @@ def generate(cfg, seed=None) -> dict:
             "risk_profile": prng.choice(RISK_PROFILES, p=[0.15, 0.20, 0.30, 0.20, 0.15]),
             "risk_profile_date": diag,
             "income_band": prng.choice(["low", "mid", "high"], p=[0.3, 0.5, 0.2]),
-            "pb_id": f"PB{int(prng.integers(1, 11)):02d}",
+            "pb_id": f"PB{(int(prng.integers(1, 11)) - 1) % cfg['demo'].get('pb_count', 10) + 1:02d}",   # 난수는 그대로 뽑아 다른 값이 바뀌지 않게
             "auto_rp_enabled": seg == "auto_rp",
             "auto_rp_keep_krw": auto_keep,
             "consent_push_ad": not no_ad,

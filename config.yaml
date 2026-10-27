@@ -88,4 +88,5 @@ priority:
 demo:
   seed: 42
   n_customers: 302              # 데모 고객 4명 + 테스트 고객 2명(조은식·김지혁) + 일반 296명
+  pb_count: 1                   # 일반 고객을 나눌 PB 수. 1이면 PB01 한 명이 전부 담당(관리 고객이 많은 상황 시연)
   history_days: 180
