@@ -72,7 +72,16 @@ def main():
     raw.index = pd.to_datetime(raw.index).tz_localize(None).normalize()
     cutoff = pd.Timestamp(args.date) if args.date else pd.Timestamp.today().normalize() - pd.Timedelta(days=1)
     raw = raw.loc[:cutoff]
-    closes = raw[list(universe.ticker)].rename(columns=dict(zip(universe.ticker, universe.symbol)))
+    # yfinance 일별 시세가 미국 종목의 마지막 거래일만 비워 둘 때가 있다 (지수는 있음) → 그날 장중 거래가 있으면 종가로 채운다
+    us_day = raw["^GSPC"].dropna().index[-1] if "^GSPC" in raw and raw["^GSPC"].notna().any() else None
+    for t in universe[universe.currency == "USD"].ticker:
+        if us_day is not None and pd.isna(raw.at[us_day, t]):
+            tk = yf.Ticker(t)
+            bars = tk.history(period="5d", interval="1h")
+            if len(bars) and (bars.index.tz_localize(None).normalize() == us_day).any():
+                raw.at[us_day, t] = float(tk.fast_info.last_price)
+                print(f"  {t} {us_day:%Y-%m-%d} 일별 종가 빈칸 → 장 마감 가격 {raw.at[us_day, t]}로 채움")
+    closes =raw[list(universe.ticker)].rename(columns=dict(zip(universe.ticker, universe.symbol)))
     fx = raw["KRW=X"].dropna()
 
     # 기준일 = 국내 종목이 마지막으로 거래된 날 (해외는 그 날짜까지의 마지막 종가)
